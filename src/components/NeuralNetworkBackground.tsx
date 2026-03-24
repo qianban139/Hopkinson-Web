@@ -1,5 +1,5 @@
 // src/components/NeuralNetworkBackground.tsx
-// 绚丽科技感背景 — 大量粒子 + 星云极光 + 能量脉冲 + 流星 + 神经网络
+// 沉浸式科技背景 — 流畅粒子 + 柔和星云 + 流星 + 神经网络
 import { useEffect, useRef, useCallback } from 'react';
 
 interface Node {
@@ -20,7 +20,7 @@ interface FloatingShape {
 interface Particle {
   x: number; y: number; vx: number; vy: number;
   life: number; maxLife: number; size: number; color: number;
-  type: 'float' | 'spark' | 'firefly';
+  type: 'float' | 'glow';
 }
 
 interface RippleWave {
@@ -67,49 +67,49 @@ export default function NeuralNetworkBackground() {
   const frameCountRef = useRef(0);
 
   const initScene = useCallback((w: number, h: number) => {
-    // 神经网络节点 (70个)
-    const count = Math.min(70, Math.floor((w * h) / 18000));
+    // 神经网络节点 (65个)
+    const count = Math.min(65, Math.floor((w * h) / 20000));
     const nodes: Node[] = [];
     for (let i = 0; i < count; i++) {
       nodes.push({
         x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
-        radius: Math.random() * 3 + 1.5,
-        opacity: Math.random() * 0.6 + 0.3,
+        vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+        radius: Math.random() * 2.5 + 1.5,
+        opacity: Math.random() * 0.5 + 0.3,
         layer: Math.floor(Math.random() * 7),
         pulsePhase: Math.random() * Math.PI * 2,
       });
     }
     nodesRef.current = nodes;
 
-    // 浮动几何体 (12个)
+    // 浮动几何体 (10个)
     const shapes: FloatingShape[] = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 10; i++) {
       const sides = [3, 4, 5, 6, 8][Math.floor(Math.random() * 5)];
       shapes.push({
         x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.12, vy: (Math.random() - 0.5) * 0.12,
+        vx: (Math.random() - 0.5) * 0.08, vy: (Math.random() - 0.5) * 0.08,
         rotation: Math.random() * Math.PI * 2,
-        rotationSpeed: (Math.random() - 0.5) * 0.005,
-        size: 20 + Math.random() * 70,
+        rotationSpeed: (Math.random() - 0.5) * 0.003,
+        size: 25 + Math.random() * 60,
         sides,
-        opacity: 0.02 + Math.random() * 0.04,
+        opacity: 0.02 + Math.random() * 0.03,
         color: Math.floor(Math.random() * 7),
       });
     }
     shapesRef.current = shapes;
 
-    // 初始粒子池 (150个)
+    // 初始粒子 (160个)
     const particles: Particle[] = [];
-    for (let i = 0; i < 150; i++) {
-      const type = Math.random() < 0.4 ? 'firefly' : Math.random() < 0.7 ? 'float' : 'spark';
+    for (let i = 0; i < 160; i++) {
+      const type: Particle['type'] = Math.random() < 0.4 ? 'glow' : 'float';
       particles.push({
         x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - 0.5) * (type === 'spark' ? 0.8 : 0.25),
-        vy: type === 'float' ? -0.15 - Math.random() * 0.4 : (Math.random() - 0.5) * 0.3,
-        life: Math.floor(Math.random() * 100),
-        maxLife: type === 'firefly' ? 200 + Math.random() * 300 : 100 + Math.random() * 200,
-        size: type === 'firefly' ? 1 + Math.random() * 2.5 : 0.5 + Math.random() * 1.5,
+        vx: (Math.random() - 0.5) * 0.15,
+        vy: type === 'float' ? -0.1 - Math.random() * 0.3 : (Math.random() - 0.5) * 0.1,
+        life: Math.floor(Math.random() * 150),
+        maxLife: type === 'glow' ? 250 + Math.random() * 350 : 150 + Math.random() * 250,
+        size: type === 'glow' ? 1 + Math.random() * 2.2 : 0.5 + Math.random() * 1.3,
         color: Math.floor(Math.random() * 7),
         type,
       });
@@ -162,49 +162,46 @@ export default function NeuralNetworkBackground() {
     const maxDist = 150;
 
     // ═══════════════════════════════════════
-    // 1) 星云极光 — 6色大面积光雾，更亮更饱和
+    // 1) 星云极光 — 缓慢流动的柔和光雾
     // ═══════════════════════════════════════
     for (let i = 0; i < NEBULA_COLORS.length; i++) {
       const nc = NEBULA_COLORS[i];
-      const phase = time * 0.00025 + i * 1.2;
+      const phase = time * 0.0002 + i * 1.2;
       const cx = lw * (0.2 + 0.6 * Math.sin(phase + i * 0.8));
-      const cy = lh * (0.2 + 0.6 * Math.cos(phase * 0.6 + i * 1.1));
-      const radius = lw * (0.2 + 0.15 * Math.sin(phase * 0.4 + i));
+      const cy = lh * (0.2 + 0.6 * Math.cos(phase * 0.5 + i * 1.1));
+      const radius = lw * (0.22 + 0.12 * Math.sin(phase * 0.3 + i));
 
       const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-      gradient.addColorStop(0, `rgba(${nc.r}, ${nc.g}, ${nc.b}, 0.04)`);
-      gradient.addColorStop(0.4, `rgba(${nc.r}, ${nc.g}, ${nc.b}, 0.02)`);
+      gradient.addColorStop(0, `rgba(${nc.r}, ${nc.g}, ${nc.b}, 0.035)`);
+      gradient.addColorStop(0.4, `rgba(${nc.r}, ${nc.g}, ${nc.b}, 0.018)`);
       gradient.addColorStop(1, `rgba(${nc.r}, ${nc.g}, ${nc.b}, 0)`);
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, lw, lh);
     }
 
-    // 鼠标附近的跟随光晕
+    // 鼠标附近柔和光晕
     if (mouse.x > 0 && mouse.y > 0) {
-      const mg = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 180);
-      mg.addColorStop(0, 'rgba(0, 245, 255, 0.03)');
-      mg.addColorStop(0.5, 'rgba(139, 92, 246, 0.015)');
+      const mg = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 200);
+      mg.addColorStop(0, 'rgba(0, 245, 255, 0.02)');
+      mg.addColorStop(0.6, 'rgba(139, 92, 246, 0.008)');
       mg.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = mg;
       ctx.fillRect(0, 0, lw, lh);
     }
 
     // ═══════════════════════════════════════
-    // 2) 流星
+    // 2) 流星 — 偶尔出现，优雅划过
     // ═══════════════════════════════════════
-    // 生成
-    if (Math.random() < 0.012 && meteors.length < 5) {
-      const angle = -Math.PI / 6 + (Math.random() - 0.5) * 0.4;
-      const speed = 3 + Math.random() * 4;
+    if (Math.random() < 0.006 && meteors.length < 3) {
+      const angle = -Math.PI / 6 + (Math.random() - 0.5) * 0.3;
+      const speed = 2.5 + Math.random() * 3;
       const c = NODE_COLORS[Math.floor(Math.random() * 7)];
       meteors.push({
-        x: Math.random() * lw * 0.8 + lw * 0.1,
-        y: -10,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle + Math.PI / 2) * speed,
-        length: 40 + Math.random() * 80,
-        life: 0, maxLife: 60 + Math.random() * 40,
-        color: c, width: 1 + Math.random() * 1.5,
+        x: Math.random() * lw * 0.8 + lw * 0.1, y: -10,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle + Math.PI / 2) * speed,
+        length: 50 + Math.random() * 100,
+        life: 0, maxLife: 70 + Math.random() * 50,
+        color: c, width: 1 + Math.random(),
       });
     }
 
@@ -214,19 +211,17 @@ export default function NeuralNetworkBackground() {
       m.x += m.vx;
       m.y += m.vy;
 
-      if (m.life > m.maxLife || m.y > lh + 10) {
-        meteors.splice(i, 1);
-        continue;
-      }
+      if (m.life > m.maxLife || m.y > lh + 10) { meteors.splice(i, 1); continue; }
 
-      const fade = m.life < 10 ? m.life / 10 : m.life > m.maxLife - 15 ? (m.maxLife - m.life) / 15 : 1;
-      const tailX = m.x - (m.vx / Math.sqrt(m.vx * m.vx + m.vy * m.vy)) * m.length;
-      const tailY = m.y - (m.vy / Math.sqrt(m.vx * m.vx + m.vy * m.vy)) * m.length;
+      const fade = m.life < 12 ? m.life / 12 : m.life > m.maxLife - 20 ? (m.maxLife - m.life) / 20 : 1;
+      const speed = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+      const tailX = m.x - (m.vx / speed) * m.length;
+      const tailY = m.y - (m.vy / speed) * m.length;
 
       const grad = ctx.createLinearGradient(tailX, tailY, m.x, m.y);
       grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(0.7, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},${0.3 * fade})`);
-      grad.addColorStop(1, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},${0.7 * fade})`);
+      grad.addColorStop(0.6, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},${0.2 * fade})`);
+      grad.addColorStop(1, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},${0.5 * fade})`);
 
       ctx.beginPath();
       ctx.moveTo(tailX, tailY);
@@ -235,67 +230,69 @@ export default function NeuralNetworkBackground() {
       ctx.lineWidth = m.width;
       ctx.stroke();
 
-      // 头部发光
-      const headG = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 6);
-      headG.addColorStop(0, `rgba(255,255,255,${0.6 * fade})`);
-      headG.addColorStop(0.3, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},${0.4 * fade})`);
+      // 柔和头部光
+      const headG = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 5);
+      headG.addColorStop(0, `rgba(255,255,255,${0.4 * fade})`);
+      headG.addColorStop(0.4, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},${0.25 * fade})`);
       headG.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.beginPath();
-      ctx.arc(m.x, m.y, 6, 0, Math.PI * 2);
+      ctx.arc(m.x, m.y, 5, 0, Math.PI * 2);
       ctx.fillStyle = headG;
       ctx.fill();
     }
 
     // ═══════════════════════════════════════
-    // 3) 浮动几何体 — 双层描边+旋转光晕
+    // 3) 浮动几何体 — 缓慢漂移
     // ═══════════════════════════════════════
     for (const shape of shapes) {
       shape.x += shape.vx;
       shape.y += shape.vy;
       shape.rotation += shape.rotationSpeed;
 
-      const px = (mouse.x - lw / 2) * 0.015;
-      const py = (mouse.y - lh / 2) * 0.015;
+      const px = (mouse.x - lw / 2) * 0.01;
+      const py = (mouse.y - lh / 2) * 0.01;
 
       if (shape.x < -shape.size) shape.x = lw + shape.size;
       if (shape.x > lw + shape.size) shape.x = -shape.size;
       if (shape.y < -shape.size) shape.y = lh + shape.size;
       if (shape.y > lh + shape.size) shape.y = -shape.size;
 
-      const dx = shape.x + px * (1 + shape.sides * 0.12);
-      const dy = shape.y + py * (1 + shape.sides * 0.12);
-      const breathe = 1 + Math.sin(time * 0.0012 + shape.rotation) * 0.12;
+      const dx = shape.x + px * (1 + shape.sides * 0.1);
+      const dy = shape.y + py * (1 + shape.sides * 0.1);
+      const breathe = 1 + Math.sin(time * 0.0008 + shape.rotation) * 0.08;
       const [cr, cg, cb] = NODE_COLORS[shape.color];
 
-      // 光晕填充
-      const shapeGlow = ctx.createRadialGradient(dx, dy, 0, dx, dy, shape.size * breathe * 1.5);
-      shapeGlow.addColorStop(0, `rgba(${cr}, ${cg}, ${cb}, ${shape.opacity * 0.15})`);
+      // 柔和光晕
+      const shapeGlow = ctx.createRadialGradient(dx, dy, 0, dx, dy, shape.size * breathe * 1.3);
+      shapeGlow.addColorStop(0, `rgba(${cr}, ${cg}, ${cb}, ${shape.opacity * 0.1})`);
       shapeGlow.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = shapeGlow;
-      ctx.fillRect(dx - shape.size * 2, dy - shape.size * 2, shape.size * 4, shape.size * 4);
+      ctx.beginPath();
+      ctx.arc(dx, dy, shape.size * breathe * 1.3, 0, Math.PI * 2);
+      ctx.fill();
 
       // 外层
-      drawPolygon(ctx, dx, dy, shape.size * breathe * 1.35, shape.sides, shape.rotation);
-      ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${shape.opacity * 0.25})`;
+      drawPolygon(ctx, dx, dy, shape.size * breathe * 1.25, shape.sides, shape.rotation);
+      ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${shape.opacity * 0.2})`;
       ctx.lineWidth = 0.5;
       ctx.stroke();
 
       // 主体
       drawPolygon(ctx, dx, dy, shape.size * breathe, shape.sides, shape.rotation);
       ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${shape.opacity})`;
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${shape.opacity * 0.06})`;
+      ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${shape.opacity * 0.04})`;
       ctx.fill();
     }
 
     // ═══════════════════════════════════════
-    // 4) 脉冲波纹 — 更频繁，更绚丽
+    // 4) 脉冲波纹 — 缓慢扩散
     // ═══════════════════════════════════════
     for (let i = ripples.length - 1; i >= 0; i--) {
       const rip = ripples[i];
       rip.radius += rip.speed;
-      rip.opacity *= 0.983;
+      rip.opacity *= 0.988;
 
       if (rip.radius > rip.maxRadius || rip.opacity < 0.002) {
         ripples.splice(i, 1);
@@ -307,59 +304,33 @@ export default function NeuralNetworkBackground() {
       const rg = parseInt(hex.slice(3, 5), 16);
       const rb = parseInt(hex.slice(5, 7), 16);
 
-      // 外环
       ctx.beginPath();
       ctx.arc(rip.x, rip.y, rip.radius, 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(${rr},${rg},${rb},${rip.opacity})`;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.2;
       ctx.stroke();
 
-      // 中环
-      if (rip.radius > 8) {
+      if (rip.radius > 10) {
         ctx.beginPath();
-        ctx.arc(rip.x, rip.y, rip.radius * 0.65, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${rr},${rg},${rb},${rip.opacity * 0.5})`;
-        ctx.lineWidth = 0.8;
+        ctx.arc(rip.x, rip.y, rip.radius * 0.6, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${rr},${rg},${rb},${rip.opacity * 0.4})`;
+        ctx.lineWidth = 0.6;
         ctx.stroke();
       }
-
-      // 内环填充
-      if (rip.radius > 5 && rip.opacity > 0.01) {
-        const ripGlow = ctx.createRadialGradient(rip.x, rip.y, 0, rip.x, rip.y, rip.radius * 0.4);
-        ripGlow.addColorStop(0, `rgba(${rr},${rg},${rb},${rip.opacity * 0.15})`);
-        ripGlow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = ripGlow;
-        ctx.beginPath();
-        ctx.arc(rip.x, rip.y, rip.radius * 0.4, 0, Math.PI * 2);
-        ctx.fill();
-      }
     }
 
-    if (Math.random() < 0.015) {
+    if (Math.random() < 0.008) {
       ripples.push({
         x: Math.random() * lw, y: Math.random() * lh,
-        radius: 0, maxRadius: 80 + Math.random() * 250,
-        opacity: 0.06 + Math.random() * 0.05,
+        radius: 0, maxRadius: 100 + Math.random() * 200,
+        opacity: 0.05 + Math.random() * 0.03,
         color: PULSE_COLORS[Math.floor(Math.random() * PULSE_COLORS.length)],
-        speed: 0.4 + Math.random() * 0.8,
-      });
-    }
-
-    // 鼠标点击产生波纹（通过鼠标位置变化检测）
-    // 这里只在鼠标有效范围内随机触发
-    if (mouse.x > 0 && mouse.y > 0 && Math.random() < 0.003) {
-      ripples.push({
-        x: mouse.x + (Math.random() - 0.5) * 100,
-        y: mouse.y + (Math.random() - 0.5) * 100,
-        radius: 0, maxRadius: 60 + Math.random() * 100,
-        opacity: 0.08,
-        color: PULSE_COLORS[Math.floor(Math.random() * PULSE_COLORS.length)],
-        speed: 0.6,
+        speed: 0.3 + Math.random() * 0.5,
       });
     }
 
     // ═══════════════════════════════════════
-    // 5) 神经网络连线 — 渐变 + 脉动
+    // 5) 神经网络连线
     // ═══════════════════════════════════════
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
@@ -369,8 +340,8 @@ export default function NeuralNetworkBackground() {
         if (distSq > maxDist * maxDist) continue;
 
         const dist = Math.sqrt(distSq);
-        const breathe = 0.75 + Math.sin(time * 0.0015 + i * 0.08 + j * 0.05) * 0.25;
-        const alpha = 0.16 * (1 - dist / maxDist) * breathe;
+        const breathe = 0.8 + Math.sin(time * 0.001 + i * 0.06) * 0.2;
+        const alpha = 0.13 * (1 - dist / maxDist) * breathe;
 
         const c1 = NODE_COLORS[nodes[i].layer];
         const c2 = NODE_COLORS[nodes[j].layer];
@@ -383,13 +354,13 @@ export default function NeuralNetworkBackground() {
         ctx.moveTo(nodes[i].x, nodes[i].y);
         ctx.lineTo(nodes[j].x, nodes[j].y);
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = 0.9;
+        ctx.lineWidth = 0.8;
         ctx.stroke();
       }
     }
 
     // ═══════════════════════════════════════
-    // 6) 传输脉冲 — 更亮更多拖尾
+    // 6) 传输脉冲 — 柔和流动
     // ═══════════════════════════════════════
     for (let p = pulses.length - 1; p >= 0; p--) {
       const pulse = pulses[p];
@@ -407,32 +378,32 @@ export default function NeuralNetworkBackground() {
       const pg = parseInt(hex.slice(3, 5), 16);
       const pb = parseInt(hex.slice(5, 7), 16);
 
-      // 5帧拖尾
-      for (let t = 1; t <= 5; t++) {
-        const tp = pulse.progress - t * 0.025;
+      // 平滑拖尾（4帧）
+      for (let t = 1; t <= 4; t++) {
+        const tp = pulse.progress - t * 0.02;
         if (tp < 0) continue;
         const tx = from.x + (to.x - from.x) * tp;
         const ty = from.y + (to.y - from.y) * tp;
         ctx.beginPath();
-        ctx.arc(tx, ty, 5 - t * 0.8, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${pr},${pg},${pb},${0.2 / t})`;
+        ctx.arc(tx, ty, 4 - t * 0.7, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${pr},${pg},${pb},${0.12 / t})`;
         ctx.fill();
       }
 
-      // 主光点 + 光晕
-      const glow = ctx.createRadialGradient(ppx, ppy, 0, ppx, ppy, 10);
-      glow.addColorStop(0, `rgba(255,255,255,0.7)`);
-      glow.addColorStop(0.2, `rgba(${pr},${pg},${pb},0.8)`);
-      glow.addColorStop(0.5, `rgba(${pr},${pg},${pb},0.3)`);
+      // 主光点
+      const glow = ctx.createRadialGradient(ppx, ppy, 0, ppx, ppy, 8);
+      glow.addColorStop(0, `rgba(255,255,255,0.5)`);
+      glow.addColorStop(0.25, `rgba(${pr},${pg},${pb},0.6)`);
+      glow.addColorStop(0.6, `rgba(${pr},${pg},${pb},0.15)`);
       glow.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.beginPath();
-      ctx.arc(ppx, ppy, 10, 0, Math.PI * 2);
+      ctx.arc(ppx, ppy, 8, 0, Math.PI * 2);
       ctx.fillStyle = glow;
       ctx.fill();
     }
 
-    // 更频繁的脉冲
-    if (Math.random() < 0.08 && nodes.length > 1) {
+    // 脉冲生成（适中频率）
+    if (Math.random() < 0.05 && nodes.length > 1) {
       const fromIdx = Math.floor(Math.random() * nodes.length);
       let toIdx = Math.floor(Math.random() * nodes.length);
       if (toIdx === fromIdx) toIdx = (toIdx + 1) % nodes.length;
@@ -441,14 +412,14 @@ export default function NeuralNetworkBackground() {
       if (Math.sqrt(ddx * ddx + ddy * ddy) < maxDist * 1.5) {
         pulses.push({
           fromIdx, toIdx, progress: 0,
-          speed: 0.01 + Math.random() * 0.025,
+          speed: 0.008 + Math.random() * 0.015,
           color: PULSE_COLORS[Math.floor(Math.random() * PULSE_COLORS.length)],
         });
       }
     }
 
     // ═══════════════════════════════════════
-    // 7) 节点 — 7色 + 大光晕 + 呼吸环 + 核心高光
+    // 7) 节点 — 柔和光晕 + 稳定呼吸
     // ═══════════════════════════════════════
     for (const node of nodes) {
       const [cr, cg, cb] = NODE_COLORS[node.layer];
@@ -457,17 +428,17 @@ export default function NeuralNetworkBackground() {
       const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
       const mouseInf = Math.max(0, 1 - mDist / 220);
 
-      const breathe = Math.sin(time * 0.002 + node.pulsePhase) * 0.18 + 0.82;
-      const baseOp = node.opacity * breathe + mouseInf * 0.6;
-      const r = node.radius * (1 + mouseInf * 1.2);
+      // 缓慢平稳的呼吸
+      const breathe = Math.sin(time * 0.0015 + node.pulsePhase) * 0.12 + 0.88;
+      const baseOp = node.opacity * breathe + mouseInf * 0.4;
+      const r = node.radius * (1 + mouseInf * 0.8);
 
-      // 外层大光晕
-      if (baseOp > 0.3 || mouseInf > 0.03) {
-        const glowR = r * 5;
+      // 柔和光晕
+      if (baseOp > 0.3 || mouseInf > 0.05) {
+        const glowR = r * 4.5;
         const glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowR);
-        glow.addColorStop(0, `rgba(${cr}, ${cg}, ${cb}, ${baseOp * 0.4})`);
-        glow.addColorStop(0.3, `rgba(${cr}, ${cg}, ${cb}, ${baseOp * 0.15})`);
-        glow.addColorStop(0.7, `rgba(${cr}, ${cg}, ${cb}, ${baseOp * 0.03})`);
+        glow.addColorStop(0, `rgba(${cr}, ${cg}, ${cb}, ${baseOp * 0.3})`);
+        glow.addColorStop(0.4, `rgba(${cr}, ${cg}, ${cb}, ${baseOp * 0.1})`);
         glow.addColorStop(1, `rgba(${cr}, ${cg}, ${cb}, 0)`);
         ctx.beginPath();
         ctx.arc(node.x, node.y, glowR, 0, Math.PI * 2);
@@ -475,68 +446,49 @@ export default function NeuralNetworkBackground() {
         ctx.fill();
       }
 
-      // 呼吸环（鼠标靠近时）
-      if (mouseInf > 0.15) {
-        const ringR = r * 3.5 * (1 + Math.sin(time * 0.004 + node.pulsePhase) * 0.3);
+      // 鼠标靠近时的环
+      if (mouseInf > 0.2) {
+        const ringR = r * 3 * (1 + Math.sin(time * 0.003 + node.pulsePhase) * 0.2);
         ctx.beginPath();
         ctx.arc(node.x, node.y, ringR, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${mouseInf * 0.35})`;
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-
-        // 第二环
-        const ringR2 = ringR * 1.4;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, ringR2, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${mouseInf * 0.15})`;
-        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${mouseInf * 0.25})`;
+        ctx.lineWidth = 0.7;
         ctx.stroke();
       }
 
-      // 核心实心
+      // 核心
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${Math.min(1, baseOp)})`;
       ctx.fill();
 
-      // 白色核心
-      if (baseOp > 0.45) {
+      // 柔和白芯
+      if (baseOp > 0.5) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, r * 0.45, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${baseOp * 0.35})`;
+        ctx.arc(node.x, node.y, r * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${baseOp * 0.25})`;
         ctx.fill();
       }
     }
 
     // ═══════════════════════════════════════
-    // 8) 海量粒子 — 漂浮/火花/萤火虫三种类型
+    // 8) 粒子 — 漂浮和柔光两种，平稳运动
     // ═══════════════════════════════════════
-    const maxParticles = 200;
+    const maxParticles = 180;
 
-    // 持续生成
-    if (particles.length < maxParticles) {
-      const batchSize = Math.min(3, maxParticles - particles.length);
-      for (let b = 0; b < batchSize; b++) {
-        const roll = Math.random();
-        const type: Particle['type'] = roll < 0.35 ? 'firefly' : roll < 0.7 ? 'float' : 'spark';
-        particles.push({
-          x: Math.random() * lw,
-          y: type === 'float' ? lh + Math.random() * 20 : Math.random() * lh,
-          vx: (Math.random() - 0.5) * (type === 'spark' ? 1.0 : 0.2),
-          vy: type === 'float' ? -0.2 - Math.random() * 0.6 :
-              type === 'spark' ? (Math.random() - 0.5) * 0.8 :
-              (Math.random() - 0.5) * 0.15,
-          life: 0,
-          maxLife: type === 'firefly' ? 200 + Math.random() * 350 :
-                   type === 'spark' ? 40 + Math.random() * 60 :
-                   120 + Math.random() * 200,
-          size: type === 'firefly' ? 1.2 + Math.random() * 2.5 :
-                type === 'spark' ? 0.8 + Math.random() * 1.2 :
-                0.5 + Math.random() * 1.5,
-          color: Math.floor(Math.random() * 7),
-          type,
-        });
-      }
+    if (particles.length < maxParticles && Math.random() < 0.3) {
+      const type: Particle['type'] = Math.random() < 0.4 ? 'glow' : 'float';
+      particles.push({
+        x: Math.random() * lw,
+        y: type === 'float' ? lh + Math.random() * 20 : Math.random() * lh,
+        vx: (Math.random() - 0.5) * 0.12,
+        vy: type === 'float' ? -0.1 - Math.random() * 0.3 : (Math.random() - 0.5) * 0.08,
+        life: 0,
+        maxLife: type === 'glow' ? 300 + Math.random() * 400 : 180 + Math.random() * 280,
+        size: type === 'glow' ? 1 + Math.random() * 2 : 0.5 + Math.random() * 1.2,
+        color: Math.floor(Math.random() * 7),
+        type,
+      });
     }
 
     for (let i = particles.length - 1; i >= 0; i--) {
@@ -544,51 +496,37 @@ export default function NeuralNetworkBackground() {
       pt.life++;
       if (pt.life > pt.maxLife) { particles.splice(i, 1); continue; }
 
-      // 运动
-      if (pt.type === 'firefly') {
-        // 萤火虫：不规则漂浮
-        pt.x += pt.vx + Math.sin(time * 0.0015 + pt.y * 0.008) * 0.25;
-        pt.y += pt.vy + Math.cos(time * 0.0012 + pt.x * 0.006) * 0.2;
-        pt.vx *= 0.995;
-        pt.vy *= 0.995;
-        // 偶尔改方向
-        if (Math.random() < 0.01) {
-          pt.vx += (Math.random() - 0.5) * 0.3;
-          pt.vy += (Math.random() - 0.5) * 0.3;
-        }
-      } else if (pt.type === 'spark') {
-        pt.x += pt.vx;
-        pt.y += pt.vy;
-        pt.vx *= 0.97;
-        pt.vy *= 0.97;
+      if (pt.type === 'glow') {
+        // 柔光粒子：缓慢漂移，不闪烁
+        pt.x += pt.vx + Math.sin(time * 0.0008 + pt.y * 0.005) * 0.08;
+        pt.y += pt.vy + Math.cos(time * 0.0006 + pt.x * 0.004) * 0.06;
       } else {
-        pt.x += pt.vx + Math.sin(time * 0.001 + pt.x * 0.01) * 0.12;
+        pt.x += pt.vx + Math.sin(time * 0.0007 + pt.x * 0.008) * 0.06;
         pt.y += pt.vy;
       }
 
-      // 边界循环
       if (pt.x < -10) pt.x = lw + 10;
       if (pt.x > lw + 10) pt.x = -10;
       if (pt.y < -10 && pt.type === 'float') { pt.y = lh + 10; pt.life = 0; }
 
       const lifeRatio = pt.life / pt.maxLife;
-      const fadeIn = Math.min(1, pt.life / 15);
-      const fadeOut = Math.max(0, 1 - (lifeRatio - 0.7) / 0.3);
+      // 平滑的淡入淡出
+      const fadeIn = Math.min(1, pt.life / 30);
+      const fadeOut = lifeRatio > 0.75 ? Math.max(0, 1 - (lifeRatio - 0.75) / 0.25) : 1;
       const [pr, pg, pb] = NODE_COLORS[pt.color];
 
-      if (pt.type === 'firefly') {
-        // 萤火虫：脉冲闪烁 + 光晕
-        const flicker = 0.5 + 0.5 * Math.sin(time * 0.006 + pt.x * 0.02 + pt.y * 0.02);
-        const alpha = fadeIn * (lifeRatio < 0.7 ? 1 : fadeOut) * flicker * 0.6;
+      if (pt.type === 'glow') {
+        // 柔和稳定的发光（无闪烁）
+        const alpha = fadeIn * fadeOut * 0.4;
 
         // 光晕
-        const ffGlow = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, pt.size * 4);
-        ffGlow.addColorStop(0, `rgba(${pr}, ${pg}, ${pb}, ${alpha * 0.5})`);
-        ffGlow.addColorStop(0.5, `rgba(${pr}, ${pg}, ${pb}, ${alpha * 0.15})`);
+        const ffGlow = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, pt.size * 3.5);
+        ffGlow.addColorStop(0, `rgba(${pr}, ${pg}, ${pb}, ${alpha * 0.35})`);
+        ffGlow.addColorStop(0.6, `rgba(${pr}, ${pg}, ${pb}, ${alpha * 0.1})`);
         ffGlow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = ffGlow;
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, pt.size * 4, 0, Math.PI * 2);
+        ctx.arc(pt.x, pt.y, pt.size * 3.5, 0, Math.PI * 2);
         ctx.fill();
 
         // 核心
@@ -596,16 +534,8 @@ export default function NeuralNetworkBackground() {
         ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${pr}, ${pg}, ${pb}, ${alpha})`;
         ctx.fill();
-
-        // 白芯
-        if (alpha > 0.3) {
-          ctx.beginPath();
-          ctx.arc(pt.x, pt.y, pt.size * 0.4, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,255,${alpha * 0.4})`;
-          ctx.fill();
-        }
       } else {
-        const alpha = fadeIn * (lifeRatio < 0.7 ? 1 : fadeOut) * (pt.type === 'spark' ? 0.6 : 0.45);
+        const alpha = fadeIn * fadeOut * 0.35;
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${pr}, ${pg}, ${pb}, ${alpha})`;
@@ -620,8 +550,8 @@ export default function NeuralNetworkBackground() {
       const mdx = node.x - mouse.x;
       const mdy = node.y - mouse.y;
       const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
-      if (mDist < 180 && mDist > 0) {
-        const force = 0.7 * (1 - mDist / 180);
+      if (mDist < 160 && mDist > 0) {
+        const force = 0.5 * (1 - mDist / 160);
         node.vx += (mdx / mDist) * force;
         node.vy += (mdy / mDist) * force;
       }
@@ -637,10 +567,8 @@ export default function NeuralNetworkBackground() {
       if (node.y > lh) { node.y = lh; node.vy = -Math.abs(node.vy) * 0.5; }
     }
 
-    // ═══════════════════════════════════════
-    // 暗角（轻一点，让粒子更可见）
-    // ═══════════════════════════════════════
-    const vignette = ctx.createRadialGradient(lw / 2, lh / 2, lw * 0.3, lw / 2, lh / 2, lw * 0.9);
+    // 暗角
+    const vignette = ctx.createRadialGradient(lw / 2, lh / 2, lw * 0.3, lw / 2, lh / 2, lw * 0.85);
     vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
     vignette.addColorStop(1, 'rgba(5, 16, 32, 0.4)');
     ctx.fillStyle = vignette;
