@@ -1,8 +1,7 @@
 // api/tts.ts — Vercel Serverless Function
 // 代理火山引擎TTS请求，保护access token不暴露到前端
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
