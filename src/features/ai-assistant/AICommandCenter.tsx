@@ -167,18 +167,6 @@ export default function AICommandCenter() {
 
   useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
 
-  // TTS结束后冷却期 — 防止AI回答的声音被麦克风再次识别
-  const prevSpeakingRef = useRef(false);
-  useEffect(() => {
-    if (prevSpeakingRef.current && !isSpeaking) {
-      // TTS刚结束，启动冷却
-      setIsTTSCooldown(true);
-      const timer = setTimeout(() => setIsTTSCooldown(false), 800);
-      return () => clearTimeout(timer);
-    }
-    prevSpeakingRef.current = isSpeaking;
-  }, [isSpeaking]);
-
   // ═══ AI编排引擎 ═══
   const {
     orbState,
@@ -194,12 +182,24 @@ export default function AICommandCenter() {
     isSpeaking,
     speak,
     cancelSpeech,
-    isSupported: voiceSupported,
+    isSupported: _voiceSupported,
   } = useVoiceInteraction({
     onTranscript: () => {}, // 面板内语音单独处理
     continuousMode: false,
     lang: 'zh-CN',
   });
+
+  // TTS结束后冷却期 — 防止AI回答的声音被麦克风再次识别
+  const prevSpeakingRef = useRef(false);
+  useEffect(() => {
+    if (prevSpeakingRef.current && !isSpeaking) {
+      // TTS刚结束，启动冷却
+      setIsTTSCooldown(true);
+      const timer = setTimeout(() => setIsTTSCooldown(false), 800);
+      return () => clearTimeout(timer);
+    }
+    prevSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
 
   // ═══ 面板内语音识别（无唤醒词） ═══
   const {
