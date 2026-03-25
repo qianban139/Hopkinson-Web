@@ -18,30 +18,30 @@ import type { ExperimentStage } from '@/hooks/useExperimentAnimation';
 // ═══════════════════════════════════════════════
 
 const DESIGN_W = 1100;
-const DESIGN_H = 180;
+const DESIGN_H = 360;
 
-// 设备布局(X坐标和尺寸)
+// 设备布局(X坐标和尺寸) — 垂直居中于DESIGN_H
 const LAYOUT = {
   // 电容器组
-  capacitor: { x: 20, y: 15, w: 110, h: 110 },
+  capacitor: { x: 20, y: 80, w: 140, h: 140 },
   // 电磁线圈
-  coil: { x: 145, y: 20, w: 110, h: 95 },
+  coil: { x: 175, y: 88, w: 130, h: 115 },
   // 撞击杆
-  striker: { startX: 265, endX: 385, barLen: 55, barH: 20 },
+  striker: { startX: 315, endX: 435, barLen: 60, barH: 28 },
   // 入射杆
-  incidentBar: { x: 385, len: 250, barH: 20 },
+  incidentBar: { x: 435, len: 250, barH: 28 },
   // 试样
-  specimen: { w: 12, h: 20 },
+  specimen: { w: 16, h: 28 },
   // 透射杆
-  transmittedBar: { len: 210, barH: 20 },
+  transmittedBar: { len: 210, barH: 28 },
   // 围压
   confining: { enabled: false, pressure: 100 },
   // DAQ
-  daq: { w: 130, h: 75 },
+  daq: { w: 140, h: 90 },
   // 中心线Y
-  centerY: 80,
+  centerY: 165,
   // 底座基准线Y
-  baseY: 105,
+  baseY: 195,
 };
 
 interface HopkinsonBar2DRealisticProps {
