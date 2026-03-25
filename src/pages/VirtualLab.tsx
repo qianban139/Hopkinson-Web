@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as echarts from 'echarts';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Zap, Activity, Box, Sparkles,
+  Zap, Activity, Sparkles,
   Waves, Clock, Database, Beaker, Info, ChevronUp,
   Search, ChevronRight, ChevronDown, ArrowRight,
   Play, Pause, RotateCcw, PanelLeftClose, PanelLeftOpen, AlertTriangle,
@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import GLTFModel from '@/components/GLTFModel';
 import { HopkinsonBar2DRealistic } from '@/features/experiment-2d';
 import ExperimentResultsPanel from '@/components/ExperimentResults';
 import RealtimeWaveformPanel from '@/shared/components/RealtimeWaveformPanel';
@@ -350,6 +349,17 @@ export default function VirtualLab() {
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   // 波形显示 tab
   const [waveformTab, setWaveformTab] = useState('all');
+  // 3D视频引用
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 3D视频播放控制
+  useEffect(() => {
+    if (viewMode === '3d' && videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    } else if (videoRef.current) {
+      videoRef.current.pause();
+    }
+  }, [viewMode]);
 
   // 筛选材料
   const filteredMaterials = searchQuery
@@ -957,22 +967,16 @@ export default function VirtualLab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0"
+                      className="absolute inset-0 flex items-center justify-center bg-black"
                     >
-                      <Suspense fallback={
-                        <div className="w-full h-full flex items-center justify-center text-white/50">
-                          <div className="text-center">
-                            <Box className="w-16 h-16 mx-auto mb-4 opacity-50 animate-pulse" />
-                            <p>3D模型加载中...</p>
-                          </div>
-                        </div>
-                      }>
-                        <GLTFModel
-                          modelUrl="/models/new_hopkinson.gltf"
-                          isAnimating={isAnimationPlaying}
-                          className="w-full h-full"
-                        />
-                      </Suspense>
+                      <video
+                        ref={videoRef}
+                        src="/assets/videos/test.mp4"
+                        className="w-full h-full object-contain"
+                        loop
+                        muted
+                        playsInline
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
