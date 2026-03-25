@@ -84,6 +84,7 @@ export function useVoiceInteraction({
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const isListeningRef = useRef(false); // ref mirror for closures
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthQueueRef = useRef<string[]>([]);
@@ -206,14 +207,14 @@ export function useVoiceInteraction({
         console.warn('语音识别错误:', event.error);
       }
       if (!continuousMode) {
+        isListeningRef.current = false;
         setIsListening(false);
       }
     };
 
     recognition.onend = () => {
-      if (continuousMode && isListening) {
-        // 连续模式断开时：如果有累积文本且已沉默较久，立即提交
-        // 否则重启识别继续累积
+      if (continuousMode && isListeningRef.current) {
+        // 连续模式断开时：重启识别继续累积
         try {
           recognition.start();
         } catch {
@@ -221,6 +222,7 @@ export function useVoiceInteraction({
           if (accumulatedTextRef.current.trim()) {
             flushAccumulatedText();
           }
+          isListeningRef.current = false;
           setIsListening(false);
         }
       } else {
@@ -228,12 +230,13 @@ export function useVoiceInteraction({
         if (accumulatedTextRef.current.trim()) {
           flushAccumulatedText();
         }
+        isListeningRef.current = false;
         setIsListening(false);
       }
     };
 
     return recognition;
-  }, [SpeechRecognitionAPI, lang, continuousMode, wakeWord, onTranscript, isListening, resetSilenceTimer, flushAccumulatedText]);
+  }, [SpeechRecognitionAPI, lang, continuousMode, wakeWord, onTranscript, resetSilenceTimer, flushAccumulatedText]);
 
   // 开始监听
   const startListening = useCallback(() => {
@@ -262,6 +265,7 @@ export function useVoiceInteraction({
 
     try {
       recognition.start();
+      isListeningRef.current = true;
       setIsListening(true);
       setTranscript('');
     } catch (err) {
@@ -276,6 +280,7 @@ export function useVoiceInteraction({
     if (accumulatedTextRef.current.trim()) {
       flushAccumulatedText();
     }
+    isListeningRef.current = false;
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setIsListening(false);
