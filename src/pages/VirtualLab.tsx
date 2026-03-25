@@ -1,4 +1,5 @@
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
+import * as echarts from 'echarts';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Zap, Activity, Box, Sparkles,
@@ -108,6 +109,76 @@ function MaterialCategoryAccordion({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// 材料属性迷你雷达图
+function MaterialRadarMini({ material }: { material: Material }) {
+  const radarRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<echarts.ECharts | null>(null);
+
+  useEffect(() => {
+    if (!radarRef.current) return;
+    if (!chartRef.current) {
+      chartRef.current = echarts.init(radarRef.current);
+    }
+    // 归一化到 0-100 的6维属性
+    const densityScore = Math.min(100, (material.density / 1000) / 20 * 100); // 0~20 g/cm³
+    const modulusScore = Math.min(100, (material.elasticModulus / 1e9) / 400 * 100); // 0~400 GPa
+    const strengthScore = Math.min(100, (material.yieldStrength / 1e6) / 2000 * 100); // 0~2000 MPa
+    const stiffnessScore = Math.min(100, material.stiffnessK / 300 * 100);
+    const dampingScore = Math.min(100, material.dampingC / 5000 * 100);
+    const emiScore = Math.min(100, material.emiThreshold / 100 * 100);
+
+    chartRef.current.setOption({
+      animation: true,
+      animationDuration: 600,
+      radar: {
+        indicator: [
+          { name: '密度', max: 100 },
+          { name: '模量', max: 100 },
+          { name: '强度', max: 100 },
+          { name: '刚度', max: 100 },
+          { name: '阻尼', max: 100 },
+          { name: '耐热', max: 100 },
+        ],
+        shape: 'polygon',
+        axisName: { color: 'rgba(255,255,255,0.5)', fontSize: 9 },
+        splitArea: { areaStyle: { color: ['rgba(0,245,255,0.02)', 'rgba(0,245,255,0.05)'] } },
+        splitLine: { lineStyle: { color: 'rgba(0,245,255,0.15)' } },
+        axisLine: { lineStyle: { color: 'rgba(0,245,255,0.15)' } },
+      },
+      series: [{
+        type: 'radar',
+        data: [{
+          value: [densityScore, modulusScore, strengthScore, stiffnessScore, dampingScore, emiScore],
+          areaStyle: { color: 'rgba(0,245,255,0.2)' },
+          lineStyle: { color: '#00F5FF', width: 2 },
+          itemStyle: { color: '#00F5FF' },
+          symbol: 'circle',
+          symbolSize: 4,
+        }],
+      }],
+    }, true);
+    return () => {};
+  }, [material]);
+
+  useEffect(() => {
+    if (!radarRef.current || !chartRef.current) return;
+    const obs = new ResizeObserver(() => chartRef.current?.resize());
+    obs.observe(radarRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    return () => { chartRef.current?.dispose(); chartRef.current = null; };
+  }, []);
+
+  return (
+    <div className="bg-[#0A2540]/50 rounded-lg border border-[#00F5FF]/15 p-2">
+      <h4 className="text-[10px] text-[#00F5FF]/70 mb-1 text-center">材料六维属性</h4>
+      <div ref={radarRef} className="w-full h-[160px]" />
     </div>
   );
 }
@@ -508,7 +579,7 @@ export default function VirtualLab() {
           </div>
             </TabsContent>
 
-            <TabsContent value="params" className="flex-1 overflow-y-auto mt-0 p-4 space-y-4">
+            <TabsContent value="params" className="flex-1 overflow-y-auto mt-0 p-4 space-y-2">
               {/* 参数预设 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -613,13 +684,13 @@ export default function VirtualLab() {
               </div>
 
               {/* 围压控制 */}
-              <div className="space-y-3 border-t border-[#00F5FF]/10 pt-4">
+              <div className="space-y-2 border-t border-[#00F5FF]/10 pt-3">
                 <div className="flex items-center justify-between">
                   <label className="text-sm text-white/70">启用围压控制</label>
                   <Switch checked={enableConfining} onCheckedChange={setEnableConfining} disabled={isAnimationPlaying} />
                 </div>
-                {enableConfining && (
-                  <div className="space-y-3">
+                {enableConfining ? (
+                  <div className="space-y-2">
                     {(['x', 'y', 'z'] as const).map((axis) => (
                       <SliderInputCombo
                         key={axis}
@@ -631,6 +702,8 @@ export default function VirtualLab() {
                       />
                     ))}
                   </div>
+                ) : (
+                  <p className="text-[10px] text-white/30 italic">开启后可设置三轴围压参数</p>
                 )}
               </div>
 
@@ -652,9 +725,45 @@ export default function VirtualLab() {
                   </div>
                 </div>
               </div>
+
+              {/* 实验状态概览 */}
+              <div className="p-3 bg-gradient-to-r from-[#00F5FF]/5 to-transparent rounded-lg border border-[#00F5FF]/15">
+                <h4 className="text-xs text-[#00F5FF] mb-2 font-medium flex items-center gap-1.5">
+                  <Activity className="w-3 h-3" />
+                  实验状态概览
+                </h4>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-white/60">当前材料</span>
+                    <span className="text-white font-medium flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: selectedMaterial.color }} />
+                      {selectedMaterial.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/60">实验阶段</span>
+                    <span className={`font-mono ${animState.isPlaying ? 'text-[#10B981]' : animState.isComplete ? 'text-[#FFD700]' : 'text-white/40'}`}>
+                      {animState.isComplete ? '已完成' : animState.isPlaying ? animState.stages[animState.stageIndex]?.label || '进行中' : '就绪'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/60">总进度</span>
+                    <span className="text-white/70 font-mono">{(animState.globalProgress * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-[#0A2540] rounded-full overflow-hidden mt-1">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${animState.globalProgress * 100}%`,
+                        background: animState.isComplete ? '#FFD700' : 'linear-gradient(90deg, #00F5FF, #1DD1A1)',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             </TabsContent>
 
-            <TabsContent value="info" className="flex-1 overflow-y-auto mt-0 p-4 space-y-4">
+            <TabsContent value="info" className="flex-1 overflow-y-auto mt-0 p-4 space-y-2">
               {/* 当前材料信息 */}
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                 <Beaker className="w-4 h-4 text-[#00F5FF]" />
@@ -675,10 +784,13 @@ export default function VirtualLab() {
                   <div>EMI阈值: {selectedMaterial.emiThreshold} dB</div>
                 </div>
               </div>
+              {/* 材料属性雷达图 */}
+              <MaterialRadarMini material={selectedMaterial} />
+
               <ExperimentResultsSection />
 
               {/* 说明区 */}
-              <div className="border-t border-[#00F5FF]/10 pt-4">
+              <div className="border-t border-[#00F5FF]/10 pt-2">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                     <Info className="w-4 h-4 text-[#00F5FF]" />

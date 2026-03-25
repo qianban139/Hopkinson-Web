@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 interface GlowCardProps {
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
   glowColor?: string;
   pulse?: boolean;
   hoverable?: boolean;
@@ -14,6 +15,7 @@ interface GlowCardProps {
 export default function GlowCard({
   children,
   className = '',
+  style,
   glowColor = '#00F5FF',
   pulse = false,
   hoverable = true,
@@ -22,6 +24,7 @@ export default function GlowCard({
   return (
     <motion.div
       onClick={onClick}
+      style={style}
       className={`relative rounded-xl border border-[${glowColor}]/20 bg-[#0A2540]/80 backdrop-blur-sm overflow-hidden ${
         hoverable ? 'cursor-pointer' : ''
       } ${className}`}

@@ -113,6 +113,10 @@ export default function RealtimeWaveformPanel({
           ...(stageIndex >= 4 ? ['反射波', '透射波'] : []),
         ],
         textStyle: { color: 'rgba(255,255,255,0.7)', fontSize: 10 },
+        icon: 'roundRect',
+        itemWidth: 16,
+        itemHeight: 8,
+        itemGap: 20,
         top: 0,
       },
       xAxis: {
@@ -126,7 +130,7 @@ export default function RealtimeWaveformPanel({
         type: 'value',
         axisLine: { lineStyle: { color: 'rgba(255,255,255,0.3)' } },
         axisLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 9 },
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.1)', type: 'dashed' as const } },
         name: '幅值 (mV)',
         nameTextStyle: { color: 'rgba(255,255,255,0.5)', fontSize: 9 },
       },
@@ -143,7 +147,7 @@ export default function RealtimeWaveformPanel({
           bottom: 2,
           borderColor: 'rgba(0,245,255,0.1)',
           backgroundColor: 'rgba(5,16,32,0.5)',
-          fillerColor: 'rgba(0,245,255,0.08)',
+          fillerColor: 'rgba(0,245,255,0.15)',
           handleStyle: { color: '#00F5FF', borderColor: '#00F5FF' },
           textStyle: { color: 'rgba(255,255,255,0.5)', fontSize: 9 },
           dataBackground: {
@@ -158,24 +162,51 @@ export default function RealtimeWaveformPanel({
           type: 'line' as const,
           data: waveformData.incident,
           smooth: false,
-          lineStyle: { color: '#333', width: 1.5 },
+          lineStyle: { color: '#10B981', width: 2 },
+          itemStyle: { color: '#10B981' },
           showSymbol: false,
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(16,185,129,0.3)' },
+              { offset: 1, color: 'rgba(16,185,129,0.02)' },
+            ]),
+          },
+          markPoint: {
+            data: [{ type: 'min' as const, name: '峰值' }],
+            symbolSize: 28,
+            label: { fontSize: 9, color: '#10B981' },
+            itemStyle: { color: '#10B981' },
+          },
         }] : []),
         ...(stageIndex >= 4 && (waveFilter === 'all' || waveFilter === 'reflected') ? [{
           name: '反射波',
           type: 'line' as const,
           data: waveformData.reflected,
           smooth: false,
-          lineStyle: { color: '#3B82F6', width: 1.5 },
+          lineStyle: { color: '#3B82F6', width: 2 },
+          itemStyle: { color: '#3B82F6' },
           showSymbol: false,
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(59,130,246,0.25)' },
+              { offset: 1, color: 'rgba(59,130,246,0.02)' },
+            ]),
+          },
         }] : []),
         ...(stageIndex >= 4 && (waveFilter === 'all' || waveFilter === 'transmitted') ? [{
           name: '透射波',
           type: 'line' as const,
           data: waveformData.transmitted,
           smooth: false,
-          lineStyle: { color: '#EF4444', width: 1.5 },
+          lineStyle: { color: '#EF4444', width: 2 },
+          itemStyle: { color: '#EF4444' },
           showSymbol: false,
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(239,68,68,0.25)' },
+              { offset: 1, color: 'rgba(239,68,68,0.02)' },
+            ]),
+          },
         }] : []),
       ],
       // 阶段 0-2 标注
@@ -226,7 +257,7 @@ export default function RealtimeWaveformPanel({
           {stageIndex < 3 ? '三波信号 (等待实验)' : '三波信号 — 真实数据'}
         </h3>
         <div className="flex gap-2">
-          <Badge className="bg-gray-500/20 text-gray-300 text-[10px] border-gray-500/30 px-1.5 py-0">
+          <Badge className="bg-[#10B981]/20 text-[#10B981] text-[10px] border-[#10B981]/30 px-1.5 py-0">
             入射 {stageIndex >= 3 ? '●' : '○'}
           </Badge>
           <Badge className="bg-[#3B82F6]/20 text-[#3B82F6] text-[10px] border-[#3B82F6]/30 px-1.5 py-0">

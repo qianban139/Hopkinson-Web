@@ -16,12 +16,17 @@ interface AIFloatingOrbProps {
 }
 
 export default function AIFloatingOrb({ orbState, onTogglePanel, isPanelOpen, onPushToTalkStart, onPushToTalkEnd, isPushToTalk }: AIFloatingOrbProps) {
+  // 使用 left/top 绝对定位，避免 right/bottom 坐标系导致的方向反转
   const [position, setPosition] = useState(() => {
     const saved = localStorage.getItem('ai-orb-position');
-    return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+    if (saved) {
+      try { return JSON.parse(saved); } catch { /* fallback */ }
+    }
+    return { left: typeof window !== 'undefined' ? window.innerWidth - 96 : 800, top: typeof window !== 'undefined' ? window.innerHeight - 104 : 600 };
   });
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
+  const pointerStartRef = useRef({ x: 0, y: 0 });
+  const posStartRef = useRef({ left: 0, top: 0 });
   const hasMoved = useRef(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const isLongPressRef = useRef(false);
@@ -36,7 +41,8 @@ export default function AIFloatingOrb({ orbState, onTogglePanel, isPanelOpen, on
     setIsDragging(true);
     hasMoved.current = false;
     isLongPressRef.current = false;
-    dragStartRef.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    pointerStartRef.current = { x: e.clientX, y: e.clientY };
+    posStartRef.current = { left: position.left, top: position.top };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
     // 长按500ms激活Push-to-Talk
@@ -52,9 +58,14 @@ export default function AIFloatingOrb({ orbState, onTogglePanel, isPanelOpen, on
     if (!isDragging) return;
     hasMoved.current = true;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    const dx = e.clientX - pointerStartRef.current.x;
+    const dy = e.clientY - pointerStartRef.current.y;
+    // clamp to viewport
+    const maxLeft = window.innerWidth - 80;
+    const maxTop = window.innerHeight - 100;
     setPosition({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y,
+      left: Math.max(0, Math.min(maxLeft, posStartRef.current.left + dx)),
+      top: Math.max(0, Math.min(maxTop, posStartRef.current.top + dy)),
     });
   };
 
@@ -63,7 +74,6 @@ export default function AIFloatingOrb({ orbState, onTogglePanel, isPanelOpen, on
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
 
     if (isLongPressRef.current) {
-      // 结束Push-to-Talk录音
       onPushToTalkEnd?.();
       isLongPressRef.current = false;
     } else if (!hasMoved.current) {
@@ -87,8 +97,8 @@ export default function AIFloatingOrb({ orbState, onTogglePanel, isPanelOpen, on
     <motion.div
       className="fixed z-[9990] select-none touch-none"
       style={{
-        right: 24 - position.x,
-        bottom: 32 - position.y,
+        left: position.left,
+        top: position.top,
       }}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
