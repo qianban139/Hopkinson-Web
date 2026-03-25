@@ -156,7 +156,7 @@ export function useWakeWordListener({
       if (flowStateRef.current === 'capturing') {
         submitCapturedCommand();
       }
-    }, 2500); // 2.5秒无新输入则提交
+    }, 4000); // 4秒无新输入则提交（给用户更多思考时间）
   }, [submitCapturedCommand]);
 
   // 启动识别
@@ -250,8 +250,9 @@ export function useWakeWordListener({
       recognition.onend = () => {
         isRunningRef.current = false;
 
-        // 如果在捕获中意外断开，提交已有内容
-        if (flowStateRef.current === 'capturing' && capturedTextRef.current.trim()) {
+        // 如果在捕获中断开，不立即提交 — 让 captureTimeout 处理
+        // 只在 enabled=false 时才强制提交
+        if (!enabledRef.current && flowStateRef.current === 'capturing' && capturedTextRef.current.trim()) {
           submitCapturedCommand();
         }
 
