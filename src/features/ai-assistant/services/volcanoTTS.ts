@@ -39,8 +39,8 @@ export async function synthesizeSpeech(text: string): Promise<string | null> {
   if (!config) return null;
 
   const apiUrl = import.meta.env.DEV
-    ? '/api/tts/v3'
-    : 'https://openspeech.bytedance.com/api/v3/tts/unidirectional';
+    ? '/api/tts/v3'   // Vite dev proxy
+    : '/api/tts';      // Vercel serverless function proxy
 
   const reqid = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -65,17 +65,20 @@ export async function synthesizeSpeech(text: string): Promise<string | null> {
 
     console.info(`[VolcanoTTS] V3合成: "${text.slice(0, 20)}..." → ${apiUrl}`);
 
+    // 生产环境通过 serverless 代理，不需要自定义 header（避免 CORS preflight）
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (import.meta.env.DEV) {
+      headers['Authorization'] = `Bearer;${config.accessToken}`;
+      headers['Resource-Id'] = config.voiceType.startsWith('ICL_') ? 'volc.megatts.voiceclone' : 'volc.service_type.10029';
+      headers['X-Api-Resource-Id'] = config.voiceType.startsWith('ICL_') ? 'volc.megatts.voiceclone' : 'volc.service_type.10029';
+      headers['X-Api-App-Key'] = config.appId;
+      headers['X-Api-Access-Key'] = config.accessToken;
+      headers['X-Api-Request-Id'] = reqid;
+    }
+
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer;${config.accessToken}`,
-        'Resource-Id': config.voiceType.startsWith('ICL_') ? 'volc.megatts.voiceclone' : 'volc.service_type.10029',
-        'X-Api-Resource-Id': config.voiceType.startsWith('ICL_') ? 'volc.megatts.voiceclone' : 'volc.service_type.10029',
-        'X-Api-App-Key': config.appId,
-        'X-Api-Access-Key': config.accessToken,
-        'X-Api-Request-Id': reqid,
-      },
+      headers,
       body: JSON.stringify(requestBody),
     });
 

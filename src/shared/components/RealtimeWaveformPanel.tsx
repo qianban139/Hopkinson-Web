@@ -22,6 +22,7 @@ interface RealtimeWaveformPanelProps {
   dampingC?: number;
   className?: string;
   showStressStrain?: boolean;
+  waveFilter?: 'all' | 'incident' | 'reflected' | 'transmitted';
 }
 
 export default function RealtimeWaveformPanel({
@@ -33,6 +34,7 @@ export default function RealtimeWaveformPanel({
   dampingC: _dampingC,
   className = '',
   showStressStrain = false,
+  waveFilter = 'all',
 }: RealtimeWaveformPanelProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -151,32 +153,30 @@ export default function RealtimeWaveformPanel({
         },
       ],
       series: [
-        {
+        ...((waveFilter === 'all' || waveFilter === 'incident') ? [{
           name: '入射波',
-          type: 'line',
+          type: 'line' as const,
           data: waveformData.incident,
           smooth: false,
           lineStyle: { color: '#333', width: 1.5 },
           showSymbol: false,
-        },
-        ...(stageIndex >= 4 ? [
-          {
-            name: '反射波',
-            type: 'line',
-            data: waveformData.reflected,
-            smooth: false,
-            lineStyle: { color: '#3B82F6', width: 1.5 },
-            showSymbol: false,
-          },
-          {
-            name: '透射波',
-            type: 'line',
-            data: waveformData.transmitted,
-            smooth: false,
-            lineStyle: { color: '#EF4444', width: 1.5 },
-            showSymbol: false,
-          },
-        ] as echarts.SeriesOption[] : []),
+        }] : []),
+        ...(stageIndex >= 4 && (waveFilter === 'all' || waveFilter === 'reflected') ? [{
+          name: '反射波',
+          type: 'line' as const,
+          data: waveformData.reflected,
+          smooth: false,
+          lineStyle: { color: '#3B82F6', width: 1.5 },
+          showSymbol: false,
+        }] : []),
+        ...(stageIndex >= 4 && (waveFilter === 'all' || waveFilter === 'transmitted') ? [{
+          name: '透射波',
+          type: 'line' as const,
+          data: waveformData.transmitted,
+          smooth: false,
+          lineStyle: { color: '#EF4444', width: 1.5 },
+          showSymbol: false,
+        }] : []),
       ],
       // 阶段 0-2 标注
       ...(stageIndex < 3 ? {
@@ -201,7 +201,7 @@ export default function RealtimeWaveformPanel({
     const handleResize = () => chartInstance.current?.resize();
     window.addEventListener('resize', handleResize);
     return () => { window.removeEventListener('resize', handleResize); };
-  }, [waveformData, stageIndex]);
+  }, [waveformData, stageIndex, waveFilter]);
 
   useEffect(() => {
     return () => {
@@ -210,26 +210,34 @@ export default function RealtimeWaveformPanel({
     };
   }, []);
 
+  // Resize chart when container size changes
+  useEffect(() => {
+    if (!chartRef.current || !chartInstance.current) return;
+    const observer = new ResizeObserver(() => chartInstance.current?.resize());
+    observer.observe(chartRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className={`bg-[#051020]/80 border-t border-[#00F5FF]/10 p-4 ${className}`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-          <Waves className="w-4 h-4 text-[#00F5FF]" />
+    <div className={`bg-[#051020]/80 border-t border-[#00F5FF]/10 p-3 flex flex-col ${className}`}>
+      <div className="flex items-center justify-between mb-2 flex-shrink-0">
+        <h3 className="text-xs font-semibold text-white flex items-center gap-2">
+          <Waves className="w-3.5 h-3.5 text-[#00F5FF]" />
           {stageIndex < 3 ? '三波信号 (等待实验)' : '三波信号 — 真实数据'}
         </h3>
         <div className="flex gap-2">
-          <Badge className="bg-gray-500/20 text-gray-300 text-xs border-gray-500/30">
+          <Badge className="bg-gray-500/20 text-gray-300 text-[10px] border-gray-500/30 px-1.5 py-0">
             入射 {stageIndex >= 3 ? '●' : '○'}
           </Badge>
-          <Badge className="bg-[#3B82F6]/20 text-[#3B82F6] text-xs border-[#3B82F6]/30">
+          <Badge className="bg-[#3B82F6]/20 text-[#3B82F6] text-[10px] border-[#3B82F6]/30 px-1.5 py-0">
             反射 {stageIndex >= 4 ? '●' : '○'}
           </Badge>
-          <Badge className="bg-[#EF4444]/20 text-[#EF4444] text-xs border-[#EF4444]/30">
+          <Badge className="bg-[#EF4444]/20 text-[#EF4444] text-[10px] border-[#EF4444]/30 px-1.5 py-0">
             透射 {stageIndex >= 4 ? '●' : '○'}
           </Badge>
         </div>
       </div>
-      <div ref={chartRef} className="w-full h-[260px]" />
+      <div ref={chartRef} className="w-full flex-1 min-h-0" />
     </div>
   );
 }

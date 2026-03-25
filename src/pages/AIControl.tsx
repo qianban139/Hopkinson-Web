@@ -16,6 +16,7 @@ import { useExperimentDataBus } from '@/store/useExperimentDataBus';
 import { useAppStore } from '@/store/useAppStore';
 import GlowCard from '@/shared/components/GlowCard';
 import ModuleConnectionBadge from '@/shared/components/ModuleConnectionBadge';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 /* ─── Constants ─── */
 
@@ -168,34 +169,49 @@ function PipelineBar({ activeStep, completedSteps }: { activeStep: string | null
 
 /* ─── Training Chart (ECharts) ─── */
 
-function TrainingChart({ algoId, color, triggerKey }: { algoId: string; color: string; triggerKey: number }) {
+function TrainingChart({ algoId, color, triggerKey, progress = 100 }: { algoId: string; color: string; triggerKey: number; progress?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const instance = useRef<echarts.ECharts | null>(null);
+  const fullDataRef = useRef<{ xData: number[]; seriesData: number[][]; isPPO: boolean } | null>(null);
 
+  // Generate full data once when triggerKey changes
   useEffect(() => {
-    if (!ref.current) return;
-    instance.current = echarts.init(ref.current);
-
     const n = 100;
     const xData = Array.from({ length: n }, (_, i) => i + 1);
     const isPPO = algoId === 'ppo';
+    const seriesData: number[][] = isPPO
+      ? [generateRewardCurve(n)]
+      : [generateLossCurve(n, 2.5, 0.12, 0.3), generateLossCurve(n, 2.8, 0.18, 0.4)];
+    fullDataRef.current = { xData, seriesData, isPPO };
+  }, [algoId, triggerKey]);
+
+  useEffect(() => {
+    if (!ref.current || !fullDataRef.current) return;
+    if (!instance.current) {
+      instance.current = echarts.init(ref.current);
+    }
+
+    const { xData, seriesData, isPPO } = fullDataRef.current;
+    const n = xData.length;
+    const visibleCount = Math.max(1, Math.floor(n * progress / 100));
+    const visibleX = xData.slice(0, visibleCount);
 
     const series: echarts.SeriesOption[] = isPPO
       ? [{
-          name: '累计奖励', type: 'line', data: generateRewardCurve(n), smooth: true,
+          name: '累计奖励', type: 'line', data: seriesData[0].slice(0, visibleCount), smooth: true,
           lineStyle: { color, width: 2 }, symbol: 'none',
           areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: `${color}30` }, { offset: 1, color: `${color}05` }]) },
           itemStyle: { color },
         }]
       : [
           {
-            name: '训练损失', type: 'line', data: generateLossCurve(n, 2.5, 0.12, 0.3), smooth: true,
+            name: '训练损失', type: 'line', data: seriesData[0].slice(0, visibleCount), smooth: true,
             lineStyle: { color, width: 2 }, symbol: 'none',
             areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: `${color}25` }, { offset: 1, color: `${color}05` }]) },
             itemStyle: { color },
           },
           {
-            name: '验证损失', type: 'line', data: generateLossCurve(n, 2.8, 0.18, 0.4), smooth: true,
+            name: '验证损失', type: 'line', data: seriesData[1].slice(0, visibleCount), smooth: true,
             lineStyle: { color: `${color}80`, width: 1.5, type: 'dashed' }, symbol: 'none',
             itemStyle: { color: `${color}80` },
           },
@@ -206,15 +222,15 @@ function TrainingChart({ algoId, color, triggerKey }: { algoId: string; color: s
       grid: { top: 35, right: 15, bottom: 30, left: 50 },
       tooltip: { trigger: 'axis', backgroundColor: '#0D2847', borderColor: `${color}40`, textStyle: { color: '#fff', fontSize: 11 } },
       legend: { top: 0, textStyle: { color: '#fff8', fontSize: 10 }, itemWidth: 16, itemHeight: 8 },
-      xAxis: { type: 'category', data: xData, axisLine: { lineStyle: { color: '#ffffff20' } }, axisLabel: { color: '#ffffff60', fontSize: 10 }, name: isPPO ? 'Episode' : 'Epoch', nameTextStyle: { color: '#ffffff40', fontSize: 10 } },
+      xAxis: { type: 'category', data: visibleX, axisLine: { lineStyle: { color: '#ffffff20' } }, axisLabel: { color: '#ffffff60', fontSize: 10 }, name: isPPO ? 'Episode' : 'Epoch', nameTextStyle: { color: '#ffffff40', fontSize: 10 } },
       yAxis: { type: 'value', axisLine: { lineStyle: { color: '#ffffff20' } }, axisLabel: { color: '#ffffff60', fontSize: 10 }, splitLine: { lineStyle: { color: '#ffffff08' } }, name: isPPO ? 'Reward' : 'Loss', nameTextStyle: { color: '#ffffff40', fontSize: 10 } },
       series,
     } as echarts.EChartsOption);
 
     const onResize = () => instance.current?.resize();
     window.addEventListener('resize', onResize);
-    return () => { window.removeEventListener('resize', onResize); instance.current?.dispose(); };
-  }, [algoId, color, triggerKey]);
+    return () => { window.removeEventListener('resize', onResize); instance.current?.dispose(); instance.current = null; };
+  }, [algoId, color, triggerKey, progress]);
 
   return <div ref={ref} className="w-full h-[320px]" />;
 }
@@ -510,6 +526,9 @@ export default function AIControl() {
     logDataFlow({ from: 'AIControl', to: 'VirtualLab', dataType: 'optimized-params', description: `优化参数已写回: ${optimizedParams.voltage}V` });
   }, [optimizedParams, publishAIOptimization, setExperimentParams, logDataFlow]);
 
+  /* ─── Parameter change highlight ─── */
+  const [changedParam, setChangedParam] = useState<string | null>(null);
+
   /* ─── Active tab state ─── */
   const [activeTab, setActiveTab] = useState<string>('lstm');
 
@@ -518,16 +537,23 @@ export default function AIControl() {
     return () => {
       Object.values(progressIntervals.current).forEach(clearInterval);
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (changedParamTimer.current) clearTimeout(changedParamTimer.current);
     };
   }, []);
 
   /* ─── Param change ─── */
+  const changedParamTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleParamChange = useCallback((algoId: string, idx: number, val: number) => {
     setParamValues((prev) => {
       const arr = [...(prev[algoId] ?? [])];
       arr[idx] = val;
       return { ...prev, [algoId]: arr };
     });
+    const algo = algorithms.find(a => a.id === algoId);
+    const paramName = algo?.params[idx]?.name ?? null;
+    setChangedParam(paramName);
+    if (changedParamTimer.current) clearTimeout(changedParamTimer.current);
+    changedParamTimer.current = setTimeout(() => setChangedParam(null), 800);
   }, []);
 
   /* ─── AI event listeners ─── */
@@ -688,95 +714,107 @@ export default function AIControl() {
 
               {algorithms.map((algo) => (
                 <TabsContent key={algo.id} value={algo.id} className="p-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Left: Network architecture + hyperparameters */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Layers className="w-4 h-4" style={{ color: algo.color }} />
-                        <span className="text-sm font-semibold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">网络架构</span>
-                        <span className="text-xs text-white/30">{algo.fullName}</span>
-                      </div>
-                      <NetworkArchViz algoId={algo.id} />
-
-                      {/* Hyperparameters */}
-                      <div className="bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl p-4 hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Settings className="w-3.5 h-3.5" style={{ color: algo.color }} />
-                          <span className="text-xs font-medium text-white/70">超参数配置</span>
+                  <ResizablePanelGroup direction="horizontal" className="min-h-[500px]">
+                    {/* Left panel: Training chart + network architecture */}
+                    <ResizablePanel defaultSize={60} minSize={30}>
+                      <div className="space-y-4 pr-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Activity className="w-4 h-4" style={{ color: algo.color }} />
+                          <span className="text-sm font-semibold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                            {algo.id === 'ppo' ? '奖励曲线' : '训练损失曲线'}
+                          </span>
                         </div>
-                        <div className="space-y-3">
-                          {algo.params.map((p, idx) => (
-                            <div key={p.name}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] text-white/50">{p.name}</span>
-                                <span className="text-[11px] font-mono" style={{ color: algo.color }}>
-                                  {paramValues[algo.id]?.[idx] ?? p.value}
-                                </span>
-                              </div>
-                              <Slider
-                                value={[paramValues[algo.id]?.[idx] ?? p.value]}
-                                min={p.range[0]}
-                                max={p.range[1]}
-                                step={p.step}
-                                onValueChange={([v]) => handleParamChange(algo.id, idx, v)}
-                                className="h-4"
-                              />
-                            </div>
+                        <div className="bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl overflow-hidden hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300">
+                          <TrainingChart algoId={algo.id} color={algo.color} triggerKey={chartKeys[algo.id]} progress={progressValues[algo.id] ?? 0} />
+                        </div>
+                        {/* Key metrics cards */}
+                        <div className="grid grid-cols-3 gap-3">
+                          {(algoMetrics[algo.id] ?? []).map((m) => (
+                            <MetricCard key={m.label} label={m.label} value={m.value} unit={m.unit} color={algo.color} />
                           ))}
                         </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Layers className="w-4 h-4" style={{ color: algo.color }} />
+                          <span className="text-sm font-semibold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">网络架构</span>
+                          <span className="text-xs text-white/30">{algo.fullName}</span>
+                        </div>
+                        <NetworkArchViz algoId={algo.id} />
+                      </div>
+                    </ResizablePanel>
 
-                        {/* Progress */}
-                        {runningAlgos[algo.id] && (
-                          <div className="mt-3">
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-white/40">训练进度</span>
-                              <span style={{ color: algo.color }}>{progressValues[algo.id]?.toFixed(0) ?? 0}%</span>
-                            </div>
-                            <Progress value={progressValues[algo.id] ?? 0} className="h-1.5" />
+                    <ResizableHandle withHandle />
+
+                    {/* Right panel: Parameter sliders */}
+                    <ResizablePanel defaultSize={40} minSize={25}>
+                      <div className="space-y-4 pl-3">
+                        <div className="bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl p-4 hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Settings className="w-3.5 h-3.5" style={{ color: algo.color }} />
+                            <span className="text-xs font-medium text-white/70">超参数配置</span>
                           </div>
-                        )}
+                          <div className="space-y-3">
+                            {algo.params.map((p, idx) => (
+                              <motion.div
+                                key={p.name}
+                                className="rounded-lg px-1"
+                                animate={changedParam === p.name ? {
+                                  backgroundColor: ['rgba(0,245,255,0)', 'rgba(0,245,255,0.08)', 'rgba(0,245,255,0)'],
+                                  scale: [1, 1.01, 1],
+                                } : {}}
+                                transition={{ duration: 0.6 }}
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[11px] text-white/50">{p.name}</span>
+                                  <span className="text-[11px] font-mono" style={{ color: algo.color }}>
+                                    {paramValues[algo.id]?.[idx] ?? p.value}
+                                  </span>
+                                </div>
+                                <Slider
+                                  value={[paramValues[algo.id]?.[idx] ?? p.value]}
+                                  min={p.range[0]}
+                                  max={p.range[1]}
+                                  step={p.step}
+                                  onValueChange={([v]) => handleParamChange(algo.id, idx, v)}
+                                  className="h-4"
+                                />
+                              </motion.div>
+                            ))}
+                          </div>
 
-                        {/* Buttons + accuracy */}
-                        <div className="flex items-center gap-3 pt-3">
-                          <Button
-                            size="sm"
-                            onClick={() => toggleAlgoRun(algo.id)}
-                            className="gap-1.5"
-                            style={{
-                              backgroundColor: runningAlgos[algo.id] ? '#EF444420' : `${algo.color}20`,
-                              color: runningAlgos[algo.id] ? '#EF4444' : algo.color,
-                              borderColor: runningAlgos[algo.id] ? '#EF444440' : `${algo.color}40`,
-                            }}
-                            variant="outline"
-                          >
-                            {runningAlgos[algo.id] ? <><Pause className="w-3.5 h-3.5" />停止</> : <><Play className="w-3.5 h-3.5" />训练</>}
-                          </Button>
-                          <Badge style={{ backgroundColor: `${algo.color}15`, color: algo.color, borderColor: `${algo.color}30` }}>
-                            精度: {(algo.defaultAccuracy * 100).toFixed(1)}%
-                          </Badge>
+                          {/* Progress */}
+                          {runningAlgos[algo.id] && (
+                            <div className="mt-3">
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-white/40">训练进度</span>
+                                <span style={{ color: algo.color }}>{progressValues[algo.id]?.toFixed(0) ?? 0}%</span>
+                              </div>
+                              <Progress value={progressValues[algo.id] ?? 0} className="h-1.5" />
+                            </div>
+                          )}
+
+                          {/* Buttons + accuracy */}
+                          <div className="flex items-center gap-3 pt-3">
+                            <Button
+                              size="sm"
+                              onClick={() => toggleAlgoRun(algo.id)}
+                              className="gap-1.5"
+                              style={{
+                                backgroundColor: runningAlgos[algo.id] ? '#EF444420' : `${algo.color}20`,
+                                color: runningAlgos[algo.id] ? '#EF4444' : algo.color,
+                                borderColor: runningAlgos[algo.id] ? '#EF444440' : `${algo.color}40`,
+                              }}
+                              variant="outline"
+                            >
+                              {runningAlgos[algo.id] ? <><Pause className="w-3.5 h-3.5" />停止</> : <><Play className="w-3.5 h-3.5" />训练</>}
+                            </Button>
+                            <Badge style={{ backgroundColor: `${algo.color}15`, color: algo.color, borderColor: `${algo.color}30` }}>
+                              精度: {(algo.defaultAccuracy * 100).toFixed(1)}%
+                            </Badge>
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Right: training curve + key metrics */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Activity className="w-4 h-4" style={{ color: algo.color }} />
-                        <span className="text-sm font-semibold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                          {algo.id === 'ppo' ? '奖励曲线' : '训练损失曲线'}
-                        </span>
-                      </div>
-                      <div className="bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl overflow-hidden hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300">
-                        <TrainingChart algoId={algo.id} color={algo.color} triggerKey={chartKeys[algo.id]} />
-                      </div>
-                      {/* Key metrics cards */}
-                      <div className="grid grid-cols-3 gap-3">
-                        {(algoMetrics[algo.id] ?? []).map((m) => (
-                          <MetricCard key={m.label} label={m.label} value={m.value} unit={m.unit} color={algo.color} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
                 </TabsContent>
               ))}
             </Tabs>

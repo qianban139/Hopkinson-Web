@@ -4,13 +4,14 @@ import {
   Zap, Activity, Box, Sparkles,
   Waves, Clock, Database, Beaker, Info, ChevronUp,
   Search, ChevronRight, ChevronDown, ArrowRight,
-  Play, Pause, RotateCcw
+  Play, Pause, RotateCcw, PanelLeftClose, PanelLeftOpen, AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import GLTFModel from '@/components/GLTFModel';
 import { HopkinsonBar2DRealistic } from '@/features/experiment-2d';
 import ExperimentResultsPanel from '@/components/ExperimentResults';
@@ -212,7 +213,7 @@ export default function VirtualLab() {
 
   // AI事件监听: 启动/暂停/重置/预设
   useEffect(() => {
-    const handleStart = () => { animState.reset(); animState.play(); };
+    const handleStart = () => { setShowAIConfirm(true); };
     const handlePause = () => { animState.pause(); };
     const handleReset = () => { animState.reset(); };
     const handlePreset = (e: Event) => {
@@ -272,6 +273,13 @@ export default function VirtualLab() {
     }
   }, [animState.isComplete, handleExperimentComplete]);
 
+  // 侧栏折叠状态
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // AI启动确认弹窗
+  const [showAIConfirm, setShowAIConfirm] = useState(false);
+  // 波形显示 tab
+  const [waveformTab, setWaveformTab] = useState('all');
+
   // 筛选材料
   const filteredMaterials = searchQuery
     ? materials.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -295,19 +303,120 @@ export default function VirtualLab() {
         />
       </div>
 
+      {/* AI启动确认弹窗 */}
+      <AnimatePresence>
+        {showAIConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowAIConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#0A2540] border border-[#00F5FF]/30 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-[#F59E0B]/20 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-[#F59E0B]" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold">AI 请求启动实验</h3>
+                  <p className="text-xs text-white/50">请确认以下参数后开始</p>
+                </div>
+              </div>
+              <div className="bg-[#051020] rounded-lg p-4 space-y-2 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">电压</span>
+                  <span className="text-[#00F5FF] font-mono">{voltage} V</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">电流</span>
+                  <span className="text-[#1DD1A1] font-mono">{(current / 1000).toFixed(1)} kA</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">脉宽</span>
+                  <span className="text-[#FF9F43] font-mono">{pulseWidth} μs</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">材料</span>
+                  <span className="text-white">{selectedMaterial.name}</span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowAIConfirm(false)}
+                  variant="outline"
+                  className="flex-1 border-white/20 text-white/60"
+                >
+                  取消
+                </Button>
+                <Button
+                  onClick={() => { setShowAIConfirm(false); animState.reset(); animState.play(); }}
+                  className="flex-1 bg-[#00F5FF]/20 text-[#00F5FF] border border-[#00F5FF]/40 hover:bg-[#00F5FF]/30"
+                >
+                  <Play className="w-4 h-4 mr-1.5" />
+                  确认启动
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="h-[calc(100vh-128px)] flex">
-        {/* 左侧材料库 */}
+        {/* 左侧合并面板 — 材料库 + 参数控制 */}
         <motion.div
-          initial={{ x: -320, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          className="w-[320px] bg-[#051020] border-r border-[#00F5FF]/20 flex flex-col"
+          initial={{ x: -360, opacity: 0 }}
+          animate={{ x: 0, opacity: 1, width: sidebarCollapsed ? 48 : 360 }}
+          transition={{ duration: 0.3 }}
+          className="bg-[#051020] border-r border-[#00F5FF]/20 flex flex-col flex-shrink-0 overflow-hidden"
         >
-          <div className="p-4 border-b border-[#00F5FF]/10">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Database className="w-5 h-5 text-[#00F5FF]" />
-              材料库
-            </h2>
-            <p className="text-xs text-white/50 mt-1">7大类材料 · {materials.length}种材料</p>
+          {/* 折叠按钮 */}
+          <div className="p-2 border-b border-[#00F5FF]/10 flex items-center justify-between">
+            {!sidebarCollapsed && (
+              <span className="text-sm font-semibold text-white flex items-center gap-2 ml-2">
+                <Database className="w-4 h-4 text-[#00F5FF]" />
+                实验控制台
+              </span>
+            )}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-1.5 rounded-lg hover:bg-white/5 text-white/60 hover:text-white transition-colors"
+            >
+              {sidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {sidebarCollapsed ? (
+            /* 折叠态 — 只显示图标 */
+            <div className="flex flex-col items-center gap-2 py-4">
+              <button onClick={() => setSidebarCollapsed(false)} className="p-2 rounded-lg hover:bg-white/5 text-white/50" title="材料库">
+                <Database className="w-4 h-4" />
+              </button>
+              <button onClick={() => setSidebarCollapsed(false)} className="p-2 rounded-lg hover:bg-white/5 text-white/50" title="参数设置">
+                <Zap className="w-4 h-4" />
+              </button>
+              <button onClick={() => setSidebarCollapsed(false)} className="p-2 rounded-lg hover:bg-white/5 text-white/50" title="材料信息">
+                <Beaker className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+          /* 展开态 — Tabs: 材料库 / 参数 / 围压 */
+          <Tabs defaultValue="materials" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="w-full bg-[#0A2540] border-b border-[#00F5FF]/10 rounded-none flex-shrink-0">
+              <TabsTrigger value="materials" className="flex-1 text-xs data-[state=active]:bg-[#00F5FF]/20">材料库</TabsTrigger>
+              <TabsTrigger value="params" className="flex-1 text-xs data-[state=active]:bg-[#00F5FF]/20">参数</TabsTrigger>
+              <TabsTrigger value="info" className="flex-1 text-xs data-[state=active]:bg-[#00F5FF]/20">材料</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="materials" className="flex-1 flex flex-col overflow-hidden mt-0">
+          <div className="p-3 border-b border-[#00F5FF]/10 flex-shrink-0">
+            <p className="text-xs text-white/50">7大类材料 · {materials.length}种材料</p>
           </div>
 
           {/* 搜索框 */}
@@ -397,9 +506,204 @@ export default function VirtualLab() {
               </div>
             )}
           </div>
+            </TabsContent>
+
+            <TabsContent value="params" className="flex-1 overflow-y-auto mt-0 p-4 space-y-4">
+              {/* 参数预设 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/50">快速预设</span>
+                  {aiOptimizedParams && (
+                    <button
+                      onClick={() => {
+                        setVoltage(aiOptimizedParams.voltage);
+                        setCurrent(aiOptimizedParams.current);
+                        setPulseWidth(aiOptimizedParams.pulseWidth);
+                      }}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 text-[10px] text-[#8B5CF6] hover:bg-[#8B5CF6]/25 transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      应用AI推荐
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {PARAM_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      onClick={() => {
+                        setVoltage(p.voltage);
+                        setCurrent(p.current);
+                        setPulseWidth(p.pulseWidth);
+                      }}
+                      disabled={isAnimationPlaying}
+                      className="p-1.5 rounded-lg bg-[#0A2540]/50 border border-white/10 hover:border-[#00F5FF]/30 transition-all text-left disabled:opacity-40"
+                    >
+                      <div className="text-[10px] font-medium text-white/80">{p.label}</div>
+                      <div className="text-[9px] text-white/40">{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 电压 */}
+              <div data-ai-target="lab-voltage">
+                <SliderInputCombo
+                  value={voltage} onChange={setVoltage} min={1000} max={4000} step={50}
+                  disabled={isAnimationPlaying} label="电压" unit="V"
+                  icon={<Zap className="w-4 h-4 text-[#00F5FF]" />} color="#00F5FF"
+                />
+                {aiOptimizedParams && aiOptimizedParams.voltage !== voltage && (
+                  <button onClick={() => setVoltage(aiOptimizedParams.voltage)} className="text-[9px] text-[#8B5CF6] hover:underline mt-0.5 ml-1">
+                    AI推荐: {aiOptimizedParams.voltage}V
+                  </button>
+                )}
+              </div>
+
+              {/* 电流 */}
+              <div data-ai-target="lab-current">
+                <SliderInputCombo
+                  value={current} onChange={setCurrent} min={0} max={50000} step={500}
+                  disabled={isAnimationPlaying} label="电流" unit="kA"
+                  icon={<Activity className="w-4 h-4 text-[#1DD1A1]" />} color="#1DD1A1"
+                  formatDisplay={(v) => (v / 1000).toFixed(1)}
+                />
+                {aiOptimizedParams && aiOptimizedParams.current !== current && (
+                  <button onClick={() => setCurrent(aiOptimizedParams.current)} className="text-[9px] text-[#8B5CF6] hover:underline mt-0.5 ml-1">
+                    AI推荐: {(aiOptimizedParams.current / 1000).toFixed(1)}kA
+                  </button>
+                )}
+              </div>
+
+              {/* 脉宽 */}
+              <div data-ai-target="lab-pulseWidth">
+                <SliderInputCombo
+                  value={pulseWidth} onChange={setPulseWidth} min={200} max={1100} step={50}
+                  disabled={isAnimationPlaying} label="脉宽" unit="μs"
+                  icon={<Clock className="w-4 h-4 text-[#FF9F43]" />} color="#FF9F43"
+                />
+                {aiOptimizedParams && aiOptimizedParams.pulseWidth !== pulseWidth && (
+                  <button onClick={() => setPulseWidth(aiOptimizedParams.pulseWidth)} className="text-[9px] text-[#8B5CF6] hover:underline mt-0.5 ml-1">
+                    AI推荐: {aiOptimizedParams.pulseWidth}μs
+                  </button>
+                )}
+              </div>
+
+              {/* 波形类型 */}
+              <div className="space-y-2">
+                <label className="text-sm text-white/70 flex items-center gap-2">
+                  <Waves className="w-4 h-4 text-[#8B5CF6]" />
+                  波形类型
+                </label>
+                <Select value={waveform} onValueChange={(v) => setWaveform(v)} disabled={isAnimationPlaying}>
+                  <SelectTrigger className="bg-[#0A2540] border-[#00F5FF]/30 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0A2540] border-[#00F5FF]/30">
+                    {waveformTypes.map((w) => (
+                      <SelectItem key={w.value} value={w.value} className="text-white hover:bg-[#00F5FF]/20">
+                        <div>
+                          <div>{w.label}</div>
+                          <div className="text-xs text-white/50">{w.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 围压控制 */}
+              <div className="space-y-3 border-t border-[#00F5FF]/10 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-white/70">启用围压控制</label>
+                  <Switch checked={enableConfining} onCheckedChange={setEnableConfining} disabled={isAnimationPlaying} />
+                </div>
+                {enableConfining && (
+                  <div className="space-y-3">
+                    {(['x', 'y', 'z'] as const).map((axis) => (
+                      <SliderInputCombo
+                        key={axis}
+                        value={confiningPressure[axis]}
+                        onChange={(v) => setConfiningPressure(prev => ({ ...prev, [axis]: v }))}
+                        min={0} max={200} step={5}
+                        disabled={isAnimationPlaying}
+                        label={`${axis.toUpperCase()}轴围压`} unit="MPa" color="#00F5FF"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 实时计算参数 */}
+              <div className="p-3 bg-[#0A2540]/50 rounded-lg border border-[#00F5FF]/20">
+                <h4 className="text-xs text-[#00F5FF] mb-2 font-medium">实时计算参数</h4>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-white/60">电容储能</span>
+                    <span className="text-[#00F5FF] font-mono">{capacitance.toFixed(2)} kJ</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/60">子弹初速</span>
+                    <span className="text-[#FFD700] font-mono">{bulletVelocity.toFixed(1)} m/s</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/60">预估应变率</span>
+                    <span className="text-[#8B5CF6] font-mono">~{Math.round(bulletVelocity * 10)} /s</span>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="info" className="flex-1 overflow-y-auto mt-0 p-4 space-y-4">
+              {/* 当前材料信息 */}
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <Beaker className="w-4 h-4 text-[#00F5FF]" />
+                当前材料
+              </h3>
+              <div className="bg-[#0A2540]/50 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: selectedMaterial.color }} />
+                  <span className="text-white font-medium">{selectedMaterial.name}</span>
+                </div>
+                <p className="text-xs text-white/50">{selectedMaterial.description}</p>
+                <div className="grid grid-cols-2 gap-2 text-xs text-white/60">
+                  <div>密度: {(selectedMaterial.density / 1000).toFixed(1)} g/cm³</div>
+                  <div>弹性模量: {(selectedMaterial.elasticModulus / 1e9).toFixed(0)} GPa</div>
+                  <div>屈服强度: {(selectedMaterial.yieldStrength / 1e6).toFixed(0)} MPa</div>
+                  <div>刚度: {selectedMaterial.stiffnessK} GPa</div>
+                  <div>阻尼: {selectedMaterial.dampingC}</div>
+                  <div>EMI阈值: {selectedMaterial.emiThreshold} dB</div>
+                </div>
+              </div>
+              <ExperimentResultsSection />
+
+              {/* 说明区 */}
+              <div className="border-t border-[#00F5FF]/10 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Info className="w-4 h-4 text-[#00F5FF]" />
+                    关于
+                  </h3>
+                  <button onClick={() => setShowInfo(!showInfo)} className="text-white/50 hover:text-white">
+                    {showInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                </div>
+                {showInfo && (
+                  <div className="text-xs text-white/60 space-y-1.5">
+                    <p>模拟电磁驱动霍普金森杆实验过程，支持参数优化与波形预测。</p>
+                    <div className="flex items-center gap-1 text-[#00F5FF]">
+                      <ArrowRight className="w-3 h-3" />
+                      <span>实验数据将自动传递至 AI控制 和 材料分析</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+          )}
         </motion.div>
 
-        {/* 中央实验区域 */}
+        {/* 主实验区域 */}
         <div className="flex-1 flex flex-col">
           {/* 顶部工具栏 */}
           <div className="h-14 bg-[#051020] border-b border-[#00F5FF]/10 flex items-center justify-between px-4">
@@ -503,72 +807,103 @@ export default function VirtualLab() {
             </span>
           </div>
 
-          {/* 实验可视化区域 */}
-          <div className="flex-1 relative bg-gradient-to-b from-[#0A2540] to-[#051020]">
-            <AnimatePresence mode="wait">
-              {viewMode === '2d' ? (
-                <motion.div
-                  key="2d"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0"
-                >
-                  <HopkinsonBar2DRealistic
-                    voltage={voltage}
-                    current={current}
-                    pulseWidth={pulseWidth}
-                    waveform={waveform}
-                    materialName={selectedMaterial.name}
-                    materialColor={selectedMaterial.color}
-                    materialCategory={selectedMaterial.subCategory}
-                    stiffnessK={selectedMaterial.stiffnessK}
-                    dampingC={selectedMaterial.dampingC}
+          {/* 可调大小的可视化 + 波形区域 */}
+          <ResizablePanelGroup direction="vertical" className="flex-1">
+            {/* 2D/3D 可视化区域 — 默认 65% */}
+            <ResizablePanel defaultSize={65} minSize={40}>
+              <div className="h-full relative bg-gradient-to-b from-[#0A2540] to-[#051020]">
+                <AnimatePresence mode="wait">
+                  {viewMode === '2d' ? (
+                    <motion.div
+                      key="2d"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0"
+                    >
+                      <HopkinsonBar2DRealistic
+                        voltage={voltage}
+                        current={current}
+                        pulseWidth={pulseWidth}
+                        waveform={waveform}
+                        materialName={selectedMaterial.name}
+                        materialColor={selectedMaterial.color}
+                        materialCategory={selectedMaterial.subCategory}
+                        stiffnessK={selectedMaterial.stiffnessK}
+                        dampingC={selectedMaterial.dampingC}
+                        currentStage={animState.currentStage}
+                        stageIndex={animState.stageIndex}
+                        stageProgress={animState.stageProgress}
+                        globalProgress={animState.globalProgress}
+                        isPlaying={animState.isPlaying}
+                        isComplete={animState.isComplete}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="3d"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0"
+                    >
+                      <Suspense fallback={
+                        <div className="w-full h-full flex items-center justify-center text-white/50">
+                          <div className="text-center">
+                            <Box className="w-16 h-16 mx-auto mb-4 opacity-50 animate-pulse" />
+                            <p>3D模型加载中...</p>
+                          </div>
+                        </div>
+                      }>
+                        <GLTFModel
+                          modelUrl="/models/new_hopkinson.gltf"
+                          isAnimating={isAnimationPlaying}
+                          className="w-full h-full"
+                        />
+                      </Suspense>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </ResizablePanel>
+
+            <ResizableHandle withHandle className="bg-[#00F5FF]/10 hover:bg-[#00F5FF]/20 transition-colors" />
+
+            {/* 波形区域 — 默认 35% */}
+            <ResizablePanel defaultSize={35} minSize={20}>
+              <div className="h-full flex flex-col bg-[#051020]">
+                {/* 波形 Tabs */}
+                <div className="flex items-center border-b border-[#00F5FF]/10 px-2 flex-shrink-0">
+                  {['all', 'incident', 'reflected', 'transmitted'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setWaveformTab(tab)}
+                      className={`px-3 py-2 text-xs font-medium transition-colors relative ${
+                        waveformTab === tab ? 'text-[#00F5FF]' : 'text-white/40 hover:text-white/60'
+                      }`}
+                    >
+                      {{ all: '全部波形', incident: '入射波', reflected: '反射波', transmitted: '透射波' }[tab]}
+                      {waveformTab === tab && (
+                        <motion.div layoutId="waveform-tab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00F5FF]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1">
+                  <RealtimeWaveformPanel
                     currentStage={animState.currentStage}
                     stageIndex={animState.stageIndex}
                     stageProgress={animState.stageProgress}
-                    globalProgress={animState.globalProgress}
-                    isPlaying={animState.isPlaying}
-                    isComplete={animState.isComplete}
+                    voltage={voltage}
+                    stiffnessK={selectedMaterial.stiffnessK}
+                    dampingC={selectedMaterial.dampingC}
+                    className="h-full"
+                    waveFilter={waveformTab as any}
                   />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="3d"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0"
-                >
-                  <Suspense fallback={
-                    <div className="w-full h-full flex items-center justify-center text-white/50">
-                      <div className="text-center">
-                        <Box className="w-16 h-16 mx-auto mb-4 opacity-50 animate-pulse" />
-                        <p>3D模型加载中...</p>
-                      </div>
-                    </div>
-                  }>
-                    <GLTFModel
-                      modelUrl="/models/new_hopkinson.gltf"
-                      isAnimating={isAnimationPlaying}
-                      className="w-full h-full"
-                    />
-                  </Suspense>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* 实时波形显示区 */}
-          <RealtimeWaveformPanel
-            currentStage={animState.currentStage}
-            stageIndex={animState.stageIndex}
-            stageProgress={animState.stageProgress}
-            voltage={voltage}
-            stiffnessK={selectedMaterial.stiffnessK}
-            dampingC={selectedMaterial.dampingC}
-            className="h-[230px]"
-          />
+                </div>
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
 
           {/* 实验完成后展示6图结果 */}
           {animState.isComplete && (
@@ -585,239 +920,6 @@ export default function VirtualLab() {
             </div>
           )}
         </div>
-
-        {/* 右侧参数面板 */}
-        <motion.div
-          initial={{ x: 320, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          className="w-[320px] bg-[#051020] border-l border-[#00F5FF]/20 flex flex-col overflow-y-auto"
-        >
-          {/* 说明区 */}
-          <div className="p-4 border-b border-[#00F5FF]/10">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <Info className="w-4 h-4 text-[#00F5FF]" />
-                虚拟实验室
-              </h3>
-              <button onClick={() => setShowInfo(!showInfo)} className="text-white/50 hover:text-white">
-                {showInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </div>
-            {showInfo && (
-              <div className="text-xs text-white/60 space-y-1.5">
-                <p>模拟电磁驱动霍普金森杆实验过程，支持参数优化与波形预测。</p>
-                <div className="flex items-center gap-1 text-[#00F5FF]">
-                  <ArrowRight className="w-3 h-3" />
-                  <span>实验数据将自动传递至 AI控制 和 材料分析</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <Tabs defaultValue="params" className="w-full">
-            <TabsList className="w-full bg-[#0A2540] border-b border-[#00F5FF]/10 rounded-none">
-              <TabsTrigger value="params" className="flex-1 data-[state=active]:bg-[#00F5FF]/20">参数</TabsTrigger>
-              <TabsTrigger value="confining" className="flex-1 data-[state=active]:bg-[#00F5FF]/20">围压</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="params" className="p-4 space-y-4 mt-0">
-              {/* 参数预设 */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-white/50">快速预设</span>
-                  {aiOptimizedParams && (
-                    <button
-                      onClick={() => {
-                        setVoltage(aiOptimizedParams.voltage);
-                        setCurrent(aiOptimizedParams.current);
-                        setPulseWidth(aiOptimizedParams.pulseWidth);
-                      }}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 text-[10px] text-[#8B5CF6] hover:bg-[#8B5CF6]/25 transition-colors"
-                      data-ai-target="lab-applyAI"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      应用AI推荐
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {PARAM_PRESETS.map((p) => (
-                    <button
-                      key={p.label}
-                      onClick={() => {
-                        setVoltage(p.voltage);
-                        setCurrent(p.current);
-                        setPulseWidth(p.pulseWidth);
-                      }}
-                      disabled={isAnimationPlaying}
-                      className="p-1.5 rounded-lg bg-[#0A2540]/50 border border-white/10 hover:border-[#00F5FF]/30 transition-all text-left disabled:opacity-40"
-                    >
-                      <div className="text-[10px] font-medium text-white/80">{p.label}</div>
-                      <div className="text-[9px] text-white/40">{p.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 电压 - 滑块+输入框 */}
-              <div data-ai-target="lab-voltage">
-              <SliderInputCombo
-                value={voltage}
-                onChange={setVoltage}
-                min={1000}
-                max={4000}
-                step={50}
-                disabled={isAnimationPlaying}
-                label="电压"
-                unit="V"
-                icon={<Zap className="w-4 h-4 text-[#00F5FF]" />}
-                color="#00F5FF"
-              />
-              {aiOptimizedParams && aiOptimizedParams.voltage !== voltage && (
-                <button onClick={() => setVoltage(aiOptimizedParams.voltage)} className="text-[9px] text-[#8B5CF6] hover:underline mt-0.5 ml-1">
-                  AI推荐: {aiOptimizedParams.voltage}V
-                </button>
-              )}
-              </div>
-
-              {/* 电流 */}
-              <div data-ai-target="lab-current">
-              <SliderInputCombo
-                value={current}
-                onChange={setCurrent}
-                min={0}
-                max={50000}
-                step={500}
-                disabled={isAnimationPlaying}
-                label="电流"
-                unit="kA"
-                icon={<Activity className="w-4 h-4 text-[#1DD1A1]" />}
-                color="#1DD1A1"
-                formatDisplay={(v) => (v / 1000).toFixed(1)}
-              />
-              {aiOptimizedParams && aiOptimizedParams.current !== current && (
-                <button onClick={() => setCurrent(aiOptimizedParams.current)} className="text-[9px] text-[#8B5CF6] hover:underline mt-0.5 ml-1">
-                  AI推荐: {(aiOptimizedParams.current / 1000).toFixed(1)}kA
-                </button>
-              )}
-              </div>
-
-              {/* 脉宽 */}
-              <div data-ai-target="lab-pulseWidth">
-              <SliderInputCombo
-                value={pulseWidth}
-                onChange={setPulseWidth}
-                min={200}
-                max={1100}
-                step={50}
-                disabled={isAnimationPlaying}
-                label="脉宽"
-                unit="μs"
-                icon={<Clock className="w-4 h-4 text-[#FF9F43]" />}
-                color="#FF9F43"
-              />
-              {aiOptimizedParams && aiOptimizedParams.pulseWidth !== pulseWidth && (
-                <button onClick={() => setPulseWidth(aiOptimizedParams.pulseWidth)} className="text-[9px] text-[#8B5CF6] hover:underline mt-0.5 ml-1">
-                  AI推荐: {aiOptimizedParams.pulseWidth}μs
-                </button>
-              )}
-              </div>
-
-              {/* 波形类型 */}
-              <div className="space-y-2">
-                <label className="text-sm text-white/70 flex items-center gap-2">
-                  <Waves className="w-4 h-4 text-[#8B5CF6]" />
-                  波形类型
-                </label>
-                <Select value={waveform} onValueChange={(v) => setWaveform(v)} disabled={isAnimationPlaying}>
-                  <SelectTrigger className="bg-[#0A2540] border-[#00F5FF]/30 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#0A2540] border-[#00F5FF]/30">
-                    {waveformTypes.map((w) => (
-                      <SelectItem key={w.value} value={w.value} className="text-white hover:bg-[#00F5FF]/20">
-                        <div>
-                          <div>{w.label}</div>
-                          <div className="text-xs text-white/50">{w.description}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* 实时计算参数 */}
-              <div className="p-3 bg-[#0A2540]/50 rounded-lg border border-[#00F5FF]/20">
-                <h4 className="text-xs text-[#00F5FF] mb-2 font-medium">实时计算参数</h4>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-white/60">电容储能</span>
-                    <span className="text-[#00F5FF] font-mono">{capacitance.toFixed(2)} kJ</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">子弹初速</span>
-                    <span className="text-[#FFD700] font-mono">{bulletVelocity.toFixed(1)} m/s</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">预估应变率</span>
-                    <span className="text-[#8B5CF6] font-mono">~{Math.round(bulletVelocity * 10)} /s</span>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="confining" className="p-4 space-y-4 mt-0">
-              <div className="flex items-center justify-between">
-                <label className="text-sm text-white/70">启用围压控制</label>
-                <Switch checked={enableConfining} onCheckedChange={setEnableConfining} disabled={isAnimationPlaying} />
-              </div>
-
-              {enableConfining && (
-                <div className="space-y-4">
-                  {(['x', 'y', 'z'] as const).map((axis) => (
-                    <SliderInputCombo
-                      key={axis}
-                      value={confiningPressure[axis]}
-                      onChange={(v) => setConfiningPressure(prev => ({ ...prev, [axis]: v }))}
-                      min={0}
-                      max={200}
-                      step={5}
-                      disabled={isAnimationPlaying}
-                      label={`${axis.toUpperCase()}轴围压`}
-                      unit="MPa"
-                      color="#00F5FF"
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-
-          {/* 当前材料信息 */}
-          <div className="p-4 border-t border-[#00F5FF]/10">
-            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-              <Beaker className="w-4 h-4 text-[#00F5FF]" />
-              当前材料
-            </h3>
-            <div className="bg-[#0A2540]/50 rounded-lg p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: selectedMaterial.color }} />
-                <span className="text-white font-medium">{selectedMaterial.name}</span>
-              </div>
-              <p className="text-xs text-white/50">{selectedMaterial.description}</p>
-              <div className="grid grid-cols-2 gap-2 text-xs text-white/60">
-                <div>密度: {(selectedMaterial.density / 1000).toFixed(1)} g/cm³</div>
-                <div>弹性模量: {(selectedMaterial.elasticModulus / 1e9).toFixed(0)} GPa</div>
-                <div>屈服强度: {(selectedMaterial.yieldStrength / 1e6).toFixed(0)} MPa</div>
-                <div>刚度: {selectedMaterial.stiffnessK} GPa</div>
-                <div>阻尼: {selectedMaterial.dampingC}</div>
-                <div>EMI阈值: {selectedMaterial.emiThreshold} dB</div>
-              </div>
-            </div>
-          </div>
-
-          <ExperimentResultsSection />
-        </motion.div>
       </div>
     </div>
   );
