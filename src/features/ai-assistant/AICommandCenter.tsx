@@ -44,7 +44,7 @@ function getContextualCommands(currentPage: string) {
     ],
     lab: [
       { label: '开始实验', icon: Zap, command: '帮我开始一个实验' },
-      { label: '选择材料', icon: Beaker, command: '帮我选择合适的材料' },
+      { label: '快速实验', icon: Zap, command: '用默认参数开始实验' },
       { label: 'AI推荐参数', icon: Brain, command: '帮我推荐最优参数' },
     ],
     ai: [
