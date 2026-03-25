@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Thermometer, Zap, Activity, Mountain, Rocket, Atom, Battery,
   ArrowRight, Send, Play, RotateCcw, AlertTriangle,
+  Anchor, Train, Shield, Pickaxe, Snowflake, Flame,
 } from 'lucide-react';
 import * as echarts from 'echarts';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,66 @@ const SCENARIOS: ScenarioPreset[] = [
     temperature: 180,
     stress: 350,
     emField: 80,
+  },
+  {
+    id: 'deep-sub',
+    title: '海洋深潜器',
+    tagline: 'P=110MPa, T=2°C',
+    icon: <Anchor className="w-5 h-5" />,
+    color: '#0EA5E9',
+    temperature: 2,
+    stress: 1100,
+    emField: 20,
+  },
+  {
+    id: 'rail',
+    title: '高铁轨道',
+    tagline: 'v=350km/h, T=60°C',
+    icon: <Train className="w-5 h-5" />,
+    color: '#F97316',
+    temperature: 60,
+    stress: 450,
+    emField: 65,
+  },
+  {
+    id: 'ballistic',
+    title: '弹道防护',
+    tagline: 'v=1200m/s, T=500°C',
+    icon: <Shield className="w-5 h-5" />,
+    color: '#EF4444',
+    temperature: 500,
+    stress: 1800,
+    emField: 10,
+  },
+  {
+    id: 'oil-drill',
+    title: '石油钻井',
+    tagline: 'T=200°C, P=140MPa',
+    icon: <Pickaxe className="w-5 h-5" />,
+    color: '#A3E635',
+    temperature: 200,
+    stress: 1400,
+    emField: 30,
+  },
+  {
+    id: 'polar',
+    title: '极地工程',
+    tagline: 'T=-50°C, 冰载荷',
+    icon: <Snowflake className="w-5 h-5" />,
+    color: '#67E8F9',
+    temperature: -50,
+    stress: 600,
+    emField: 15,
+  },
+  {
+    id: 'weld-haz',
+    title: '焊接热影响区',
+    tagline: 'T=1500°C, 急冷',
+    icon: <Flame className="w-5 h-5" />,
+    color: '#FB923C',
+    temperature: 1500,
+    stress: 300,
+    emField: 45,
   },
 ];
 
@@ -200,6 +261,86 @@ function StressStrainChart({
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Scene SVG Illustrations
+   ═══════════════════════════════════════════════════════════════ */
+
+function getSceneSVG(id: string, color: string): React.ReactNode {
+  switch (id) {
+    case 'mine':
+      return <>
+        <rect x="40" y="30" width="80" height="26" rx="2" fill={`${color}30`} stroke={color} strokeWidth="0.8" />
+        <line x1="60" y1="0" x2="60" y2="30" stroke={color} strokeWidth="0.8" strokeDasharray="3 2" />
+        <line x1="100" y1="0" x2="100" y2="30" stroke={color} strokeWidth="0.8" strokeDasharray="3 2" />
+        <circle cx="80" cy="42" r="6" fill={`${color}40`} />
+      </>;
+    case 'aerospace':
+      return <>
+        <polygon points="80,4 95,44 65,44" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
+        <line x1="80" y1="44" x2="80" y2="56" stroke={color} strokeWidth="1.5" />
+        <circle cx="80" cy="20" r="3" fill={color} opacity="0.6" />
+      </>;
+    case 'nuclear':
+      return <>
+        <circle cx="80" cy="28" r="18" fill="none" stroke={color} strokeWidth="0.8" />
+        <circle cx="80" cy="28" r="5" fill={`${color}40`} />
+        <ellipse cx="80" cy="28" rx="18" ry="8" fill="none" stroke={`${color}60`} strokeWidth="0.6" transform="rotate(60,80,28)" />
+        <ellipse cx="80" cy="28" rx="18" ry="8" fill="none" stroke={`${color}60`} strokeWidth="0.6" transform="rotate(-60,80,28)" />
+      </>;
+    case 'ev-crash':
+      return <>
+        <rect x="30" y="22" width="40" height="18" rx="4" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
+        <rect x="90" y="22" width="40" height="18" rx="4" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
+        <path d="M70,31 L90,31" stroke={color} strokeWidth="1.5" strokeDasharray="4 2" />
+        <polygon points="85,27 90,31 85,35" fill={color} opacity="0.6" />
+      </>;
+    case 'deep-sub':
+      return <>
+        <ellipse cx="80" cy="28" rx="25" ry="14" fill={`${color}20`} stroke={color} strokeWidth="0.8" />
+        <circle cx="70" cy="28" r="4" fill="none" stroke={color} strokeWidth="0.6" />
+        <line x1="55" y1="28" x2="60" y2="28" stroke={color} strokeWidth="0.8" />
+        {[10, 20, 30, 40].map(y => <line key={y} x1="20" y1={y} x2="140" y2={y} stroke={`${color}15`} strokeWidth="0.5" />)}
+      </>;
+    case 'rail':
+      return <>
+        <line x1="20" y1="36" x2="140" y2="36" stroke={color} strokeWidth="1.5" />
+        <line x1="20" y1="40" x2="140" y2="40" stroke={color} strokeWidth="1.5" />
+        {[30, 50, 70, 90, 110].map(x => <rect key={x} x={x-2} y="36" width="4" height="4" fill={`${color}40`} />)}
+        <rect x="60" y="18" width="40" height="18" rx="3" fill={`${color}20`} stroke={color} strokeWidth="0.8" />
+      </>;
+    case 'ballistic':
+      return <>
+        <rect x="95" y="8" width="12" height="40" rx="1" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
+        <circle cx="50" cy="28" r="5" fill={color} opacity="0.6" />
+        <line x1="55" y1="28" x2="95" y2="28" stroke={color} strokeWidth="1" strokeDasharray="4 3" />
+        <polygon points="88,24 95,28 88,32" fill={color} opacity="0.4" />
+      </>;
+    case 'oil-drill':
+      return <>
+        <line x1="80" y1="4" x2="80" y2="50" stroke={color} strokeWidth="1.5" />
+        <polygon points="74,50 86,50 80,56" fill={color} opacity="0.5" />
+        <rect x="70" y="4" width="20" height="8" fill={`${color}25`} stroke={color} strokeWidth="0.6" />
+        {[20, 30, 40].map(y => <circle key={y} cx="80" cy={y} r="2" fill={`${color}30`} />)}
+      </>;
+    case 'polar':
+      return <>
+        <polygon points="80,8 90,22 86,22 96,36 60,36 70,22 66,22" fill={`${color}20`} stroke={color} strokeWidth="0.6" />
+        <line x1="20" y1="44" x2="140" y2="44" stroke={`${color}40`} strokeWidth="1" />
+        <circle cx="45" cy="20" r="3" fill="none" stroke={color} strokeWidth="0.5" />
+        <circle cx="120" cy="16" r="4" fill="none" stroke={color} strokeWidth="0.5" />
+      </>;
+    case 'weld-haz':
+      return <>
+        <rect x="30" y="18" width="45" height="24" rx="1" fill={`${color}15`} stroke={color} strokeWidth="0.6" />
+        <rect x="85" y="18" width="45" height="24" rx="1" fill={`${color}15`} stroke={color} strokeWidth="0.6" />
+        <line x1="75" y1="14" x2="75" y2="46" stroke={color} strokeWidth="2" />
+        <circle cx="75" cy="30" r="8" fill={`${color}30`} />
+      </>;
+    default:
+      return <circle cx="80" cy="28" r="15" fill={`${color}20`} stroke={color} strokeWidth="0.8" />;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    Main Page Component
    ═══════════════════════════════════════════════════════════════ */
 
@@ -316,8 +457,17 @@ export default function MultiField() {
   useEffect(() => {
     const onAISelectScenario = (e: Event) => {
       const rawId = (e as CustomEvent).detail;
-      // Map 'ev-battery' alias to internal 'ev-crash' id
-      const id = rawId === 'ev-battery' ? 'ev-crash' : rawId;
+      const aliasMap: Record<string, string> = {
+        'ev-battery': 'ev-crash',
+        'submarine': 'deep-sub',
+        'ocean': 'deep-sub',
+        'train': 'rail',
+        'armor': 'ballistic',
+        'drilling': 'oil-drill',
+        'arctic': 'polar',
+        'welding': 'weld-haz',
+      };
+      const id = aliasMap[rawId] || rawId;
       const s = SCENARIOS.find((sc) => sc.id === id);
       if (s) handleSelectScenario(s);
     };
@@ -409,7 +559,7 @@ export default function MultiField() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.08 }}
-                  className="min-w-[200px] flex-shrink-0"
+                  className="min-w-[240px] flex-shrink-0"
                 >
                   <div
                     onClick={() => handleSelectScenario(s)}
@@ -437,6 +587,13 @@ export default function MultiField() {
                           <h3 className="font-semibold text-white text-sm">{s.title}</h3>
                           <p className="text-[10px] text-white/50 font-mono">{s.tagline}</p>
                         </div>
+                      </div>
+                      {/* Scene illustration */}
+                      <div className="h-16 mb-2 rounded-lg flex items-center justify-center overflow-hidden"
+                        style={{ background: `linear-gradient(135deg, ${s.color}08, ${s.color}15)` }}>
+                        <svg width="100%" height="56" viewBox="0 0 160 56" className="opacity-40">
+                          {getSceneSVG(s.id, s.color)}
+                        </svg>
                       </div>
                       <div className={`text-[10px] text-center py-1 rounded ${isActive ? 'bg-[#00F5FF]/20 text-[#00F5FF]' : 'text-white/40'}`}>
                         {isActive ? '已选择' : '点击选择'}

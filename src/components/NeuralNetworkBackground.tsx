@@ -34,23 +34,23 @@ interface Meteor {
   color: [number, number, number]; width: number;
 }
 
-const PULSE_COLORS = ['#00F5FF', '#FFD700', '#FF2E63', '#8B5CF6', '#1DD1A1', '#00D2FF', '#A78BFA'];
+const PULSE_COLORS = ['#00F5FF', '#0EA5E9', '#06B6D4', '#2DD4BF', '#94A3B8', '#CBD5E1', '#38BDF8'];
 const NODE_COLORS: [number, number, number][] = [
   [0, 245, 255],    // cyan
-  [139, 92, 246],   // purple
-  [29, 209, 161],   // teal
-  [255, 215, 0],    // gold
-  [255, 46, 99],    // pink
-  [0, 210, 255],    // sky blue
-  [167, 139, 250],  // lavender
+  [14, 165, 233],   // sky blue
+  [6, 182, 212],    // teal
+  [45, 212, 191],   // mint
+  [148, 163, 184],  // steel gray
+  [56, 189, 248],   // light blue
+  [203, 213, 225],  // silver
 ];
 const NEBULA_COLORS = [
-  { r: 0, g: 245, b: 255 },
-  { r: 139, g: 92, b: 246 },
-  { r: 29, g: 209, b: 161 },
-  { r: 255, g: 46, b: 99 },
-  { r: 0, g: 170, b: 255 },
-  { r: 80, g: 60, b: 200 },
+  { r: 0, g: 245, b: 255 },    // cyan
+  { r: 14, g: 165, b: 233 },   // sky blue
+  { r: 6, g: 182, b: 212 },    // teal
+  { r: 45, g: 212, b: 191 },   // mint
+  { r: 56, g: 189, b: 248 },   // light sky
+  { r: 100, g: 116, b: 139 },  // slate
 ];
 
 export default function NeuralNetworkBackground() {
