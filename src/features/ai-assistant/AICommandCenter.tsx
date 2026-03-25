@@ -77,22 +77,28 @@ export default function AICommandCenter() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [panelOpacity, setPanelOpacity] = useState(1);
 
-  // 拖拽/拉伸状态
+  // 拖拽/拉伸状态 — 使用 left/top 绝对定位
   const [panelPos, setPanelPos] = useState(() => {
     try {
       const saved = localStorage.getItem('ai-panel-layout');
-      if (saved) { const p = JSON.parse(saved); return { x: p.x ?? 0, y: p.y ?? 0 }; }
+      if (saved) {
+        const p = JSON.parse(saved);
+        // 兼容旧格式(right/bottom offset) → 转换为 left/top
+        if (p.left != null && p.top != null) return { left: p.left, top: p.top };
+      }
     } catch { /* ignore */ }
-    return { x: 0, y: 0 };
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1400;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 900;
+    return { left: w - 444, top: h - 660 };
   });
   const [panelSize, setPanelSize] = useState(() => {
     try {
       const saved = localStorage.getItem('ai-panel-layout');
-      if (saved) { const p = JSON.parse(saved); return { w: p.w ?? 420, h: p.h ?? 560 }; }
+      if (saved) { const p = JSON.parse(saved); if (p.w && p.h) return { w: p.w, h: p.h }; }
     } catch { /* ignore */ }
     return { w: 420, h: 560 };
   });
-  const panelDragRef = useRef({ startX: 0, startY: 0, posX: 0, posY: 0 });
+  const panelDragRef = useRef({ startX: 0, startY: 0, left: 0, top: 0 });
   const panelResizeRef = useRef({ startX: 0, startY: 0, w: 420, h: 560 });
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -102,10 +108,10 @@ export default function AICommandCenter() {
     localStorage.setItem('ai-panel-layout', JSON.stringify({ ...panelPos, ...panelSize }));
   }, [panelPos, panelSize]);
 
-  // 面板拖拽
+  // 面板拖拽 — left/top 直接偏移
   const onPanelDragStart = useCallback((e: React.PointerEvent) => {
     setIsDraggingPanel(true);
-    panelDragRef.current = { startX: e.clientX, startY: e.clientY, posX: panelPos.x, posY: panelPos.y };
+    panelDragRef.current = { startX: e.clientX, startY: e.clientY, left: panelPos.left, top: panelPos.top };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }, [panelPos]);
 
@@ -113,19 +119,19 @@ export default function AICommandCenter() {
     if (!isDraggingPanel) return;
     const dx = e.clientX - panelDragRef.current.startX;
     const dy = e.clientY - panelDragRef.current.startY;
-    setPanelPos({ x: panelDragRef.current.posX - dx, y: panelDragRef.current.posY - dy });
+    const maxLeft = window.innerWidth - 200;
+    const maxTop = window.innerHeight - 100;
+    setPanelPos({
+      left: Math.max(-100, Math.min(maxLeft, panelDragRef.current.left + dx)),
+      top: Math.max(0, Math.min(maxTop, panelDragRef.current.top + dy)),
+    });
   }, [isDraggingPanel]);
 
   const onPanelDragEnd = useCallback(() => {
     setIsDraggingPanel(false);
-    // 吸附边缘
-    setPanelPos(prev => ({
-      x: Math.abs(prev.x) < 20 ? 0 : prev.x,
-      y: Math.abs(prev.y) < 20 ? 0 : prev.y,
-    }));
   }, []);
 
-  // 面板拉伸
+  // 面板拉伸（左上角拖拽 → 改变宽高 + 同步移动位置）
   const onResizeStart = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     setIsResizing(true);
@@ -137,11 +143,15 @@ export default function AICommandCenter() {
     if (!isResizing) return;
     const dw = panelResizeRef.current.startX - e.clientX;
     const dh = panelResizeRef.current.startY - e.clientY;
-    setPanelSize({
-      w: Math.max(320, Math.min(600, panelResizeRef.current.w + dw)),
-      h: Math.max(400, Math.min(800, panelResizeRef.current.h + dh)),
-    });
-  }, [isResizing]);
+    const newW = Math.max(320, Math.min(600, panelResizeRef.current.w + dw));
+    const newH = Math.max(400, Math.min(800, panelResizeRef.current.h + dh));
+    setPanelSize({ w: newW, h: newH });
+    // 左上角拉伸时同步移动位置，保持右下角不动
+    setPanelPos(prev => ({
+      left: prev.left - (newW - panelSize.w),
+      top: prev.top - (newH - panelSize.h),
+    }));
+  }, [isResizing, panelSize]);
 
   const onResizeEnd = useCallback(() => { setIsResizing(false); }, []);
 
@@ -462,7 +472,7 @@ export default function AICommandCenter() {
             exit={{ opacity: 0, scale: 0.8 }}
             onClick={() => setIsMinimized(false)}
             className="fixed z-[9989] cursor-pointer"
-            style={{ right: 24 - panelPos.x, bottom: 100 - panelPos.y }}
+            style={{ left: panelPos.left, top: panelPos.top }}
           >
             <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-[#051020]/95 border border-[#00F5FF]/20 backdrop-blur-md hover:border-[#00F5FF]/40 transition-colors">
               <div className="w-2 h-2 rounded-full bg-[#00F5FF] animate-pulse" />
@@ -485,8 +495,8 @@ export default function AICommandCenter() {
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="fixed z-[9989] flex flex-col rounded-2xl overflow-hidden"
             style={{
-              right: 24 - panelPos.x,
-              bottom: 100 - panelPos.y,
+              left: panelPos.left,
+              top: panelPos.top,
               width: panelSize.w,
               height: panelSize.h,
               background: 'linear-gradient(135deg, rgba(5,16,32,0.97), rgba(10,37,64,0.97))',
