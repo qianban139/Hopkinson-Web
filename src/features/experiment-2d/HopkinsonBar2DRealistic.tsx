@@ -18,14 +18,14 @@ import type { ExperimentStage } from '@/hooks/useExperimentAnimation';
 // ═══════════════════════════════════════════════
 
 const DESIGN_W = 1100;
-const DESIGN_H = 240;
+const DESIGN_H = 180;
 
 // 设备布局(X坐标和尺寸)
 const LAYOUT = {
   // 电容器组
-  capacitor: { x: 20, y: 30, w: 110, h: 130 },
+  capacitor: { x: 20, y: 15, w: 110, h: 110 },
   // 电磁线圈
-  coil: { x: 145, y: 38, w: 110, h: 110 },
+  coil: { x: 145, y: 20, w: 110, h: 95 },
   // 撞击杆
   striker: { startX: 265, endX: 385, barLen: 55, barH: 20 },
   // 入射杆
@@ -37,11 +37,11 @@ const LAYOUT = {
   // 围压
   confining: { enabled: false, pressure: 100 },
   // DAQ
-  daq: { w: 130, h: 85 },
+  daq: { w: 130, h: 75 },
   // 中心线Y
-  centerY: 100,
+  centerY: 80,
   // 底座基准线Y
-  baseY: 130,
+  baseY: 105,
 };
 
 interface HopkinsonBar2DRealisticProps {

@@ -43,14 +43,18 @@ export function useCanvasResize(
     // 计算缩放以适配容器(保持宽高比)
     const scaleX = containerW / options.designWidth;
     const scaleY = containerH / options.designHeight;
+    // 填满宽度（宽高比极大时宽度为瓶颈），垂直自动居中
     const scale = Math.max(options.minScale ?? 0.3, Math.min(scaleX, scaleY));
 
     const displayW = options.designWidth * scale;
     const displayH = options.designHeight * scale;
 
-    // CSS尺寸
+    // CSS尺寸 — 居中于容器
     canvas.style.width = `${displayW}px`;
     canvas.style.height = `${displayH}px`;
+    canvas.style.position = 'absolute';
+    canvas.style.left = `${(containerW - displayW) / 2}px`;
+    canvas.style.top = `${(containerH - displayH) / 2}px`;
 
     // 物理像素尺寸
     canvas.width = displayW * dpr;
