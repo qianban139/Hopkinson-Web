@@ -218,6 +218,7 @@ function TrainingChart({ algoId, color, triggerKey, progress = 100 }: { algoId: 
         ];
 
     instance.current.setOption({
+      animation: false,
       backgroundColor: 'transparent',
       grid: { top: 35, right: 15, bottom: 30, left: 50 },
       tooltip: { trigger: 'axis', backgroundColor: '#0D2847', borderColor: `${color}40`, textStyle: { color: '#fff', fontSize: 11 } },
@@ -232,7 +233,7 @@ function TrainingChart({ algoId, color, triggerKey, progress = 100 }: { algoId: 
     return () => { window.removeEventListener('resize', onResize); instance.current?.dispose(); instance.current = null; };
   }, [algoId, color, triggerKey, progress]);
 
-  return <div ref={ref} className="w-full h-[320px]" />;
+  return <div ref={ref} className="w-full h-[400px]" />;
 }
 
 /* ─── Waveform Comparison Chart ─── */
@@ -254,6 +255,7 @@ function WaveformChart({ voltage, optimizedVoltage }: { voltage: number; optimiz
       });
 
     instance.current.setOption({
+      animation: false,
       backgroundColor: 'transparent',
       grid: { top: 40, right: 20, bottom: 35, left: 55 },
       tooltip: { trigger: 'axis', backgroundColor: '#0D2847', borderColor: `${CYAN}40`, textStyle: { color: '#fff', fontSize: 11 } },
@@ -275,7 +277,7 @@ function WaveformChart({ voltage, optimizedVoltage }: { voltage: number; optimiz
     return () => { window.removeEventListener('resize', onResize); instance.current?.dispose(); };
   }, [voltage, optimizedVoltage]);
 
-  return <div ref={ref} className="w-full h-[260px]" />;
+  return <div ref={ref} className="w-full h-[320px]" />;
 }
 
 /* ─── Network Architecture Visualization ─── */
@@ -320,7 +322,7 @@ function NetworkArchViz({ algoId }: { algoId: string }) {
   const config = networkLayers[algoId];
   if (!config) return null;
 
-  const svgW = 360;
+  const svgW = 500;
   const svgH = 200;
   const layerGap = svgW / (config.layers.length + 1);
 
@@ -381,6 +383,7 @@ function MetricCard({ label, value, unit, color }: { label: string; value: strin
   return (
     <motion.div
       className="bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl p-3 hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300"
+      style={{ borderLeft: `3px solid ${color}` }}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}

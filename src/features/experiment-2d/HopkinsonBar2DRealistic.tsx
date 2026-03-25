@@ -18,7 +18,7 @@ import type { ExperimentStage } from '@/hooks/useExperimentAnimation';
 // ═══════════════════════════════════════════════
 
 const DESIGN_W = 1100;
-const DESIGN_H = 420;
+const DESIGN_H = 300;
 
 // 设备布局(X坐标和尺寸)
 const LAYOUT = {
@@ -39,9 +39,9 @@ const LAYOUT = {
   // DAQ
   daq: { w: 120, h: 80 },
   // 中心线Y
-  centerY: 140,
+  centerY: 125,
   // 底座基准线Y
-  baseY: 175,
+  baseY: 155,
 };
 
 interface HopkinsonBar2DRealisticProps {
@@ -344,7 +344,7 @@ function renderBottomWaveformPreview(
 ) {
   if (stage !== 'wavePropagate' && stage !== 'deformation' && stage !== 'dataCollect') return;
 
-  const previewY = 250; // 波形预览区域起始Y
+  const previewY = DESIGN_H - 60; // 波形预览区域起始Y
   const previewH = 60;
   const previewCY = previewY + previewH / 2;
   const totalStartX = incX;

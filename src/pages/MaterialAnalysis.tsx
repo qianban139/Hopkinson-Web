@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Search, Download, ChevronRight, ChevronDown,
@@ -466,6 +466,16 @@ export default function MaterialAnalysis() {
                 >
                   {aiPredicting ? '预测中...' : '开始AI预测'}
                 </Button>
+
+                {/* Sensitivity preview mini-chart */}
+                <div className="mt-2">
+                  <div className="text-[10px] text-white/40 mb-1">应变率灵敏度预览 (±20%)</div>
+                  <SensitivityMiniChart
+                    material={selectedMaterial}
+                    strainRate={strainRate}
+                    temperature={temperature}
+                  />
+                </div>
               </div>
 
               {/* Result */}
@@ -501,7 +511,10 @@ export default function MaterialAnalysis() {
 
           {/* -------- Section 2: Stress-Strain Curve -------- */}
           <GlowCard glowColor="#00F5FF" hoverable={false} className="p-5">
-            <h2 className="text-base font-bold mb-3">应力-应变曲线</h2>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-[3px] h-5 rounded-full bg-[#00F5FF]" />
+              <h2 className="text-base font-bold bg-gradient-to-r from-[#00F5FF] to-[#00B4CC] bg-clip-text text-transparent">应力-应变曲线</h2>
+            </div>
             <StressStrainChart
               materials={materialsForChart}
               highlightId={selectedId}
@@ -552,7 +565,10 @@ export default function MaterialAnalysis() {
 
             {/* Radar Chart */}
             <GlowCard glowColor="#1DD1A1" hoverable={false} className="p-5">
-              <h2 className="text-base font-bold mb-3">性能雷达图</h2>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-[3px] h-5 rounded-full bg-[#8B5CF6]" />
+                <h2 className="text-base font-bold bg-gradient-to-r from-[#8B5CF6] to-[#A78BFA] bg-clip-text text-transparent">性能雷达图</h2>
+              </div>
               <RadarChart values={radar} materialName={selectedMaterial.name} />
             </GlowCard>
           </div>
@@ -560,44 +576,62 @@ export default function MaterialAnalysis() {
           {/* -------- Microstructure Animation -------- */}
           <GlowCard glowColor="#8B5CF6" hoverable={false} className="p-5">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-1 h-4 rounded-full bg-[#8B5CF6]" />
-              <h2 className="text-base font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">微观变形机制</h2>
+              <div className="w-[3px] h-5 rounded-full bg-[#FFD700]" />
+              <h2 className="text-base font-bold bg-gradient-to-r from-[#FFD700] to-[#FFA500] bg-clip-text text-transparent">微观变形机制</h2>
               <span className="text-xs text-white/40 ml-2">应变率对微观结构的影响</span>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[#0A2540]/60 rounded-xl p-4 border border-white/5">
                 <div className="text-xs text-[#00F5FF] font-medium mb-2">低应变率 (~10²/s)</div>
                 <div className="text-[10px] text-white/50 mb-3">位错滑移主导变形</div>
-                <svg viewBox="0 0 200 80" className="w-full h-16">
-                  <style>{`@keyframes dislocationSlide { 0% { transform: translateX(0); } 100% { transform: translateX(8px); } }`}</style>
-                  {Array.from({length: 6}).map((_, row) =>
+                <svg viewBox="0 0 200 100" className="w-full h-20">
+                  <style>{`
+                    @keyframes dislocationSlide { 0% { transform: translateX(0); } 100% { transform: translateX(8px); } }
+                    @keyframes dislocationLine { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+                  `}</style>
+                  {Array.from({length: 7}).map((_, row) =>
                     Array.from({length: 10}).map((_, col) => (
-                      <circle key={`l${row}-${col}`} cx={20 + col * 18} cy={10 + row * 14}
+                      <circle key={`l${row}-${col}`} cx={10 + col * 19} cy={8 + row * 13}
                         r="2.5" fill={row === 3 && col > 3 ? '#00F5FF' : '#ffffff30'}
-                        style={row === 3 && col > 3 ? { animation: 'dislocationSlide 2s ease-in-out infinite alternate' } : {}} />
+                        style={row === 3 && col > 3 ? { animation: `dislocationSlide ${1.5 + col * 0.15}s ease-in-out infinite alternate` } : {}} />
                     ))
                   )}
-                  <line x1="0" y1="48" x2="200" y2="48" stroke="#00F5FF" strokeWidth="0.5" strokeDasharray="4 2" opacity="0.5" />
-                  <text x="100" y="78" fill="#00F5FF" fontSize="8" textAnchor="middle" opacity="0.6">滑移面</text>
+                  {/* Dislocation lines — increased count */}
+                  {[42, 55, 68].map((y, i) => (
+                    <line key={`dl${i}`} x1="0" y1={y} x2="200" y2={y}
+                      stroke="#00F5FF" strokeWidth="0.5" strokeDasharray="4 2" opacity={0.3 + i * 0.1}
+                      style={{ animation: `dislocationLine ${2 + i * 0.4}s linear infinite` }} />
+                  ))}
+                  <text x="100" y="97" fill="#00F5FF" fontSize="8" textAnchor="middle" opacity="0.6">滑移面</text>
                 </svg>
               </div>
               <div className="bg-[#0A2540]/60 rounded-xl p-4 border border-white/5">
                 <div className="text-xs text-[#EF4444] font-medium mb-2">高应变率 (~10⁴/s)</div>
                 <div className="text-[10px] text-white/50 mb-3">绝热剪切带形成</div>
-                <svg viewBox="0 0 200 80" className="w-full h-16">
-                  <style>{`@keyframes shearGlow { 0%,100% { opacity: 0.15; } 50% { opacity: 0.35; } }`}</style>
-                  {Array.from({length: 6}).map((_, row) =>
+                <svg viewBox="0 0 200 100" className="w-full h-20">
+                  <style>{`
+                    @keyframes shearGlow { 0%,100% { opacity: 0.12; } 50% { opacity: 0.55; } }
+                    @keyframes shearGlow2 { 0%,100% { opacity: 0.08; } 50% { opacity: 0.4; } }
+                    @keyframes shearGlow3 { 0%,100% { opacity: 0.06; } 50% { opacity: 0.3; } }
+                  `}</style>
+                  {Array.from({length: 7}).map((_, row) =>
                     Array.from({length: 10}).map((_, col) => {
                       const inBand = Math.abs(row - 3 + (col - 5) * 0.3) < 0.8;
                       const offset = row > 3 ? (row - 3) * 3 : 0;
-                      return <circle key={`h${row}-${col}`} cx={20 + col * 18 + offset} cy={10 + row * 14}
+                      return <circle key={`h${row}-${col}`} cx={10 + col * 19 + offset} cy={8 + row * 13}
                         r="2.5" fill={inBand ? '#EF4444' : '#ffffff30'} />;
                     })
                   )}
-                  <line x1="30" y1="60" x2="180" y2="30" stroke="#EF4444" strokeWidth="8"
-                    style={{ animation: 'shearGlow 1.5s ease-in-out infinite' }} />
-                  <line x1="30" y1="60" x2="180" y2="30" stroke="#EF4444" strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
-                  <text x="130" y="78" fill="#EF4444" fontSize="8" textAnchor="middle" opacity="0.6">绝热剪切带</text>
+                  {/* Primary shear band — faster pulse (0.7s) */}
+                  <line x1="25" y1="70" x2="180" y2="28" stroke="#EF4444" strokeWidth="9"
+                    style={{ animation: 'shearGlow 0.7s ease-in-out infinite' }} />
+                  {/* Secondary shear bands */}
+                  <line x1="15" y1="85" x2="170" y2="43" stroke="#EF4444" strokeWidth="5"
+                    style={{ animation: 'shearGlow2 0.9s ease-in-out infinite' }} />
+                  <line x1="35" y1="58" x2="190" y2="16" stroke="#EF4444" strokeWidth="4"
+                    style={{ animation: 'shearGlow3 1.1s ease-in-out infinite' }} />
+                  <line x1="25" y1="70" x2="180" y2="28" stroke="#EF4444" strokeWidth="1" strokeDasharray="3 2" opacity="0.7" />
+                  <text x="130" y="97" fill="#EF4444" fontSize="8" textAnchor="middle" opacity="0.6">绝热剪切带</text>
                 </svg>
               </div>
             </div>
@@ -654,6 +688,96 @@ function buildAIPredictionCurve(mat: Material, epsDot: number, T: number): [numb
 }
 
 /* ------------------------------------------------------------------ */
+/*  Sensitivity Mini-Chart sub-component                               */
+/* ------------------------------------------------------------------ */
+
+function SensitivityMiniChart({
+  material, strainRate, temperature,
+}: {
+  material: Material;
+  strainRate: number;
+  temperature: number;
+}) {
+  const { containerRef, instanceRef } = useEChart([material.id, strainRate, temperature]);
+
+  useEffect(() => {
+    const chart = instanceRef.current;
+    if (!chart) return;
+
+    const jc = mockJCParams(material);
+    const maxStrain = Math.max(...material.stressStrainSample.map(p => p.strain), 0.3);
+    const PTS = 40;
+
+    const buildCurve = (rate: number): [number, number][] => {
+      const pts: [number, number][] = [];
+      for (let i = 0; i <= PTS; i++) {
+        const eps = (i / PTS) * maxStrain;
+        const sigma = jcFull(eps, rate, temperature, jc.A, jc.B, jc.n, jc.C, jc.m, jc.Tm);
+        pts.push([+(eps * 100).toFixed(2), +sigma.toFixed(1)]);
+      }
+      return pts;
+    };
+
+    const mainCurve = buildCurve(strainRate);
+    const highCurve = buildCurve(strainRate * 1.2);
+    const lowCurve  = buildCurve(strainRate * 0.8);
+
+    chart.setOption({
+      animation: false,
+      backgroundColor: 'transparent',
+      grid: { left: '14%', right: '4%', top: '8%', bottom: '20%' },
+      xAxis: {
+        type: 'value',
+        axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9 },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9 },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
+      },
+      legend: {
+        data: ['主预测', '+20%', '-20%'],
+        bottom: 0,
+        textStyle: { color: 'rgba(255,255,255,0.5)', fontSize: 8 },
+        itemWidth: 10, itemHeight: 6,
+      },
+      tooltip: { show: false },
+      series: [
+        {
+          name: '+20%',
+          type: 'line',
+          data: highCurve,
+          smooth: true,
+          symbol: 'none',
+          lineStyle: { color: '#10B981', width: 1, type: 'dashed', opacity: 0.8 },
+        },
+        {
+          name: '-20%',
+          type: 'line',
+          data: lowCurve,
+          smooth: true,
+          symbol: 'none',
+          lineStyle: { color: '#EF4444', width: 1, type: 'dashed', opacity: 0.8 },
+        },
+        {
+          name: '主预测',
+          type: 'line',
+          data: mainCurve,
+          smooth: true,
+          symbol: 'none',
+          lineStyle: { color: '#00F5FF', width: 2, opacity: 1 },
+        },
+      ],
+    }, true);
+  }, [material, strainRate, temperature, instanceRef]);
+
+  return <div ref={containerRef} className="w-full h-[150px]" />;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Stress-Strain Chart sub-component                                  */
 /* ------------------------------------------------------------------ */
 
@@ -665,9 +789,14 @@ function StressStrainChart({
   aiCurve: [number, number][] | null;
   onReady?: (chart: echarts.ECharts) => void;
 }) {
-  const key = materials.map(m => m.id).join(',') + (aiCurve ? '_ai' : '');
+  const key = materials.map(m => m.id).join(',');
   const { containerRef, instanceRef } = useEChart([key, highlightId]);
 
+  // Refs for progressive AI curve animation
+  const rafRef = useRef<number | null>(null);
+  const aiIndexRef = useRef<number>(0);
+
+  // Build base series (without AI curve) and apply static options
   useEffect(() => {
     const chart = instanceRef.current;
     if (!chart || materials.length === 0) return;
@@ -685,19 +814,8 @@ function StressStrainChart({
       },
     }));
 
-    if (aiCurve) {
-      series.push({
-        name: 'AI预测',
-        type: 'line',
-        data: aiCurve,
-        smooth: true,
-        symbol: 'none',
-        lineStyle: { color: '#8B5CF6', width: 2, type: 'dashed' },
-        itemStyle: { color: '#8B5CF6' },
-      });
-    }
-
     chart.setOption({
+      animation: false,
       backgroundColor: 'transparent',
       legend: {
         data: [...materials.map(m => m.name), ...(aiCurve ? ['AI预测'] : [])],
@@ -730,7 +848,59 @@ function StressStrainChart({
     }, true);
 
     onReady?.(chart);
-  }, [materials, highlightId, aiCurve, instanceRef, onReady]);
+  }, [materials, highlightId, instanceRef, onReady, aiCurve]);
+
+  // Progressive AI curve drawing
+  useEffect(() => {
+    // Cancel any running animation
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    aiIndexRef.current = 0;
+
+    const chart = instanceRef.current;
+    if (!chart || !aiCurve || aiCurve.length === 0) return;
+
+    const totalPts = aiCurve.length;
+    // How many points to add per frame — faster on fewer points
+    const STEP = Math.max(1, Math.ceil(totalPts / 40));
+
+    const animate = () => {
+      if (!instanceRef.current) return;
+      const idx = aiIndexRef.current;
+      if (idx >= totalPts) return;
+      const nextIdx = Math.min(idx + STEP, totalPts);
+      aiIndexRef.current = nextIdx;
+
+      instanceRef.current.setOption({
+        series: [{
+          name: 'AI预测',
+          type: 'line',
+          data: aiCurve.slice(0, nextIdx),
+          smooth: true,
+          symbol: 'none',
+          lineStyle: { color: '#8B5CF6', width: 2, type: 'dashed' },
+          itemStyle: { color: '#8B5CF6' },
+        }],
+      });
+
+      if (nextIdx < totalPts) {
+        rafRef.current = requestAnimationFrame(animate);
+      } else {
+        rafRef.current = null;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [aiCurve, instanceRef]);
 
   return <div ref={containerRef} className="w-full h-[360px]" />;
 }
@@ -741,12 +911,16 @@ function StressStrainChart({
 
 function RadarChart({ values, materialName }: { values: number[]; materialName: string }) {
   const { containerRef, instanceRef } = useEChart([materialName]);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const chart = instanceRef.current;
     if (!chart) return;
 
     chart.setOption({
+      animation: true,
+      animationDuration: 800,
+      animationEasing: 'cubicOut',
       backgroundColor: 'transparent',
       radar: {
         indicator: [
@@ -775,5 +949,25 @@ function RadarChart({ values, materialName }: { values: number[]; materialName: 
     }, true);
   }, [values, materialName, instanceRef]);
 
-  return <div ref={containerRef} className="w-full h-[260px]" />;
+  // CSS entrance animation: opacity 0→1, scale 0.8→1
+  useLayoutEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transform = 'scale(0.8)';
+    el.style.transition = 'opacity 0.6s ease, transform 0.6s cubic-bezier(0.34,1.56,0.64,1)';
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'scale(1)';
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [materialName]);
+
+  return (
+    <div ref={wrapperRef} className="w-full h-[260px]">
+      <div ref={containerRef} className="w-full h-full" />
+    </div>
+  );
 }

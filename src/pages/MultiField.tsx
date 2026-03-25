@@ -178,6 +178,7 @@ function StressStrainChart({
     const chart = chartInstance.current;
 
     chart.setOption({
+      animation: false,
       backgroundColor: 'transparent',
       grid: { top: 40, right: 20, bottom: 40, left: 60 },
       legend: {
@@ -257,7 +258,7 @@ function StressStrainChart({
     };
   }, []);
 
-  return <div ref={chartRef} className="w-full h-[340px]" />;
+  return <div ref={chartRef} className="w-full h-[420px]" />;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -614,7 +615,7 @@ export default function MultiField() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Temperature Field */}
-            <GlowCard glowColor="#FF9F43" className="p-5 bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300" hoverable={false}>
+            <GlowCard glowColor="#FF9F43" className="p-5 bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300" hoverable={false} style={{ borderTop: '3px solid #FF9F43' }}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🌡</span>
@@ -637,7 +638,7 @@ export default function MultiField() {
             </GlowCard>
 
             {/* Stress Field */}
-            <GlowCard glowColor="#1DD1A1" className="p-5 bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300" hoverable={false}>
+            <GlowCard glowColor="#1DD1A1" className="p-5 bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300" hoverable={false} style={{ borderTop: '3px solid #1DD1A1' }}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">💪</span>
@@ -660,7 +661,7 @@ export default function MultiField() {
             </GlowCard>
 
             {/* Electromagnetic Field */}
-            <GlowCard glowColor="#8B5CF6" className="p-5 bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300" hoverable={false}>
+            <GlowCard glowColor="#8B5CF6" className="p-5 bg-[#0F2847]/80 backdrop-blur-sm border border-cyan-500/10 rounded-xl hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all duration-300" hoverable={false} style={{ borderTop: '3px solid #8B5CF6' }}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">⚡</span>

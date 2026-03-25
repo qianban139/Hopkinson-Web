@@ -121,7 +121,17 @@ registerAction({
     useAppStore.getState().setSelectedMaterial(found);
     // 确保在lab页面
     useAppStore.getState().setNavigateTo('/lab');
-    return { success: true, message: `已选择材料: ${found.name}`, data: { materialId: found.id, materialName: found.name } };
+    const densityKgm3 = found.density;
+    const modulusGPa = found.elasticModulus != null ? (found.elasticModulus / 1e9).toFixed(1) : null;
+    const densityStr = densityKgm3 != null ? `密度 ${densityKgm3} kg/m³` : null;
+    const modulusStr = modulusGPa != null ? `弹性模量 ${modulusGPa} GPa` : null;
+    const propsStr = [densityStr, modulusStr].filter(Boolean).join('，');
+    const detail = propsStr ? `（${propsStr}）` : '';
+    return {
+      success: true,
+      message: `已选择材料: ${found.name}${detail}`,
+      data: { materialId: found.id, materialName: found.name },
+    };
   },
 });
 
@@ -143,7 +153,9 @@ registerAction({
   execute: async (params) => {
     const voltage = params.voltage as number;
     useAppStore.getState().setExperimentParams({ voltage });
-    return { success: true, message: `电压已设置为 ${voltage}V` };
+    const C = 0.001; // 等效电容 1mF
+    const energyKJ = (0.5 * C * voltage * voltage / 1000).toFixed(2);
+    return { success: true, message: `电压已设为 ${voltage} 伏特，电容储能约 ${energyKJ} kJ` };
   },
 });
 
@@ -565,21 +577,82 @@ registerAction({
   id: 'general.showHelp',
   category: 'general',
   name: '显示帮助',
-  description: '显示系统功能帮助和使用指南',
+  description: '显示当前页面可用的语音指令列表及系统功能帮助',
+  keywords: ['帮助', '帮我', '怎么用', '能做什么', '指令', '命令', '功能'],
   parameters: [],
   execute: async () => {
+    const currentPage = useAppStore.getState().currentPage || '/';
+
+    // Page-specific command hints
+    const pageCommandMap: Record<string, string[]> = {
+      '/': [
+        '• "去虚拟实验室" — 导航到实验页面',
+        '• "去AI控制" — 导航到AI优化页面',
+        '• "查询系统状态" — 获取当前实验摘要',
+      ],
+      '/lab': [
+        '• "选择Q235钢" — 选择测试材料',
+        '• "设置电压3000V" — 设置驱动电压',
+        '• "设置电流30kA" — 设置驱动电流',
+        '• "设置脉宽600μs" — 设置脉冲宽度',
+        '• "应用高速冲击预设" — 一键应用参数预设',
+        '• "启动实验" — 开始SHPB实验',
+        '• "暂停实验" / "重置实验" — 控制实验进程',
+        '• "切换3D视图" — 切换2D/3D显示',
+        '• "启用围压" — 开启三轴围压功能',
+      ],
+      '/ai': [
+        '• "启动AI优化" — 运行三级AI优化流程',
+        '• "切换到LSTM算法" — 切换算法选项卡',
+        '• "设置学习率0.001" — 调整超参数',
+        '• "将优化参数应用到实验室" — 应用AI最优结果',
+      ],
+      '/multifield': [
+        '• "选择深部矿井场景" — 切换极端环境预设',
+        '• "设置温度500°C" — 设置温度场参数',
+        '• "设置应力1000MPa" — 设置应力场参数',
+        '• "启动耦合仿真" — 运行多场耦合计算',
+        '• "启用热软化效应" — 开关物理效应',
+        '• "发送结果到分析页" — 跨页面传递数据',
+      ],
+      '/analysis': [
+        '• "分析Ti-6Al-4V" — 选择分析材料',
+        '• "启动AI预测" — 运行力学响应预测',
+        '• "设置应变率1000/s" — 设置预测条件',
+        '• "启用对比模式" — 同时对比多种材料',
+        '• "导出PDF报告" — 生成实验报告',
+        '• "导出CSV数据" — 导出原始数据',
+      ],
+      '/monitor': [
+        '• "执行安全检查" — 实验前安全自检',
+        '• "开启监控" — 启动实时数据采集',
+        '• "设置电压告警3500V" — 配置告警阈值',
+        '• "紧急停机" — 立即停止所有设备',
+      ],
+    };
+
+    const pageLabels: Record<string, string> = {
+      '/': '首页', '/lab': '虚拟实验室', '/ai': 'AI智能控制',
+      '/multifield': '多场耦合', '/analysis': '材料力学分析', '/monitor': '系统监控',
+    };
+
+    const pageLabel = pageLabels[currentPage] || currentPage;
+    const pageCommands = pageCommandMap[currentPage] || [];
+    const pageSection = pageCommands.length > 0
+      ? `\n\n【${pageLabel}页面专属指令】\n${pageCommands.join('\n')}`
+      : '';
+
     return {
       success: true,
-      message: `我是小智，您的实验助手。我可以帮您：
-• 导航到任意页面（如"去虚拟实验室"）
-• 设置实验参数（如"设置电压3000V"）
-• 选择材料和预设方案
-• 启动/暂停/重置实验
-• 运行AI优化和材料预测
-• 执行安全检查
-• 运行多场耦合仿真
-• 导出数据和报告
-试试说"帮我用Q235钢做个实验"吧！`,
+      message: `我是小智，您的实验助手。当前在「${pageLabel}」页面。${pageSection}
+
+【通用指令（任意页面可用）】
+• "去虚拟实验室/AI控制/多场耦合/材料分析/系统监控" — 页面导航
+• "查询系统状态" — 获取完整实验状态摘要
+• "描述当前页面" — 了解当前页面功能
+• "显示帮助" — 查看本帮助信息
+
+试试说"帮我用Q235钢做个标准测试"吧！`,
     };
   },
 });
@@ -589,26 +662,75 @@ registerAction({
   id: 'general.getSystemStatus',
   category: 'general',
   name: '查询系统状态',
-  description: '查询当前系统运行状态、实验参数和设备信息的摘要',
+  description: '查询当前系统运行状态、实验参数和设备信息，返回自然语言摘要',
+  keywords: ['系统状态', '当前状态', '实验状态', '状态查询', '现在怎样', '参数是多少'],
   parameters: [],
   execute: async () => {
     const state = useAppStore.getState();
-    const params = state.experimentParams;
+    const dataBus = useExperimentDataBus.getState();
+    const expParams = state.experimentParams;
     const material = state.selectedMaterial;
     const aiState = state.aiState;
+
     const pageLabels: Record<string, string> = {
       '/': '首页', '/lab': '虚拟实验室', '/ai': 'AI智能控制',
-      '/multifield': '多场耦合', '/analysis': '材料分析', '/monitor': '系统监控',
+      '/multifield': '多场耦合仿真', '/analysis': '材料力学分析', '/monitor': '系统监控',
     };
-    const currentPage = pageLabels[state.currentPage || '/'] || state.currentPage;
+    const currentPageLabel = pageLabels[state.currentPage || '/'] || state.currentPage;
 
-    const statusLines = [
-      `当前页面: ${currentPage}`,
-      `材料: ${material?.name || '未选择'}`,
-      `电压: ${params.voltage}V | 电流: ${(params.current / 1000).toFixed(1)}kA | 脉宽: ${params.pulseWidth}μs`,
-      `AI优化: ${aiState.isOptimizing ? '运行中' : aiState.bestParams ? '已完成' : '未启动'}`,
+    // Material description
+    const materialDesc = material
+      ? (() => {
+          const densityStr = material.density != null ? `密度${material.density} kg/m³` : null;
+          const modulusStr = material.elasticModulus != null
+            ? `弹性模量${(material.elasticModulus / 1e9).toFixed(0)} GPa`
+            : null;
+          const props = [densityStr, modulusStr].filter(Boolean).join('、');
+          return props ? `${material.name}（${props}）` : material.name;
+        })()
+      : '未选择';
+
+    // Voltage energy
+    const C = 0.001;
+    const energyKJ = (0.5 * C * expParams.voltage * expParams.voltage / 1000).toFixed(2);
+
+    // Experiment session status
+    const sessionPhase = dataBus.experimentSession.currentPhase;
+    const phaseLabels: Record<string, string> = {
+      setup: '就绪', safety: '安全检查中', experiment: '实验进行中',
+      optimization: 'AI优化中', coupling: '耦合仿真中', analysis: '分析中', complete: '已完成',
+    };
+    const experimentStatusLabel = phaseLabels[sessionPhase] || sessionPhase;
+
+    // AI optimization status
+    const aiStatusLabel = aiState.isOptimizing
+      ? `正在优化（进度 ${aiState.progress}%）`
+      : aiState.step === 'complete' && aiState.bestParams
+        ? `优化完成，最优电压 ${aiState.bestParams.voltage}V`
+        : '未启动';
+
+    // Last experiment result
+    const lastLab = dataBus.lastLabExperiment;
+    const lastExpStr = lastLab
+      ? `上次实验材料 ${lastLab.materialName}，峰值应力 ${lastLab.peakStress.toFixed(0)} MPa，应变率 ${lastLab.strainRate.toFixed(0)}/s`
+      : null;
+
+    // Safety checklist
+    const safetyStr = dataBus.safetyChecklistCompleted ? '安全检查已通过' : '安全检查未完成';
+
+    // Build natural-language summary
+    const parts: string[] = [
+      `当前在${currentPageLabel}页面`,
+      `已选择${materialDesc}材料`,
+      `电压设为${expParams.voltage}V（储能约${energyKJ} kJ）`,
+      `电流${(expParams.current / 1000).toFixed(1)}kA，脉宽${expParams.pulseWidth}μs`,
+      `实验处于${experimentStatusLabel}状态`,
+      `AI优化：${aiStatusLabel}`,
+      safetyStr,
     ];
-    return { success: true, message: statusLines.join('\n') };
+    if (lastExpStr) parts.push(lastExpStr);
+
+    return { success: true, message: parts.join('，') };
   },
 });
 
