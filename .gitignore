@@ -6,3 +6,6 @@ dist
 *.log
 *.STEP
 *.step
+.claude/
+context/
+docs/
