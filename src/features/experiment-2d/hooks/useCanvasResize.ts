@@ -40,10 +40,10 @@ export function useCanvasResize(
     const containerW = rect.width;
     const containerH = rect.height;
 
-    // 计算缩放以适配容器(保持宽高比)
+    // 计算缩放：填满宽度优先，垂直居中
     const scaleX = containerW / options.designWidth;
     const scaleY = containerH / options.designHeight;
-    // 填满宽度（宽高比极大时宽度为瓶颈），垂直自动居中
+    // 取宽度缩放（模型宽高比大于容器时自然适配）
     const scale = Math.max(options.minScale ?? 0.3, Math.min(scaleX, scaleY));
 
     const displayW = options.designWidth * scale;
