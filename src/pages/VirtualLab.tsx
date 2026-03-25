@@ -887,10 +887,11 @@ export default function VirtualLab() {
               ) : (
                 <button
                   onClick={() => animState.play()}
-                  className="w-8 h-8 rounded-lg bg-[#10B981]/20 border border-[#10B981]/30 flex items-center justify-center hover:bg-[#10B981]/30 transition-colors"
+                  className="h-8 px-3 rounded-lg bg-[#10B981] text-white font-medium text-xs flex items-center gap-1.5 hover:bg-[#10B981]/80 shadow-[0_0_12px_rgba(16,185,129,0.4)] transition-all"
                   title="开始实验"
                 >
-                  <Play className="w-4 h-4 text-[#10B981]" />
+                  <Play className="w-4 h-4 fill-current" />
+                  开始实验
                 </button>
               )}
               <button
