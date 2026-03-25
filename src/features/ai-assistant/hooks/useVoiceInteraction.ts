@@ -125,6 +125,33 @@ export function useVoiceInteraction({
     };
   }, []);
 
+  // 面板语音：累积文本 + 静默超时提交（防止被中途打断）
+  const accumulatedTextRef = useRef('');
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const SILENCE_TIMEOUT = 3500; // 3.5秒无新内容才提交
+
+  const flushAccumulatedText = useCallback(() => {
+    const text = accumulatedTextRef.current.trim();
+    accumulatedTextRef.current = '';
+    if (text) {
+      // 过滤唤醒词前缀
+      const cleaned = wakeWord && text.startsWith(wakeWord)
+        ? text.slice(wakeWord.length).trim()
+        : text;
+      if (cleaned) {
+        onTranscript(cleaned);
+      }
+    }
+    setTranscript('');
+  }, [wakeWord, onTranscript]);
+
+  const resetSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    silenceTimerRef.current = setTimeout(() => {
+      flushAccumulatedText();
+    }, SILENCE_TIMEOUT);
+  }, [flushAccumulatedText]);
+
   // 初始化语音识别
   const createRecognition = useCallback(() => {
     if (!SpeechRecognitionAPI) return null;
@@ -148,21 +175,29 @@ export function useVoiceInteraction({
         }
       }
 
-      setTranscript(finalTranscript || interimTranscript);
-
-      if (finalTranscript) {
-        const text = finalTranscript.trim();
-        if (text) {
-          // 面板内语音：直接发送所有识别到的文字（不需要唤醒词）
-          // 自动过滤掉可能误识别的唤醒词前缀
-          const cleaned = wakeWord && text.startsWith(wakeWord)
-            ? text.slice(wakeWord.length).trim()
-            : text;
-          if (cleaned) {
-            onTranscript(cleaned);
-          }
+      if (continuousMode) {
+        // 面板内语音：累积模式，不立即发送
+        if (finalTranscript) {
+          accumulatedTextRef.current += finalTranscript;
+          setTranscript(accumulatedTextRef.current);
+        } else if (interimTranscript) {
+          setTranscript(accumulatedTextRef.current + interimTranscript);
         }
-        setTranscript('');
+        // 每次有识别结果都重置静默计时器
+        resetSilenceTimer();
+      } else {
+        // 非连续模式：保持原行为
+        setTranscript(finalTranscript || interimTranscript);
+        if (finalTranscript) {
+          const text = finalTranscript.trim();
+          if (text) {
+            const cleaned = wakeWord && text.startsWith(wakeWord)
+              ? text.slice(wakeWord.length).trim()
+              : text;
+            if (cleaned) onTranscript(cleaned);
+          }
+          setTranscript('');
+        }
       }
     };
 
@@ -177,18 +212,28 @@ export function useVoiceInteraction({
 
     recognition.onend = () => {
       if (continuousMode && isListening) {
+        // 连续模式断开时：如果有累积文本且已沉默较久，立即提交
+        // 否则重启识别继续累积
         try {
           recognition.start();
         } catch {
+          // 重启失败，提交已有文本
+          if (accumulatedTextRef.current.trim()) {
+            flushAccumulatedText();
+          }
           setIsListening(false);
         }
       } else {
+        // 非连续模式结束时提交累积文本
+        if (accumulatedTextRef.current.trim()) {
+          flushAccumulatedText();
+        }
         setIsListening(false);
       }
     };
 
     return recognition;
-  }, [SpeechRecognitionAPI, lang, continuousMode, wakeWord, onTranscript, isListening]);
+  }, [SpeechRecognitionAPI, lang, continuousMode, wakeWord, onTranscript, isListening, resetSilenceTimer, flushAccumulatedText]);
 
   // 开始监听
   const startListening = useCallback(() => {
@@ -206,6 +251,10 @@ export function useVoiceInteraction({
     setIsSpeaking(false);
     if (ttsPauseTimerRef.current) clearTimeout(ttsPauseTimerRef.current);
 
+    // 清空累积文本
+    accumulatedTextRef.current = '';
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
     const recognition = createRecognition();
     if (!recognition) return;
 
@@ -220,13 +269,18 @@ export function useVoiceInteraction({
     }
   }, [SpeechRecognitionAPI, createRecognition]);
 
-  // 停止监听
+  // 停止监听 — 提交已累积的文本
   const stopListening = useCallback(() => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    // 停止时提交累积的文本
+    if (accumulatedTextRef.current.trim()) {
+      flushAccumulatedText();
+    }
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setIsListening(false);
     setTranscript('');
-  }, []);
+  }, [flushAccumulatedText]);
 
   // 切换监听
   const toggleListening = useCallback(() => {
@@ -438,6 +492,7 @@ export function useVoiceInteraction({
       }
       window.speechSynthesis?.cancel();
       if (ttsPauseTimerRef.current) clearTimeout(ttsPauseTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     };
   }, []);
 
