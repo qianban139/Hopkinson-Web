@@ -131,20 +131,26 @@ export function useVoiceInteraction({
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const SILENCE_TIMEOUT = 3500; // 3.5秒无新内容才提交
 
+  // 用 ref 持有最新回调，避免闭包陈旧
+  const onTranscriptRef = useRef(onTranscript);
+  useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
+  const wakeWordRef = useRef(wakeWord);
+  useEffect(() => { wakeWordRef.current = wakeWord; }, [wakeWord]);
+
   const flushAccumulatedText = useCallback(() => {
     const text = accumulatedTextRef.current.trim();
     accumulatedTextRef.current = '';
     if (text) {
-      // 过滤唤醒词前缀
-      const cleaned = wakeWord && text.startsWith(wakeWord)
-        ? text.slice(wakeWord.length).trim()
+      const wk = wakeWordRef.current;
+      const cleaned = wk && text.startsWith(wk)
+        ? text.slice(wk.length).trim()
         : text;
       if (cleaned) {
-        onTranscript(cleaned);
+        onTranscriptRef.current(cleaned);
       }
     }
     setTranscript('');
-  }, [wakeWord, onTranscript]);
+  }, []); // 无依赖 — 通过 ref 读取最新值
 
   const resetSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -192,10 +198,11 @@ export function useVoiceInteraction({
         if (finalTranscript) {
           const text = finalTranscript.trim();
           if (text) {
-            const cleaned = wakeWord && text.startsWith(wakeWord)
-              ? text.slice(wakeWord.length).trim()
+            const wk = wakeWordRef.current;
+            const cleaned = wk && text.startsWith(wk)
+              ? text.slice(wk.length).trim()
               : text;
-            if (cleaned) onTranscript(cleaned);
+            if (cleaned) onTranscriptRef.current(cleaned);
           }
           setTranscript('');
         }
@@ -236,11 +243,17 @@ export function useVoiceInteraction({
     };
 
     return recognition;
-  }, [SpeechRecognitionAPI, lang, continuousMode, wakeWord, onTranscript, resetSilenceTimer, flushAccumulatedText]);
+  }, [SpeechRecognitionAPI, lang, continuousMode, resetSilenceTimer, flushAccumulatedText]);
 
   // 开始监听
   const startListening = useCallback(() => {
     if (!SpeechRecognitionAPI) return;
+
+    // 停止已有的识别实例
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+    }
 
     // 完整停止正在播放的语音
     synthQueueRef.current = [];
@@ -258,19 +271,28 @@ export function useVoiceInteraction({
     accumulatedTextRef.current = '';
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
-    const recognition = createRecognition();
-    if (!recognition) return;
+    // 延迟启动 — 等其他识别实例释放麦克风
+    const tryStart = (attempt: number) => {
+      const recognition = createRecognition();
+      if (!recognition) return;
+      recognitionRef.current = recognition;
 
-    recognitionRef.current = recognition;
+      try {
+        recognition.start();
+        isListeningRef.current = true;
+        setIsListening(true);
+        setTranscript('');
+        console.info('[面板语音] 识别已启动');
+      } catch (err) {
+        console.warn(`[面板语音] 启动失败(尝试${attempt}):`, err);
+        if (attempt < 3) {
+          setTimeout(() => tryStart(attempt + 1), 300);
+        }
+      }
+    };
 
-    try {
-      recognition.start();
-      isListeningRef.current = true;
-      setIsListening(true);
-      setTranscript('');
-    } catch (err) {
-      console.warn('启动语音识别失败:', err);
-    }
+    // 第一次尝试延迟200ms，给唤醒词监听停止的时间
+    setTimeout(() => tryStart(1), 200);
   }, [SpeechRecognitionAPI, createRecognition]);
 
   // 停止监听 — 提交已累积的文本
