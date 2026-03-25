@@ -924,11 +924,12 @@ function RadarChart({ values, materialName }: { values: number[]; materialName: 
       backgroundColor: 'transparent',
       radar: {
         indicator: [
-          { name: '密度', max: 100 },
           { name: '强度', max: 100 },
-          { name: '模量', max: 100 },
           { name: '韧性', max: 100 },
           { name: '硬度', max: 100 },
+          { name: '密度', max: 100 },
+          { name: '模量', max: 100 },
+          { name: '耐热', max: 100 },
         ],
         shape: 'polygon',
         axisName: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },

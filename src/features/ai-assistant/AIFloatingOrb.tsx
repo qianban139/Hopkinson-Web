@@ -18,11 +18,20 @@ interface AIFloatingOrbProps {
 export default function AIFloatingOrb({ orbState, onTogglePanel, isPanelOpen, onPushToTalkStart, onPushToTalkEnd, isPushToTalk }: AIFloatingOrbProps) {
   // 使用 left/top 绝对定位，避免 right/bottom 坐标系导致的方向反转
   const [position, setPosition] = useState(() => {
+    const defaultPos = { left: typeof window !== 'undefined' ? window.innerWidth - 96 : 800, top: typeof window !== 'undefined' ? window.innerHeight - 104 : 600 };
     const saved = localStorage.getItem('ai-orb-position');
     if (saved) {
-      try { return JSON.parse(saved); } catch { /* fallback */ }
+      try {
+        const p = JSON.parse(saved);
+        // 兼容旧格式 { x, y } 和新格式 { left, top }，且验证值合理
+        const left = p.left ?? p.x ?? defaultPos.left;
+        const top = p.top ?? p.y ?? defaultPos.top;
+        if (typeof left === 'number' && typeof top === 'number' && left >= 0 && top >= 0 && left < 4000 && top < 4000) {
+          return { left, top };
+        }
+      } catch { /* fallback */ }
     }
-    return { left: typeof window !== 'undefined' ? window.innerWidth - 96 : 800, top: typeof window !== 'undefined' ? window.innerHeight - 104 : 600 };
+    return defaultPos;
   });
   const [isDragging, setIsDragging] = useState(false);
   const pointerStartRef = useRef({ x: 0, y: 0 });
