@@ -1009,18 +1009,6 @@ export default function VirtualLab() {
                           {animState.isPlaying ? `STAGE ${animState.stageIndex + 1}/6` : animState.isComplete ? 'DATA CAPTURED' : 'READY'}
                         </div>
                       </div>
-                      {/* 待机覆盖层 — 实验未开始时显示提示 */}
-                      {!animState.isPlaying && !animState.isComplete && (
-                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0A2540]/60 backdrop-blur-[1px]">
-                          <div className="text-center">
-                            <div className="w-16 h-16 mx-auto mb-3 rounded-full border-2 border-[#00F5FF]/30 flex items-center justify-center">
-                              <Play className="w-8 h-8 text-[#00F5FF]/50" />
-                            </div>
-                            <p className="text-sm text-white/50">点击左上角 ▶ 开始实验</p>
-                            <p className="text-xs text-white/30 mt-1">3D实时渲染将同步显示</p>
-                          </div>
-                        </div>
-                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
