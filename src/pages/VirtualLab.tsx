@@ -930,7 +930,7 @@ export default function VirtualLab() {
           </div>
 
           {/* 可调大小的可视化 + 波形区域 */}
-          <ResizablePanelGroup direction="vertical" className="flex-1">
+          <ResizablePanelGroup direction="vertical" className="flex-1 min-h-0">
             {/* 2D/3D 可视化区域 — 默认 65% */}
             <ResizablePanel defaultSize={65} minSize={40}>
               <div className="h-full relative bg-gradient-to-b from-[#0A2540] to-[#051020]">
@@ -973,6 +973,7 @@ export default function VirtualLab() {
                         ref={videoRef}
                         src="/assets/videos/test.mp4"
                         className="w-full h-full object-contain"
+                        autoPlay
                         loop
                         muted
                         playsInline
