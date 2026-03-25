@@ -352,14 +352,24 @@ export default function VirtualLab() {
   // 3D视频引用
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // 3D视频播放控制
+  // 3D视频播放控制 — 与实验动画联动
   useEffect(() => {
-    if (viewMode === '3d' && videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    } else if (videoRef.current) {
-      videoRef.current.pause();
+    const video = videoRef.current;
+    if (!video) return;
+    if (viewMode === '3d' && animState.isPlaying) {
+      // 实验开始时视频从头播放
+      if (animState.stageIndex <= 0 && animState.stageProgress < 0.1) {
+        video.currentTime = 0;
+      }
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+      // 实验完成后停在最后一帧
+      if (animState.isComplete && video.duration) {
+        video.currentTime = video.duration;
+      }
     }
-  }, [viewMode]);
+  }, [viewMode, animState.isPlaying, animState.isComplete, animState.stageIndex, animState.stageProgress]);
 
   // 筛选材料
   const filteredMaterials = searchQuery
@@ -589,7 +599,7 @@ export default function VirtualLab() {
           </div>
             </TabsContent>
 
-            <TabsContent value="params" className="flex-1 overflow-y-auto mt-0 p-4 space-y-2">
+            <TabsContent value="params" className="flex-1 overflow-y-auto mt-0 p-3 space-y-1.5">
               {/* 参数预设 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -694,7 +704,7 @@ export default function VirtualLab() {
               </div>
 
               {/* 围压控制 */}
-              <div className="space-y-2 border-t border-[#00F5FF]/10 pt-3">
+              <div className="space-y-1.5 border-t border-[#00F5FF]/10 pt-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm text-white/70">启用围压控制</label>
                   <Switch checked={enableConfining} onCheckedChange={setEnableConfining} disabled={isAnimationPlaying} />
@@ -773,7 +783,7 @@ export default function VirtualLab() {
               </div>
             </TabsContent>
 
-            <TabsContent value="info" className="flex-1 overflow-y-auto mt-0 p-4 space-y-2">
+            <TabsContent value="info" className="flex-1 overflow-y-auto mt-0 p-3 space-y-1.5">
               {/* 当前材料信息 */}
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                 <Beaker className="w-4 h-4 text-[#00F5FF]" />
@@ -967,17 +977,50 @@ export default function VirtualLab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0 flex items-center justify-center bg-black"
+                      className="absolute inset-0 bg-gradient-to-b from-[#0A2540] to-[#051020]"
                     >
+                      {/* 视频层 */}
                       <video
                         ref={videoRef}
                         src="/assets/videos/test.mp4"
-                        className="w-full h-full object-contain"
-                        autoPlay
-                        loop
+                        className="absolute inset-0 w-full h-full object-contain"
                         muted
                         playsInline
                       />
+                      {/* 顶部渐变遮罩 — 融合背景 */}
+                      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#0A2540] to-transparent z-10 pointer-events-none" />
+                      {/* 底部渐变遮罩 */}
+                      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#051020] to-transparent z-10 pointer-events-none" />
+                      {/* 左侧渐变遮罩 */}
+                      <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#0A2540] to-transparent z-10 pointer-events-none" />
+                      {/* 右侧渐变遮罩 */}
+                      <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#051020] to-transparent z-10 pointer-events-none" />
+                      {/* 科技感扫描线叠加 */}
+                      <div className="absolute inset-0 z-10 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.5) 2px, rgba(0,245,255,0.5) 3px)', backgroundSize: '100% 4px' }} />
+                      {/* 左上角3D标签 */}
+                      <div className="absolute top-3 left-4 z-20 flex items-center gap-2 pointer-events-none">
+                        <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/20 text-[10px] text-[#00F5FF]/70 font-mono backdrop-blur-sm">
+                          3D REAL-TIME · {animState.isPlaying ? 'RUNNING' : animState.isComplete ? 'COMPLETE' : 'STANDBY'}
+                        </div>
+                      </div>
+                      {/* 右下角帧信息 */}
+                      <div className="absolute bottom-3 right-4 z-20 pointer-events-none">
+                        <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/10 text-[9px] text-white/30 font-mono backdrop-blur-sm">
+                          {animState.isPlaying ? `STAGE ${animState.stageIndex + 1}/6` : animState.isComplete ? 'DATA CAPTURED' : 'READY'}
+                        </div>
+                      </div>
+                      {/* 待机覆盖层 — 实验未开始时显示提示 */}
+                      {!animState.isPlaying && !animState.isComplete && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0A2540]/60 backdrop-blur-[1px]">
+                          <div className="text-center">
+                            <div className="w-16 h-16 mx-auto mb-3 rounded-full border-2 border-[#00F5FF]/30 flex items-center justify-center">
+                              <Play className="w-8 h-8 text-[#00F5FF]/50" />
+                            </div>
+                            <p className="text-sm text-white/50">点击左上角 ▶ 开始实验</p>
+                            <p className="text-xs text-white/30 mt-1">3D实时渲染将同步显示</p>
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
