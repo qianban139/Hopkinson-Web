@@ -83,12 +83,13 @@ const QUICK_INTENTS: QuickIntent[] = [
     extractParams: (match) => ({ materialName: match[1].trim() }),
   },
 
-  // 启动实验
+  // 直接启动实验（仅默认/快速模式才直接执行）
   {
-    patterns: [/(?:启动|开始|运行|做)(?:一个?)?实验/i, /start\s*experiment/i, /run\s*experiment/i],
+    patterns: [/(?:用?默认参数?|快速)(?:启动|开始|做)实验/i, /默认实验/i],
     actionId: 'lab.startExperiment',
     extractParams: () => ({}),
   },
+  // 注意："开始实验"等一般性表述不再直接执行，而是走对话引导流程（见 useAIOrchestrator）
 
   // 启动AI优化
   {

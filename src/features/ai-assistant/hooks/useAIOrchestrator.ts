@@ -1,5 +1,6 @@
 // src/features/ai-assistant/hooks/useAIOrchestrator.ts
 // AI核心编排引擎 - 接收自然语言，解析意图，执行动作
+// 包含实验引导对话流：开始实验 → 确认材料 → 确认参数 → 确认围压 → 执行
 import { useState, useCallback, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { quickIntentMatch } from '../services/aiIntentParser';
@@ -7,6 +8,73 @@ import { executeAction } from '../services/aiActionRegistry';
 import { conversationManager } from '../services/aiConversationManager';
 import { chatWithLLM, chatWithLLMStream, isLLMConfigured } from '@/services/llmService';
 import type { AIOperation, OrbState, LLMFunctionCall, AIHighlightTarget } from '../types';
+
+// ═══════════════════════════════════════════════
+// 实验引导对话流状态机
+// ═══════════════════════════════════════════════
+type ExperimentFlowStep = 'idle' | 'ask_material' | 'ask_voltage' | 'ask_waveform' | 'confirm';
+
+interface ExperimentFlowState {
+  step: ExperimentFlowStep;
+  material?: string;
+  voltage?: number;
+  current?: number;
+  pulseWidth?: number;
+  waveform?: string;
+}
+
+const INITIAL_FLOW: ExperimentFlowState = { step: 'idle' };
+
+/** 检测用户是否表达"开始/做实验"的意图（非默认模式） */
+function isStartExperimentIntent(text: string): boolean {
+  return /(?:启动|开始|运行|做|帮我做)(?:一[个次场]?)?(?:实验|测试|SHPB)/i.test(text)
+    && !/默认|快速/.test(text);
+}
+
+/** 尝试从文本中提取材料名 */
+function extractMaterial(text: string, materials: { name: string }[]): string | null {
+  for (const m of materials) {
+    if (text.includes(m.name)) return m.name;
+  }
+  // 模糊匹配：去掉空格后匹配
+  const clean = text.replace(/\s/g, '');
+  for (const m of materials) {
+    if (clean.includes(m.name.replace(/\s/g, ''))) return m.name;
+  }
+  return null;
+}
+
+/** 尝试从文本中提取电压值 */
+function extractVoltage(text: string): number | null {
+  const m = text.match(/(\d{3,4})\s*[vV伏]/);
+  if (m) return Math.max(1000, Math.min(4000, Number(m[1])));
+  // 纯数字且在合理范围
+  const nums = text.match(/\d{3,4}/);
+  if (nums) {
+    const n = Number(nums[0]);
+    if (n >= 1000 && n <= 4000) return n;
+  }
+  return null;
+}
+
+/** 尝试从文本中提取波形类型 */
+function extractWaveform(text: string): string | null {
+  if (/正弦|sine/i.test(text)) return 'sine';
+  if (/方波|square/i.test(text)) return 'square';
+  if (/三角|triangle/i.test(text)) return 'triangle';
+  if (/脉冲|pulse/i.test(text)) return 'pulse';
+  return null;
+}
+
+/** 判断用户是否表示肯定/确认 */
+function isConfirm(text: string): boolean {
+  return /^(好|行|是|对|确[认定]|没问题|可以|ok|yes|开始|启动|冲|走)/i.test(text.trim());
+}
+
+/** 判断用户是否表示否定/取消 */
+function isCancel(text: string): boolean {
+  return /^(不|取消|算了|退出|cancel|no)/i.test(text.trim());
+}
 
 // 生成唯一ID
 let _opCounter = 0;
@@ -33,6 +101,9 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
   const [currentHighlight, setCurrentHighlight] = useState<AIHighlightTarget | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const cancelledRef = useRef(false);
+
+  // 实验引导对话流
+  const experimentFlowRef = useRef<ExperimentFlowState>(INITIAL_FLOW);
 
   // 添加操作到日志
   const addOperation = useCallback((op: AIOperation) => {
@@ -116,6 +187,109 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
     [addOperation, updateOperation, highlightTarget]
   );
 
+  // 实验引导对话流处理（返回 string 表示继续流程，null 表示流程结束）
+  const handleExperimentFlow = useCallback(
+    async (text: string, flow: ExperimentFlowState): Promise<string | null> => {
+      const store = useAppStore.getState();
+      const materials = store.materials;
+
+      // 用户取消
+      if (isCancel(text)) {
+        experimentFlowRef.current = INITIAL_FLOW;
+        return '已取消实验引导。如需重新开始，请说"开始实验"。';
+      }
+
+      switch (flow.step) {
+        case 'ask_material': {
+          // 用户保持当前材料
+          if (/当前|现有|保持|不[变换]/.test(text)) {
+            const mat = store.selectedMaterial?.name || '5A06铝合金';
+            experimentFlowRef.current = { ...flow, step: 'ask_voltage', material: mat };
+            const params = store.experimentParams;
+            return `材料已确认：**${mat}**\n\n**第2步：设置电压**\n当前电压：${params.voltage}V\n可选范围：1000V ~ 4000V\n\n请输入目标电压，或回复"用当前电压"保持现有设置。\n\n💡 提示：高应变率测试建议 3000V+，常规测试建议 2000V 左右。`;
+          }
+          // 尝试提取材料名
+          const matName = extractMaterial(text, materials);
+          if (matName) {
+            // 执行选择材料
+            await executeAction('lab.selectMaterial', { materialName: matName });
+            experimentFlowRef.current = { ...flow, step: 'ask_voltage', material: matName };
+            const params = store.experimentParams;
+            return `材料已选择：**${matName}** ✓\n\n**第2步：设置电压**\n当前电压：${params.voltage}V\n可选范围：1000V ~ 4000V\n\n请输入目标电压（如"3000V"），或回复"用当前电压"保持现有设置。`;
+          }
+          // 未识别
+          return `抱歉，未能识别该材料名。系统支持以下材料：\n${materials.slice(0, 8).map(m => `• ${m.name}`).join('\n')}\n${materials.length > 8 ? `...等共${materials.length}种` : ''}\n\n请重新输入材料名称，或说"用当前材料"。`;
+        }
+
+        case 'ask_voltage': {
+          if (/当前|现有|保持|不[变换]/.test(text)) {
+            const v = store.experimentParams.voltage;
+            experimentFlowRef.current = { ...flow, step: 'ask_waveform', voltage: v };
+            return `电压保持：**${v}V** ✓\n\n**第3步：选择波形类型**\n• 正弦波 — 标准正弦波形，适用于常规测试\n• 方波 — 快速上升沿，适用于冲击测试\n• 三角波 — 线性变化，适用于疲劳测试\n• 脉冲波 — 单脉冲波形，适用于高应变率测试\n\n请选择波形类型，或回复"用当前波形"。`;
+          }
+          const voltage = extractVoltage(text);
+          if (voltage) {
+            await executeAction('lab.setVoltage', { voltage });
+            experimentFlowRef.current = { ...flow, step: 'ask_waveform', voltage };
+            return `电压已设置：**${voltage}V** ✓\n\n**第3步：选择波形类型**\n• 正弦波 — 标准正弦波形，适用于常规测试\n• 方波 — 快速上升沿，适用于冲击测试\n• 三角波 — 线性变化，适用于疲劳测试\n• 脉冲波 — 单脉冲波形，适用于高应变率测试\n\n请选择波形类型，或回复"用当前波形"。`;
+          }
+          return '请输入有效的电压值（1000~4000V），例如"2500V"或"3000"。';
+        }
+
+        case 'ask_waveform': {
+          let waveform = extractWaveform(text);
+          if (/当前|现有|保持|不[变换]/.test(text)) {
+            waveform = store.experimentParams.waveform || 'sine';
+          }
+          if (waveform) {
+            experimentFlowRef.current = { ...flow, step: 'confirm', waveform };
+            const waveLabels: Record<string, string> = { sine: '正弦波', square: '方波', triangle: '三角波', pulse: '脉冲波' };
+            // 汇总所有参数
+            const mat = flow.material || store.selectedMaterial?.name || '未知';
+            const v = flow.voltage || store.experimentParams.voltage;
+            const cur = store.experimentParams.current;
+            const pw = store.experimentParams.pulseWidth;
+            return `波形已选择：**${waveLabels[waveform] || waveform}** ✓\n\n**实验参数确认：**\n━━━━━━━━━━━━━━\n📋 材料：${mat}\n⚡ 电压：${v}V\n🔌 电流：${(cur / 1000).toFixed(1)}kA\n📐 脉宽：${pw}μs\n〰️ 波形：${waveLabels[waveform] || waveform}\n━━━━━━━━━━━━━━\n\n确认无误请回复"**确认开始**"，或说"取消"退出。`;
+          }
+          return '请选择波形类型：正弦波、方波、三角波 或 脉冲波。';
+        }
+
+        case 'confirm': {
+          if (isConfirm(text)) {
+            experimentFlowRef.current = INITIAL_FLOW;
+            // 执行实验
+            setOrbState('executing');
+            const result = await executeAction('lab.startExperiment', {});
+            setOrbState('idle');
+
+            const opId = genOpId();
+            addOperation({
+              id: opId,
+              actionId: 'lab.startExperiment',
+              actionName: '启动实验',
+              params: {},
+              status: result.success ? 'complete' : 'error',
+              message: result.message,
+              timestamp: Date.now(),
+            });
+
+            return `🚀 ${result.message}\n\n实验正在进行中，您可以在2D/3D视图中观察实验过程。实验完成后我会通知您。`;
+          }
+          if (isCancel(text)) {
+            experimentFlowRef.current = INITIAL_FLOW;
+            return '已取消实验。所设参数保留，如需重新开始，请说"开始实验"。';
+          }
+          return '请回复"确认"开始实验，或"取消"退出。您也可以说"修改材料"或"修改电压"返回上一步。';
+        }
+
+        default:
+          experimentFlowRef.current = INITIAL_FLOW;
+          return null;
+      }
+    },
+    [addOperation, setOrbState]
+  );
+
   // 处理用户输入（核心方法）
   const processUserInput = useCallback(
     async (text: string): Promise<string> => {
@@ -126,6 +300,31 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
       conversationManager.addUserMessage(text);
 
       try {
+        // Step 0: 实验引导对话流
+        const flow = experimentFlowRef.current;
+
+        // 0a: 检测"开始实验"意图 → 进入引导流程
+        if (flow.step === 'idle' && isStartExperimentIntent(text)) {
+          const store = useAppStore.getState();
+          const currentMat = store.selectedMaterial?.name || '未选择';
+          experimentFlowRef.current = { step: 'ask_material' };
+          const response = `好的，让我们一步步设置实验参数。\n\n**第1步：选择测试材料**\n当前材料：${currentMat}\n\n请告诉我您想测试什么材料？（如"Q235钢"、"5A06铝合金"、"花岗岩"等）\n\n💡 回复"用当前材料"保持现有选择，或说"取消"退出引导。`;
+          conversationManager.addAssistantMessage(response);
+          setIsProcessing(false);
+          return response;
+        }
+
+        // 0b: 处理引导流程中的用户输入
+        if (flow.step !== 'idle') {
+          const flowResponse = await handleExperimentFlow(text, flow);
+          if (flowResponse) {
+            conversationManager.addAssistantMessage(flowResponse);
+            setIsProcessing(false);
+            return flowResponse;
+          }
+          // flowResponse 为 null → 流程结束或取消，继续正常处理
+        }
+
         // Step 1: 尝试快速正则匹配
         const quickCalls = quickIntentMatch(text);
 
@@ -297,9 +496,9 @@ function getFallbackResponse(input: string): string {
     return '霍普金森杆(SHPB)是测量材料高应变率(10²~10⁴/s)动态力学性能的实验装置。本系统使用电磁驱动替代传统气枪，通过三级线圈加速撞击杆撞击入射杆，产生应力波作用于试样，再通过入射波、反射波和透射波信号推算应力-应变关系。我们还集成了三级AI优化(LSTM+WGAN-GP+PPO)和多场耦合(热-力-电磁)功能。';
   }
 
-  // 实验相关
+  // 实验相关（一般不会走到这里，因为已被流程拦截）
   if (/开始实验|做实验|run experiment/.test(lower)) {
-    return '好的，让我们开始准备实验。请告诉我：\n1. 您想测试什么材料？（如Q235钢、花岗岩等）\n2. 需要设置什么电压？（220-350V）\n3. 是否需要启用围压？\n\n或者您可以说"用默认参数开始"，我会使用当前设置。';
+    return '好的，让我们一步步设置实验。请直接说"开始实验"，我会引导您选择材料和参数。\n\n💡 如需使用当前参数直接实验，请说"用默认参数开始实验"。';
   }
 
   // 默认回复
