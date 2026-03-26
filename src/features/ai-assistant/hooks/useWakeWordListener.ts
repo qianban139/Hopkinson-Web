@@ -39,7 +39,7 @@ export function useWakeWordListener({
   const capturedTextRef = useRef('');
   const isRunningRef = useRef(false);
   // 指数退避重启
-  const restartDelayRef = useRef(300);
+  const restartDelayRef = useRef(100);
   const consecutiveFailsRef = useRef(0);
 
   // 保持ref同步
@@ -192,7 +192,7 @@ export function useWakeWordListener({
             if (wakeCheck.found) {
               // 成功识别，重置退避计数
               consecutiveFailsRef.current = 0;
-              restartDelayRef.current = 300;
+              restartDelayRef.current = 100;
 
               if (wakeCheck.afterWake && result.isFinal) {
                 // 唤醒词后面直接带了命令（如"小智设置电压3000V"）
@@ -200,8 +200,8 @@ export function useWakeWordListener({
                 updateFlowState('capturing');
                 setInterimText(wakeCheck.afterWake);
                 resetCaptureTimeout();
-              } else if (result.isFinal || wakeCheck.afterWake === '') {
-                // 只有唤醒词（final或interim均可触发），进入捕获模式等待命令
+              } else {
+                // 唤醒词检测到即进入捕获模式（interim也触发，提高唤醒灵敏度）
                 updateFlowState('capturing');
                 setInterimText('');
                 resetCaptureTimeout();
@@ -239,9 +239,11 @@ export function useWakeWordListener({
         if (event.error === 'network') {
           // 网络错误，加长重启等待
           consecutiveFailsRef.current++;
-          restartDelayRef.current = Math.min(restartDelayRef.current * 2, 3000);
+          restartDelayRef.current = Math.min(restartDelayRef.current * 2, 1500);
           console.warn('[语音流] 网络错误，将在', restartDelayRef.current, 'ms后重试');
-        } else if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        } else if (event.error === 'no-speech') {
+          // no-speech 是正常行为（静默超时），不计入失败次数，快速重启
+        } else if (event.error !== 'aborted') {
           consecutiveFailsRef.current++;
           console.warn('[语音流] 错误:', event.error);
         }
@@ -258,12 +260,12 @@ export function useWakeWordListener({
 
         // 自动重启（指数退避）
         if (enabledRef.current) {
-          // 连续失败5次以上，暂停10秒再尝试
-          const delay = consecutiveFailsRef.current >= 5 ? 10000 : restartDelayRef.current;
+          // 连续失败5次以上，暂停5秒再尝试
+          const delay = consecutiveFailsRef.current >= 5 ? 5000 : restartDelayRef.current;
           if (consecutiveFailsRef.current >= 5) {
-            console.info('[语音流] 连续失败过多，暂停10秒');
+            console.info('[语音流] 连续失败过多，暂停5秒');
             consecutiveFailsRef.current = 0;
-            restartDelayRef.current = 300;
+            restartDelayRef.current = 100;
           }
           restartTimerRef.current = setTimeout(() => {
             if (enabledRef.current) {
@@ -278,8 +280,8 @@ export function useWakeWordListener({
       recognitionRef.current = recognition;
       recognition.start();
       isRunningRef.current = true;
-      // 成功启动，逐步降低退避延迟
-      restartDelayRef.current = 300;
+      // 成功启动，重置退避延迟
+      restartDelayRef.current = 100;
       if (flowStateRef.current !== 'capturing' && flowStateRef.current !== 'processing') {
         updateFlowState('monitoring');
       }
@@ -287,7 +289,7 @@ export function useWakeWordListener({
       console.warn('[语音流] 启动失败:', err);
       isRunningRef.current = false;
       consecutiveFailsRef.current++;
-      restartDelayRef.current = Math.min(restartDelayRef.current * 2, 3000);
+      restartDelayRef.current = Math.min(restartDelayRef.current * 2, 1500);
     }
   }, [SpeechRecognitionAPI, wakeWord, updateFlowState, resetCaptureTimeout, submitCapturedCommand]);
 
@@ -328,7 +330,7 @@ export function useWakeWordListener({
       } else if (enabledRef.current) {
         restartTimerRef.current = setTimeout(() => {
           if (enabledRef.current) startRecognition();
-        }, 500);
+        }, 200);
       }
     };
 

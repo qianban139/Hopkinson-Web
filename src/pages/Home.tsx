@@ -140,52 +140,78 @@ export default function Home() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="space-y-6 text-center max-w-3xl"
+              className="space-y-10 text-center max-w-4xl"
             >
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/30 mx-auto"
+                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/30 mx-auto"
               >
                 <span className="w-2 h-2 rounded-full bg-[#00F5FF] animate-pulse" />
-                <span className="text-sm text-[#00F5FF]">嘉本科技 · 前沿测试技术</span>
+                <span className="text-sm tracking-widest text-[#00F5FF]">嘉本科技 · 前沿测试技术</span>
               </motion.div>
 
-              <motion.h1
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight"
-              >
-                数智化电磁驱动
-                <br />
-                <span className="gradient-text">霍普金森杆</span>
-                <br />
-                多场耦合动态测试系统
-              </motion.h1>
-
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="text-lg text-white/70 max-w-xl mx-auto"
-              >
-                电磁驱动 · 数字孪生 · 人工智能 深度融合
-                <br />
-                实现热-力-电多场耦合动态加载、智能波形调控、全链条数据融合
-              </motion.p>
+              <div className="space-y-5">
+                <motion.h1
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-white leading-[1.3] tracking-wide"
+                >
+                  数智化电磁驱动
+                </motion.h1>
+                <motion.h1
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-5xl sm:text-6xl lg:text-7xl font-extrabold gradient-text leading-[1.2] tracking-wider"
+                >
+                  霍普金森杆
+                </motion.h1>
+                <motion.h1
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-white leading-[1.3] tracking-wide"
+                >
+                  多场耦合动态测试系统
+                </motion.h1>
+              </div>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="flex flex-wrap gap-4 justify-center"
+                transition={{ delay: 0.6 }}
+                className="flex flex-col items-center gap-5 pt-2"
+              >
+                <div className="flex items-center gap-3 text-white/80 text-lg tracking-[0.2em]">
+                  <span>电磁驱动</span>
+                  <span className="w-1 h-1 rounded-full bg-[#00F5FF]" />
+                  <span>数字孪生</span>
+                  <span className="w-1 h-1 rounded-full bg-[#00F5FF]" />
+                  <span>人工智能</span>
+                  <span className="text-[#00F5FF] font-medium ml-1">深度融合</span>
+                </div>
+                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-white/55 text-[0.95rem] tracking-wider">
+                  <span>热-力-电多场耦合动态加载</span>
+                  <span className="hidden sm:inline text-white/30">|</span>
+                  <span>智能波形调控</span>
+                  <span className="hidden sm:inline text-white/30">|</span>
+                  <span>全链条数据融合</span>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="flex flex-wrap gap-4 justify-center pt-4"
               >
                 <Link to="/lab">
                   <Button
                     size="lg"
-                    className="bg-[#00F5FF] text-[#0A2540] hover:bg-[#00F5FF]/90 btn-glow font-semibold"
+                    className="bg-[#00F5FF] text-[#0A2540] hover:bg-[#00F5FF]/90 btn-glow font-semibold px-8 py-6 text-base"
                   >
                     立即进入虚拟实验室
                     <ArrowRight className="w-5 h-5 ml-2" />
