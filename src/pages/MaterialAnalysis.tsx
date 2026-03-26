@@ -462,7 +462,7 @@ export default function MaterialAnalysis() {
                 <Button
                   onClick={handleAIPredict}
                   disabled={aiPredicting}
-                  className="w-full bg-gradient-to-r from-[#8B5CF6] to-[#00F5FF] hover:from-[#7C3AED] hover:to-[#00D4E0] text-white font-bold h-10 text-sm"
+                  className="w-full bg-gradient-to-r from-[#6E8EF6] to-[#5BC4D4] hover:from-[#5E7EE6] hover:to-[#4BB4C4] text-white font-semibold h-10 text-sm"
                 >
                   {aiPredicting ? '预测中...' : '开始AI预测'}
                 </Button>

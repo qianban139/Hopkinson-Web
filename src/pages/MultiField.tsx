@@ -525,7 +525,7 @@ export default function MultiField() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#00F5FF] to-[#8B5CF6] bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#7EC8E3] to-[#A78BDA] bg-clip-text text-transparent">
                 极端环境模拟器
               </h1>
               <p className="text-sm text-white/50 mt-1">
