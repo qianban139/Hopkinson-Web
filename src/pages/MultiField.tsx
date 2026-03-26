@@ -525,7 +525,7 @@ export default function MultiField() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#7EC8E3] to-[#A78BDA] bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#00F5FF] to-[#7EC8E3] bg-clip-text text-transparent">
                 极端环境模拟器
               </h1>
               <p className="text-sm text-white/50 mt-1">
@@ -702,106 +702,68 @@ export default function MultiField() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <GlowCard className="p-6" hoverable={false}>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-1 h-5 rounded-full bg-[#8B5CF6]" />
-              <h2 className="text-base font-semibold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">三场耦合关系</h2>
-              <span className="ml-auto text-sm font-mono text-[#00F5FF]">
+              <div className="w-1 h-5 rounded-full bg-[#00F5FF]/60" />
+              <h2 className="text-base font-semibold text-white/90">三场耦合关系</h2>
+              <span className="ml-auto text-sm font-mono text-[#00F5FF]/70">
                 耦合度: {couplingPct}%
               </span>
             </div>
 
-            {/* Enhanced Triangle Diagram */}
+            {/* Modern Triangle Diagram */}
             <div className="relative w-full max-w-[500px] mx-auto" style={{ height: 300 }}>
               <svg viewBox="0 0 500 300" className="absolute inset-0 w-full h-full">
                 <defs>
-                  {/* Animated gradient for left edge (T→σ) */}
-                  <linearGradient id="gradLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#FF9F43" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="#1DD1A1" stopOpacity="0.9" />
+                  <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#00F5FF" stopOpacity="0.5" />
+                    <stop offset="100%" stopColor="#00F5FF" stopOpacity="0.15" />
                   </linearGradient>
-                  {/* Animated gradient for bottom edge (σ→B) */}
-                  <linearGradient id="gradBottom" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#1DD1A1" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0.9" />
-                  </linearGradient>
-                  {/* Animated gradient for right edge (B→T) */}
-                  <linearGradient id="gradRight" x1="100%" y1="100%" x2="0%" y2="0%">
-                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="#FF9F43" stopOpacity="0.9" />
-                  </linearGradient>
-                  {/* Glow filters */}
-                  <filter id="glowOrange" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-                    <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                   </filter>
-                  <filter id="glowGreen" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-                    <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                  </filter>
-                  <filter id="glowPurple" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-                    <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                  </filter>
-                  <filter id="glowCyan" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="6" result="coloredBlur" />
-                    <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                  </filter>
-                  {/* Flow animation paths */}
-                  <path id="pathLeft2" d="M250,36 L75,262" />
-                  <path id="pathBottom2" d="M75,262 L425,262" />
-                  <path id="pathRight2" d="M425,262 L250,36" />
                   <style>{`
-                    @keyframes edgeFlow { 0%,100% { stroke-dashoffset: 24; } }
-                    @keyframes particleFlow { 0% { offset-distance:0%; opacity:0; } 8% { opacity:1; } 88% { opacity:1; } 100% { offset-distance:100%; opacity:0; } }
-                    @keyframes couplingPulse { 0%,100% { r:28; opacity:0.15; } 50% { r:40; opacity:0; } }
+                    @keyframes dotMove { 0% { offset-distance:0%; opacity:0; } 10% { opacity:0.8; } 90% { opacity:0.8; } 100% { offset-distance:100%; opacity:0; } }
                   `}</style>
                 </defs>
 
-                {/* Triangle fill — subtle */}
-                <polygon points="250,36 75,262 425,262"
-                  fill="url(#gradBottom)" fillOpacity="0.04"
+                {/* Triangle fill */}
+                <polygon points="250,40 80,258 420,258"
+                  fill="#00F5FF" fillOpacity="0.03"
                   stroke="none" />
 
-                {/* Animated gradient edges */}
-                <line x1="250" y1="36" x2="75" y2="262"
-                  stroke="url(#gradLeft)" strokeWidth="3" strokeDasharray="8 5"
-                  style={{ animation: 'edgeFlow 1.8s linear infinite' }}
-                  filter="url(#glowOrange)" />
-                <line x1="75" y1="262" x2="425" y2="262"
-                  stroke="url(#gradBottom)" strokeWidth="3" strokeDasharray="8 5"
-                  style={{ animation: 'edgeFlow 1.8s linear infinite' }}
-                  filter="url(#glowGreen)" />
-                <line x1="425" y1="262" x2="250" y2="36"
-                  stroke="url(#gradRight)" strokeWidth="3" strokeDasharray="8 5"
-                  style={{ animation: 'edgeFlow 1.8s linear infinite' }}
-                  filter="url(#glowPurple)" />
+                {/* Clean solid edges */}
+                <line x1="250" y1="40" x2="80" y2="258" stroke="#00F5FF" strokeWidth="1" strokeOpacity="0.25" />
+                <line x1="80" y1="258" x2="420" y2="258" stroke="#00F5FF" strokeWidth="1" strokeOpacity="0.25" />
+                <line x1="420" y1="258" x2="250" y2="40" stroke="#00F5FF" strokeWidth="1" strokeOpacity="0.25" />
 
-                {/* Energy flow particles — left edge */}
-                {[0, 1, 2].map(i => (
-                  <circle key={`pl2${i}`} r="4" fill="#FF9F43" opacity="0"
-                    style={{ offsetPath: "path('M250,36 L75,262')", animation: `particleFlow 2.8s ${i * 0.9}s linear infinite` }} />
+                {/* Flow dots — left edge */}
+                {[0, 1].map(i => (
+                  <circle key={`dl${i}`} r="2.5" fill="#00F5FF" opacity="0"
+                    style={{ offsetPath: "path('M250,40 L80,258')", animation: `dotMove 3.5s ${i * 1.5}s linear infinite` }} />
                 ))}
-                {/* Energy flow particles — bottom edge */}
-                {[0, 1, 2].map(i => (
-                  <circle key={`pb2${i}`} r="4" fill="#1DD1A1" opacity="0"
-                    style={{ offsetPath: "path('M75,262 L425,262')", animation: `particleFlow 2.8s ${i * 0.9}s linear infinite` }} />
+                {/* Flow dots — bottom edge */}
+                {[0, 1].map(i => (
+                  <circle key={`db${i}`} r="2.5" fill="#00F5FF" opacity="0"
+                    style={{ offsetPath: "path('M80,258 L420,258')", animation: `dotMove 3.5s ${i * 1.5}s linear infinite` }} />
                 ))}
-                {/* Energy flow particles — right edge */}
-                {[0, 1, 2].map(i => (
-                  <circle key={`pr2${i}`} r="4" fill="#8B5CF6" opacity="0"
-                    style={{ offsetPath: "path('M425,262 L250,36')", animation: `particleFlow 2.8s ${i * 0.9}s linear infinite` }} />
+                {/* Flow dots — right edge */}
+                {[0, 1].map(i => (
+                  <circle key={`dr${i}`} r="2.5" fill="#00F5FF" opacity="0"
+                    style={{ offsetPath: "path('M420,258 L250,40')", animation: `dotMove 3.5s ${i * 1.5}s linear infinite` }} />
                 ))}
 
-                {/* Edge labels */}
-                <text x="145" y="140" fill="#FF9F43" fontSize="12" textAnchor="middle"
-                  transform="rotate(-52, 145, 140)" opacity="0.9">热膨胀</text>
-                <text x="250" y="286" fill="#1DD1A1" fontSize="12" textAnchor="middle" opacity="0.9">磁弹性</text>
-                <text x="360" y="140" fill="#8B5CF6" fontSize="12" textAnchor="middle"
-                  transform="rotate(52, 360, 140)" opacity="0.9">焦耳热</text>
+                {/* Edge labels — centered, horizontal */}
+                <text x="148" y="148" fill="white" fillOpacity="0.45" fontSize="11" textAnchor="middle"
+                  transform="rotate(-52, 148, 148)">热膨胀</text>
+                <text x="250" y="280" fill="white" fillOpacity="0.45" fontSize="11" textAnchor="middle">磁弹性</text>
+                <text x="352" y="148" fill="white" fillOpacity="0.45" fontSize="11" textAnchor="middle"
+                  transform="rotate(52, 352, 148)">焦耳热</text>
 
-                {/* Pulsing glow ring behind center indicator */}
-                <circle cx="250" cy="175" r="28" fill="#00F5FF" fillOpacity="0.12" filter="url(#glowCyan)">
-                  <animate attributeName="r" values="26;42;26" dur="2.5s" repeatCount="indefinite" />
-                  <animate attributeName="fill-opacity" values="0.18;0;0.18" dur="2.5s" repeatCount="indefinite" />
+                {/* Center ring */}
+                <circle cx="250" cy="175" r="30" fill="none" stroke="#00F5FF" strokeWidth="0.5" strokeOpacity="0.2" />
+                <circle cx="250" cy="175" r="30" fill="#00F5FF" fillOpacity="0.04">
+                  <animate attributeName="r" values="28;36;28" dur="3s" repeatCount="indefinite" />
+                  <animate attributeName="fill-opacity" values="0.06;0;0.06" dur="3s" repeatCount="indefinite" />
                 </circle>
               </svg>
 
@@ -812,14 +774,11 @@ export default function MultiField() {
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: 'spring' }}
               >
-                <div
-                  className="w-14 h-14 rounded-full bg-[#0A2540] border-2 border-[#FF9F43] flex items-center justify-center text-[#FF9F43] font-bold text-xl"
-                  style={{ boxShadow: '0 0 16px #FF9F4380, 0 0 32px #FF9F4330' }}
-                >
+                <div className="w-12 h-12 rounded-full bg-[#0D2847] border border-[#00F5FF]/30 flex items-center justify-center text-[#00F5FF] font-semibold text-lg">
                   T
                 </div>
-                <span className="text-[10px] text-white/60 mt-1">温度场(T)</span>
-                <span className="text-[10px] font-mono text-[#FF9F43] font-semibold">{temperature}°C</span>
+                <span className="text-[10px] text-white/50 mt-1.5">温度场</span>
+                <span className="text-[11px] font-mono text-[#00F5FF]/80 font-medium">{temperature}°C</span>
               </motion.div>
 
               {/* Node: 应力场 σ (bottom-left) */}
@@ -829,14 +788,11 @@ export default function MultiField() {
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.4, type: 'spring' }}
               >
-                <div
-                  className="w-14 h-14 rounded-full bg-[#0A2540] border-2 border-[#1DD1A1] flex items-center justify-center text-[#1DD1A1] font-bold text-xl"
-                  style={{ boxShadow: '0 0 16px #1DD1A180, 0 0 32px #1DD1A130' }}
-                >
+                <div className="w-12 h-12 rounded-full bg-[#0D2847] border border-[#00F5FF]/30 flex items-center justify-center text-[#00F5FF] font-semibold text-lg">
                   σ
                 </div>
-                <span className="text-[10px] text-white/60 mt-1">应力场(σ)</span>
-                <span className="text-[10px] font-mono text-[#1DD1A1] font-semibold">{stress} MPa</span>
+                <span className="text-[10px] text-white/50 mt-1.5">应力场</span>
+                <span className="text-[11px] font-mono text-[#00F5FF]/80 font-medium">{stress} MPa</span>
               </motion.div>
 
               {/* Node: 电磁场 B (bottom-right) */}
@@ -846,27 +802,19 @@ export default function MultiField() {
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.5, type: 'spring' }}
               >
-                <div
-                  className="w-14 h-14 rounded-full bg-[#0A2540] border-2 border-[#8B5CF6] flex items-center justify-center text-[#8B5CF6] font-bold text-xl"
-                  style={{ boxShadow: '0 0 16px #8B5CF680, 0 0 32px #8B5CF630' }}
-                >
+                <div className="w-12 h-12 rounded-full bg-[#0D2847] border border-[#00F5FF]/30 flex items-center justify-center text-[#00F5FF] font-semibold text-lg">
                   B
                 </div>
-                <span className="text-[10px] text-white/60 mt-1">电磁场(B)</span>
-                <span className="text-[10px] font-mono text-[#8B5CF6] font-semibold">{emField} T</span>
+                <span className="text-[10px] text-white/50 mt-1.5">电磁场</span>
+                <span className="text-[11px] font-mono text-[#00F5FF]/80 font-medium">{emField} T</span>
               </motion.div>
 
-              {/* Center coupling indicator — bigger with pulsing glow */}
+              {/* Center coupling indicator */}
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/4">
-                <motion.div
-                  className="w-[72px] h-[72px] rounded-full border-2 border-dashed border-[#00F5FF]/60 flex flex-col items-center justify-center"
-                  style={{ boxShadow: '0 0 20px #00F5FF50, 0 0 40px #00F5FF20' }}
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-                >
-                  <span className="text-[9px] text-[#00F5FF]/70 leading-tight">耦合度</span>
-                  <span className="text-base font-bold text-[#00F5FF] font-mono leading-tight">{couplingPct}%</span>
-                </motion.div>
+                <div className="w-[60px] h-[60px] rounded-full border border-[#00F5FF]/20 bg-[#0D2847]/80 flex flex-col items-center justify-center">
+                  <span className="text-[9px] text-white/40 leading-tight">耦合度</span>
+                  <span className="text-sm font-semibold text-[#00F5FF] font-mono leading-tight">{couplingPct}%</span>
+                </div>
               </div>
             </div>
 

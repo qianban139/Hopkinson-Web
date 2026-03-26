@@ -152,32 +152,18 @@ export default function Home() {
                 <span className="text-sm tracking-widest text-[#00F5FF]">嘉本科技 · 前沿测试技术</span>
               </motion.div>
 
-              <div className="space-y-5">
-                <motion.h1
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-white leading-[1.3] tracking-wide"
-                >
-                  数智化电磁驱动
-                </motion.h1>
-                <motion.h1
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="text-5xl sm:text-6xl lg:text-7xl font-extrabold gradient-text leading-[1.2] tracking-wider"
-                >
-                  霍普金森杆
-                </motion.h1>
-                <motion.h1
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-white leading-[1.3] tracking-wide"
-                >
-                  多场耦合动态测试系统
-                </motion.h1>
-              </div>
+              <motion.h1
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-white leading-[1.6] tracking-[0.08em]"
+              >
+                数智化电磁驱动
+                <br />
+                <span className="text-[#00F5FF]">霍普金森杆</span>
+                <br />
+                多场耦合动态测试系统
+              </motion.h1>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -214,7 +200,7 @@ export default function Home() {
                     variant="outline"
                     className="border-[#00F5FF]/40 text-[#00F5FF] hover:bg-[#00F5FF]/10 hover:border-[#00F5FF]/70 px-8 py-5 text-[0.95rem] tracking-wide rounded-full transition-all duration-300"
                   >
-                    立即进入虚拟实验室
+                    立即开始
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
