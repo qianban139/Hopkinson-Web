@@ -211,10 +211,11 @@ export default function Home() {
                 <Link to="/lab">
                   <Button
                     size="lg"
-                    className="bg-[#00F5FF] text-[#0A2540] hover:bg-[#00F5FF]/90 btn-glow font-semibold px-8 py-6 text-base"
+                    variant="outline"
+                    className="border-[#00F5FF]/40 text-[#00F5FF] hover:bg-[#00F5FF]/10 hover:border-[#00F5FF]/70 px-8 py-5 text-[0.95rem] tracking-wide rounded-full transition-all duration-300"
                   >
                     立即进入虚拟实验室
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
               </motion.div>
