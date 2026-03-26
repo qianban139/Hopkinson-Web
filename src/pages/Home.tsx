@@ -156,7 +156,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-white leading-[1.45] tracking-[0.08em]"
+                className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-white leading-[1.8] tracking-[0.08em]"
               >
                 数智化电磁驱动
                 <br />
