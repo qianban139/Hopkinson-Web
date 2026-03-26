@@ -221,17 +221,24 @@ export function useVoiceInteraction({
 
     recognition.onend = () => {
       if (continuousMode && isListeningRef.current) {
-        // 连续模式断开时：重启识别继续累积
-        try {
-          recognition.start();
-        } catch {
-          // 重启失败，提交已有文本
-          if (accumulatedTextRef.current.trim()) {
-            flushAccumulatedText();
+        // 连续模式断开时：重启识别继续累积（带重试）
+        const retryStart = (attempt: number) => {
+          try {
+            recognition.start();
+          } catch {
+            if (attempt < 3) {
+              setTimeout(() => retryStart(attempt + 1), 200);
+            } else {
+              // 重试3次仍失败，提交已有文本
+              if (accumulatedTextRef.current.trim()) {
+                flushAccumulatedText();
+              }
+              isListeningRef.current = false;
+              setIsListening(false);
+            }
           }
-          isListeningRef.current = false;
-          setIsListening(false);
-        }
+        };
+        retryStart(1);
       } else {
         // 非连续模式结束时提交累积文本
         if (accumulatedTextRef.current.trim()) {
@@ -286,13 +293,13 @@ export function useVoiceInteraction({
       } catch (err) {
         console.warn(`[面板语音] 启动失败(尝试${attempt}):`, err);
         if (attempt < 3) {
-          setTimeout(() => tryStart(attempt + 1), 300);
+          setTimeout(() => tryStart(attempt + 1), 150);
         }
       }
     };
 
-    // 第一次尝试延迟200ms，给唤醒词监听停止的时间
-    setTimeout(() => tryStart(1), 200);
+    // 第一次尝试延迟100ms，给唤醒词监听停止的时间
+    setTimeout(() => tryStart(1), 100);
   }, [SpeechRecognitionAPI, createRecognition]);
 
   // 停止监听 — 提交已累积的文本
