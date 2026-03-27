@@ -152,18 +152,22 @@ export default function Home() {
                 <span className="text-sm tracking-widest text-[#00F5FF]">嘉本科技 · 前沿测试技术</span>
               </motion.div>
 
-              <motion.h1
+              <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-white leading-[2.2] tracking-[0.08em]"
+                className="flex flex-col items-center gap-4 sm:gap-5"
               >
-                数智化电磁驱动
-                <br />
-                <span className="text-[#00F5FF]">霍普金森杆</span>
-                <br />
-                多场耦合动态测试系统
-              </motion.h1>
+                <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-white tracking-[0.08em]">
+                  数智化电磁驱动
+                </h1>
+                <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-[#00F5FF] tracking-[0.08em]">
+                  霍普金森杆
+                </h1>
+                <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-white tracking-[0.08em]">
+                  多场耦合动态测试系统
+                </h1>
+              </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
