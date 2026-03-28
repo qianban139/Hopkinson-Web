@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Zap, FlaskConical, Brain, Layers, BarChart3, Monitor, Home } from 'lucide-react';
+import { Menu, Zap, FlaskConical, Brain, Layers, BarChart3, Monitor, Home, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAppStore } from '@/store/useAppStore';
@@ -16,6 +16,7 @@ const navItems = [
   { label: '多场耦合实验', path: '/multifield', icon: Layers },
   { label: '材料力学分析', path: '/analysis', icon: BarChart3 },
   { label: '系统监控', path: '/monitor', icon: Monitor },
+  { label: 'AI教学', path: '/teaching', icon: GraduationCap },
 ];
 
 export default function Navbar() {
@@ -31,7 +32,7 @@ export default function Navbar() {
   useEffect(() => {
     const pageMap: Record<string, string> = {
       '/': 'home', '/lab': 'lab', '/ai': 'ai',
-      '/multifield': 'multifield', '/analysis': 'analysis', '/monitor': 'monitor',
+      '/multifield': 'multifield', '/analysis': 'analysis', '/monitor': 'monitor', '/teaching': 'teaching',
     };
     setCurrentPage(pageMap[location.pathname] || 'home');
   }, [location.pathname, setCurrentPage]);

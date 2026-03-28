@@ -18,6 +18,7 @@ const AIControl = lazy(() => import('@/pages/AIControl'));
 const MultiField = lazy(() => import('@/pages/MultiField'));
 const MaterialAnalysis = lazy(() => import('@/pages/MaterialAnalysis'));
 const SystemMonitor = lazy(() => import('@/pages/SystemMonitor'));
+const Teaching = lazy(() => import('@/pages/Teaching'));
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
                 <Route path="/multifield" element={<MultiField />} />
                 <Route path="/analysis" element={<MaterialAnalysis />} />
                 <Route path="/monitor" element={<SystemMonitor />} />
+                <Route path="/teaching" element={<Teaching />} />
               </Routes>
             </AnimatePresence>
           </Suspense>
