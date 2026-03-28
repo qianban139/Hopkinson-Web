@@ -217,8 +217,8 @@ export default function RealtimeWaveformPanel({
             left: 'center',
             top: 'middle',
             style: {
-              text: stageIndex === 0 ? '电容充电中...' : stageIndex === 1 ? '线圈加速中...' : '子弹发射中...',
-              fill: '#FFD700',
+              text: '实验待开始...',
+              fill: '#00F5FF',
               fontSize: 14,
               fontWeight: 'bold',
             },

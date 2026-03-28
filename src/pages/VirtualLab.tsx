@@ -350,6 +350,7 @@ export default function VirtualLab() {
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   // 波形显示 tab
   const [waveformTab, setWaveformTab] = useState('all');
+  const [resultsPanelOpen, setResultsPanelOpen] = useState(true);
   // 3D视频引用
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -874,6 +875,7 @@ export default function VirtualLab() {
         {/* 主实验区域 */}
         <div className="flex-1 flex flex-col">
           {/* 顶部工具栏 */}
+          {!(animState.isComplete && resultsPanelOpen) && (
           <div className="h-14 bg-[#051020] border-b border-[#00F5FF]/10 flex items-center justify-between px-4">
             <div className="flex items-center gap-2">
               <button
@@ -907,8 +909,10 @@ export default function VirtualLab() {
               )}
             </div>
           </div>
+          )}
 
           {/* 阶段进度条 + 控制按钮 */}
+          {!(animState.isComplete && resultsPanelOpen) && (
           <div className="h-12 bg-[#051020]/80 border-b border-[#00F5FF]/10 flex items-center px-4 gap-3">
             {/* 控制按钮 */}
             <div className="flex items-center gap-1.5">
@@ -975,8 +979,10 @@ export default function VirtualLab() {
               {(animState.globalProgress * 100).toFixed(0)}%
             </span>
           </div>
+          )}
 
           {/* 可调大小的可视化 + 波形区域 */}
+          {!(animState.isComplete && resultsPanelOpen) && (
           <ResizablePanelGroup direction="vertical" className="flex-1 min-h-0">
             {/* 2D/3D 可视化区域 — 默认 65% */}
             <ResizablePanel defaultSize={65} minSize={40}>
@@ -1052,7 +1058,7 @@ export default function VirtualLab() {
               </div>
             </ResizablePanel>
 
-            <ResizableHandle withHandle className="bg-[#00F5FF]/10 hover:bg-[#00F5FF]/20 transition-colors" />
+            <ResizableHandle withHandle className="bg-[#00F5FF]/10 hover:bg-[#00F5FF]/30 transition-colors [&>div]:bg-[#0A2540] [&>div]:border-[#00F5FF]/30 [&>div]:h-5 [&>div]:w-10 [&_svg]:text-[#00F5FF]/60 [&_svg]:size-4" />
 
             {/* 波形区域 — 默认 35% */}
             <ResizablePanel defaultSize={35} minSize={20}>
@@ -1089,19 +1095,35 @@ export default function VirtualLab() {
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
+          )}
 
           {/* 实验完成后展示6图结果 */}
           {animState.isComplete && (
-            <div className="p-4 border-t border-[#00F5FF]/10 bg-[#051020]">
-              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <Database className="w-4 h-4 text-[#00F5FF]" />
-                实验结果分析
-              </h3>
-              <ExperimentResultCharts
-                voltage={voltage}
-                peakStress={voltage * 0.025}
-                strainRate={2500}
-              />
+            <div className={`border-t border-[#00F5FF]/20 bg-[#051020] relative z-10 ${resultsPanelOpen ? 'flex-1 flex flex-col min-h-0 overflow-auto' : 'flex-shrink-0'}`}>
+              <button
+                onClick={() => setResultsPanelOpen(v => !v)}
+                className="w-full h-10 px-4 flex items-center justify-between bg-[#0A2540]/60 hover:bg-[#0A2540] border-b border-[#00F5FF]/15 transition-colors cursor-pointer"
+              >
+                <span className="text-sm font-semibold text-[#00F5FF] flex items-center gap-2">
+                  <Database className="w-4 h-4" />
+                  实验结果分析
+                </span>
+                <span className="flex items-center gap-2 text-xs text-white/40">
+                  {resultsPanelOpen ? '收起' : '展开'}
+                  {resultsPanelOpen ? (
+                    <ChevronDown className="w-4 h-4 text-[#00F5FF]/60" />
+                  ) : (
+                    <ChevronUp className="w-4 h-4 text-[#00F5FF]/60" />
+                  )}
+                </span>
+              </button>
+              {resultsPanelOpen && (
+                <ExperimentResultCharts
+                  voltage={voltage}
+                  peakStress={voltage * 0.025}
+                  strainRate={2500}
+                />
+              )}
             </div>
           )}
         </div>
