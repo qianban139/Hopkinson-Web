@@ -4,12 +4,42 @@ import { useAppStore } from '@/store/useAppStore';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
 import { useExperimentWorkflow } from '@/store/experimentWorkflow';
 import { buildFunctionCallingSystemPrompt } from './aiIntentParser';
+import { getMemorySummary } from './memoryService';
+import { getLocalePromptSuffix } from './i18n';
+import { getUserContextSummary, getRoleBehaviorPrompt } from './collaborationService';
 import type { AIConversationMessage } from '../types';
 
 const MAX_HISTORY_ROUNDS = 12;
+const STORAGE_KEY = 'hopkinson_ai_chat_history';
 
 class ConversationManager {
   private messages: AIConversationMessage[] = [];
+
+  constructor() {
+    this.loadFromStorage();
+  }
+
+  private loadFromStorage(): void {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          this.messages = parsed.slice(-MAX_HISTORY_ROUNDS * 2);
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  private saveToStorage(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.messages));
+    } catch {
+      // ignore storage errors
+    }
+  }
 
   /**
    * 获取当前应用状态摘要（注入到系统提示中）
@@ -40,7 +70,12 @@ ${dataBus.lastLabExperiment ? `- 上次实验: ${dataBus.lastLabExperiment.mater
    * 构建完整的系统提示（基础提示 + 当前状态）
    */
   getSystemPrompt(): string {
-    return buildFunctionCallingSystemPrompt() + '\n\n' + this.getAppStateContext();
+    return buildFunctionCallingSystemPrompt()
+      + '\n\n' + this.getAppStateContext()
+      + getMemorySummary()
+      + getUserContextSummary()
+      + getRoleBehaviorPrompt()
+      + '\n' + getLocalePromptSuffix();
   }
 
   /**
@@ -53,6 +88,7 @@ ${dataBus.lastLabExperiment ? `- 上次实验: ${dataBus.lastLabExperiment.mater
       timestamp: Date.now(),
     });
     this.trimHistory();
+    this.saveToStorage();
   }
 
   /**
@@ -66,6 +102,7 @@ ${dataBus.lastLabExperiment ? `- 上次实验: ${dataBus.lastLabExperiment.mater
       timestamp: Date.now(),
     });
     this.trimHistory();
+    this.saveToStorage();
   }
 
   /**
@@ -78,6 +115,7 @@ ${dataBus.lastLabExperiment ? `- 上次实验: ${dataBus.lastLabExperiment.mater
       toolCallId,
       timestamp: Date.now(),
     });
+    this.saveToStorage();
   }
 
   /**
@@ -105,6 +143,7 @@ ${dataBus.lastLabExperiment ? `- 上次实验: ${dataBus.lastLabExperiment.mater
    */
   clear(): void {
     this.messages = [];
+    this.saveToStorage();
   }
 
   /**

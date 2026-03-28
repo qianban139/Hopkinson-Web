@@ -14,11 +14,13 @@ interface UseVoiceInteractionOptions {
 interface UseVoiceInteractionReturn {
   isListening: boolean;
   isSpeaking: boolean;
+  isInterrupted: boolean;
   startListening: () => void;
   stopListening: () => void;
   toggleListening: () => void;
   speak: (text: string) => void;
   cancelSpeech: () => void;
+  handleInterrupt: () => void;
   isSupported: boolean;
   transcript: string;          // 当前识别到的文字
 }
@@ -83,8 +85,10 @@ export function useVoiceInteraction({
 }: UseVoiceInteractionOptions): UseVoiceInteractionReturn {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isInterrupted, setIsInterrupted] = useState(false);
   const [transcript, setTranscript] = useState('');
   const isListeningRef = useRef(false); // ref mirror for closures
+  const duplexModeRef = useRef(true); // Enable duplex by default
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthQueueRef = useRef<string[]>([]);
@@ -516,6 +520,14 @@ export function useVoiceInteraction({
     if (ttsPauseTimerRef.current) clearTimeout(ttsPauseTimerRef.current);
   }, []);
 
+  // 用户打断处理
+  const handleInterrupt = useCallback(() => {
+    setIsInterrupted(true);
+    cancelSpeech();
+    // Brief pause before allowing new input processing
+    setTimeout(() => setIsInterrupted(false), 200);
+  }, [cancelSpeech]);
+
   // 清理
   useEffect(() => {
     return () => {
@@ -533,11 +545,13 @@ export function useVoiceInteraction({
   return {
     isListening,
     isSpeaking,
+    isInterrupted,
     startListening,
     stopListening,
     toggleListening,
     speak,
     cancelSpeech,
+    handleInterrupt,
     isSupported,
     transcript,
   };

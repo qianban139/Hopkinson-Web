@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { HopkinsonBar2DRealistic } from '@/features/experiment-2d';
+import HopkinsonBar3D from '@/features/experiment-3d/HopkinsonBar3D';
 import ExperimentResultsPanel from '@/components/ExperimentResults';
 import RealtimeWaveformPanel from '@/shared/components/RealtimeWaveformPanel';
 import ExperimentResultCharts from '@/shared/components/ExperimentResultCharts';
@@ -351,27 +352,6 @@ export default function VirtualLab() {
   // 波形显示 tab
   const [waveformTab, setWaveformTab] = useState('all');
   const [resultsPanelOpen, setResultsPanelOpen] = useState(true);
-  // 3D视频引用
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // 3D视频播放控制 — 与实验动画联动
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (viewMode === '3d' && animState.isPlaying) {
-      // 实验开始时视频从头播放
-      if (animState.stageIndex <= 0 && animState.stageProgress < 0.1) {
-        video.currentTime = 0;
-      }
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-      // 实验完成后停在最后一帧
-      if (animState.isComplete && video.duration) {
-        video.currentTime = video.duration;
-      }
-    }
-  }, [viewMode, animState.isPlaying, animState.isComplete, animState.stageIndex, animState.stageProgress]);
 
   // 筛选材料
   const filteredMaterials = searchQuery
@@ -1022,24 +1002,12 @@ export default function VirtualLab() {
                       exit={{ opacity: 0 }}
                       className="absolute inset-0 bg-gradient-to-b from-[#0A2540] to-[#051020]"
                     >
-                      {/* 视频层 */}
-                      <video
-                        ref={videoRef}
-                        src="/assets/videos/test.mp4"
-                        className="absolute inset-0 w-full h-full object-contain"
-                        muted
-                        playsInline
+                      {/* 3D数字孪生场景 */}
+                      <HopkinsonBar3D
+                        animState={animState}
+                        materialColor={selectedMaterial?.color || '#E8B888'}
+                        className="absolute inset-0 w-full h-full"
                       />
-                      {/* 顶部渐变遮罩 — 融合背景 */}
-                      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#0A2540] to-transparent z-10 pointer-events-none" />
-                      {/* 底部渐变遮罩 */}
-                      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#051020] to-transparent z-10 pointer-events-none" />
-                      {/* 左侧渐变遮罩 */}
-                      <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#0A2540] to-transparent z-10 pointer-events-none" />
-                      {/* 右侧渐变遮罩 */}
-                      <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#051020] to-transparent z-10 pointer-events-none" />
-                      {/* 科技感扫描线叠加 */}
-                      <div className="absolute inset-0 z-10 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.5) 2px, rgba(0,245,255,0.5) 3px)', backgroundSize: '100% 4px' }} />
                       {/* 左上角3D标签 */}
                       <div className="absolute top-3 left-4 z-20 flex items-center gap-2 pointer-events-none">
                         <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/20 text-[10px] text-[#00F5FF]/70 font-mono backdrop-blur-sm">

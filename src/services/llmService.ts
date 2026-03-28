@@ -1,9 +1,24 @@
 // src/services/llmService.ts
 // 统一LLM服务层 - 支持多个大模型提供商，流式输出
 
+export type MessageContent = string | Array<{
+  type: 'text' | 'image_url';
+  text?: string;
+  image_url?: { url: string; detail?: 'low' | 'high' | 'auto' };
+}>;
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: MessageContent;
+}
+
+export interface LLMTool {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
 }
 
 // 系统Prompt - 霍普金森杆实验AI助手
@@ -36,7 +51,7 @@ interface ProviderConfig {
   name: string;
   baseUrl: string;
   modelName: string;
-  formatBody: (messages: ChatMessage[], model: string) => object;
+  formatBody: (messages: ChatMessage[], model: string, tools?: LLMTool[]) => object;
   extractContent: (data: any) => string;
   extractStreamContent: (line: string) => string | null;
 }
@@ -46,18 +61,21 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     name: '智谱AI',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     modelName: 'glm-4-flash',
-    formatBody: (messages, model) => ({
+    formatBody: (messages, model, tools) => ({
       model,
       messages,
       temperature: 0.7,
       max_tokens: 500,
       stream: false,
+      ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
     }),
     extractContent: (data) => data.choices?.[0]?.message?.content || '',
     extractStreamContent: (line) => {
       if (!line.startsWith('data: ') || line === 'data: [DONE]') return null;
       try {
         const json = JSON.parse(line.slice(6));
+        // Skip tool call chunks — handled in non-streaming path
+        if (json.choices?.[0]?.delta?.tool_calls) return null;
         return json.choices?.[0]?.delta?.content || null;
       } catch { return null; }
     },
@@ -66,18 +84,21 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     name: 'Moonshot Kimi',
     baseUrl: 'https://api.moonshot.cn/v1',
     modelName: 'moonshot-v1-8k',
-    formatBody: (messages, model) => ({
+    formatBody: (messages, model, tools) => ({
       model,
       messages,
       temperature: 0.7,
       max_tokens: 500,
       stream: false,
+      ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
     }),
     extractContent: (data) => data.choices?.[0]?.message?.content || '',
     extractStreamContent: (line) => {
       if (!line.startsWith('data: ') || line === 'data: [DONE]') return null;
       try {
         const json = JSON.parse(line.slice(6));
+        // Skip tool call chunks — handled in non-streaming path
+        if (json.choices?.[0]?.delta?.tool_calls) return null;
         return json.choices?.[0]?.delta?.content || null;
       } catch { return null; }
     },
@@ -86,18 +107,21 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     name: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com/v1',
     modelName: 'deepseek-chat',
-    formatBody: (messages, model) => ({
+    formatBody: (messages, model, tools) => ({
       model,
       messages,
       temperature: 0.7,
       max_tokens: 500,
       stream: false,
+      ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
     }),
     extractContent: (data) => data.choices?.[0]?.message?.content || '',
     extractStreamContent: (line) => {
       if (!line.startsWith('data: ') || line === 'data: [DONE]') return null;
       try {
         const json = JSON.parse(line.slice(6));
+        // Skip tool call chunks — handled in non-streaming path
+        if (json.choices?.[0]?.delta?.tool_calls) return null;
         return json.choices?.[0]?.delta?.content || null;
       } catch { return null; }
     },
@@ -106,18 +130,21 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     name: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
     modelName: 'gpt-4o-mini',
-    formatBody: (messages, model) => ({
+    formatBody: (messages, model, tools) => ({
       model,
       messages,
       temperature: 0.7,
       max_tokens: 500,
       stream: false,
+      ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
     }),
     extractContent: (data) => data.choices?.[0]?.message?.content || '',
     extractStreamContent: (line) => {
       if (!line.startsWith('data: ') || line === 'data: [DONE]') return null;
       try {
         const json = JSON.parse(line.slice(6));
+        // Skip tool call chunks — handled in non-streaming path
+        if (json.choices?.[0]?.delta?.tool_calls) return null;
         return json.choices?.[0]?.delta?.content || null;
       } catch { return null; }
     },
@@ -181,7 +208,10 @@ const conversationHistory = new ConversationHistory();
  * 调用LLM API获取回复（非流式）
  * @param userMessage - 用户消息字符串，或完整的消息数组（含system/user/assistant）
  */
-export async function chatWithLLM(userMessage: string | ChatMessage[]): Promise<string | null> {
+export async function chatWithLLM(
+  userMessage: string | ChatMessage[],
+  tools?: LLMTool[],
+): Promise<string | null> {
   const providerInfo = getProviderConfig();
   if (!providerInfo) return null;
 
@@ -204,11 +234,13 @@ export async function chatWithLLM(userMessage: string | ChatMessage[]): Promise<
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(config.formatBody(messages, model)),
+      body: JSON.stringify(config.formatBody(messages, model, tools)),
     });
 
     if (!response.ok) {
-      console.error(`LLM API error: ${response.status} ${response.statusText}`);
+      let errorDetail = '';
+      try { errorDetail = await response.text(); } catch {}
+      console.error(`LLM API error: ${response.status} ${response.statusText}`, errorDetail);
       return null;
     }
 
@@ -235,6 +267,7 @@ export async function chatWithLLM(userMessage: string | ChatMessage[]): Promise<
 export async function chatWithLLMStream(
   userMessage: string | ChatMessage[],
   onChunk: (chunk: string, accumulated: string) => void,
+  tools?: LLMTool[],
 ): Promise<string | null> {
   const providerInfo = getProviderConfig();
   if (!providerInfo) return null;
@@ -250,8 +283,8 @@ export async function chatWithLLMStream(
   }
 
   try {
+    // 流式模式不发送tools（部分提供商不支持 tools+stream 组合）
     const body = config.formatBody(messages, model);
-    // 强制开启stream
     (body as any).stream = true;
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -264,7 +297,9 @@ export async function chatWithLLMStream(
     });
 
     if (!response.ok || !response.body) {
-      console.error(`LLM stream error: ${response.status}`);
+      let errorDetail = '';
+      try { errorDetail = await response.text(); } catch {}
+      console.error(`LLM stream error: ${response.status}`, errorDetail);
       return null;
     }
 
