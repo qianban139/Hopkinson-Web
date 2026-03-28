@@ -272,12 +272,12 @@ export default function ExperimentResultCharts({
   }, []);
 
   return (
-    <div className={`grid grid-cols-2 gap-3 ${className}`}>
+    <div className={`grid grid-cols-2 gap-0 ${className}`}>
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
           ref={el => { chartRefs.current[i] = el; }}
-          className="w-full h-[200px] bg-[#051020]/50 border border-[#00F5FF]/10 rounded-lg"
+          className="w-full h-[200px] bg-[#051020]/50 border-[0.5px] border-[#00F5FF]/10"
         />
       ))}
     </div>
