@@ -103,6 +103,8 @@ function RingGaugeChart({ value, threshold, title, unit, icon, color, decimals =
 
   useEffect(() => {
     if (!chartRef.current) return;
+    const { clientWidth, clientHeight } = chartRef.current;
+    if (!clientWidth || !clientHeight) return;
     if (!chartInstance.current) {
       chartInstance.current = echarts.init(chartRef.current);
     }
@@ -222,6 +224,8 @@ function GaugeChart({ value, min, max, title, unit, warningThreshold, dangerThre
 
   useEffect(() => {
     if (!chartRef.current) return;
+    const { clientWidth: cw, clientHeight: ch } = chartRef.current;
+    if (!cw || !ch) return;
     if (!chartInstance.current) {
       chartInstance.current = echarts.init(chartRef.current);
     }
@@ -279,6 +283,8 @@ function EnhancedTrendChart({ data, dataKey, color, title, unit, min, max, dange
 
   useEffect(() => {
     if (!chartRef.current) return;
+    const { clientWidth, clientHeight } = chartRef.current;
+    if (!clientWidth || !clientHeight) return;
     if (!chartInstance.current) chartInstance.current = echarts.init(chartRef.current);
 
     // 30秒滚动窗口 (2秒间隔 = 15个点)

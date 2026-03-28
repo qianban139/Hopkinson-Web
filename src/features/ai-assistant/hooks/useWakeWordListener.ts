@@ -117,6 +117,28 @@ export function useWakeWordListener({
       [/仿真|防真/g, '仿真'],
       [/应变率|应变力/g, '应变率'],
       [/应力|应立/g, '应力'],
+      // 材料名称纠错
+      [/五A零六/g, '5A06'], [/五零六/g, '5A06'],
+      [/求235/g, 'Q235'], [/丘235/g, 'Q235'],
+      [/踢C四/g, 'TC4'], [/TC思/g, 'TC4'],
+      [/七零七五/g, '7075'],
+      [/花刚岩/g, '花岗岩'],
+      [/大力石/g, '大理石'],
+      [/混泥土/g, '混凝土'],
+      // 霍普金森实验术语
+      [/和普金森/g, '霍普金森'], [/霍普金生/g, '霍普金森'],
+      [/约翰逊库克/g, '约翰逊-库克'],
+      [/奔驰模型/g, '本构模型'],
+      [/应辩|应便/g, '应变'],
+      [/透视/g, '透射'],
+      [/入社|入色/g, '入射'],
+      [/反色/g, '反射'],
+      [/是样/g, '试样'],
+      [/伯行|波型/g, '波形'],
+      [/电次|殿磁/g, '电磁'],
+      [/出能/g, '储能'],
+      [/殿容|电蓉/g, '电容'],
+      [/迈宽/g, '脉宽'],
     ];
     for (const [pat, rep] of termFixes) {
       text = text.replace(pat, rep);
@@ -173,6 +195,9 @@ export function useWakeWordListener({
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i];
+          // 跳过低置信度结果（confidence为0时表示浏览器不支持，不过滤）
+          const confidence = result[0].confidence;
+          if (confidence > 0 && confidence < 0.3) continue;
           // 检查所有候选结果，提高唤醒词匹配率
           let text = result[0].transcript.trim();
           if (flowStateRef.current === 'monitoring') {

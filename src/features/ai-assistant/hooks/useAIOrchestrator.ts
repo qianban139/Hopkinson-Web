@@ -7,6 +7,9 @@ import { quickIntentMatch } from '../services/aiIntentParser';
 import { executeAction } from '../services/aiActionRegistry';
 import { conversationManager } from '../services/aiConversationManager';
 import { chatWithLLM, chatWithLLMStream, isLLMConfigured } from '@/services/llmService';
+import type { LLMTool } from '@/services/llmService';
+import { getLLMTools } from '../services/aiIntentParser';
+import { addExperimentMemory, setPreference, getRecentExperiments } from '../services/memoryService';
 import type { AIOperation, OrbState, LLMFunctionCall, AIHighlightTarget } from '../types';
 
 // ═══════════════════════════════════════════════
@@ -90,7 +93,7 @@ interface UseAIOrchestratorReturn {
   isProcessing: boolean;
 
   // 操作
-  processUserInput: (text: string) => Promise<string>;
+  processUserInput: (text: string, onStreamChunk?: (chunk: string, accumulated: string) => void, imageBase64?: string) => Promise<string>;
   clearOperations: () => void;
   cancelOperation: () => void;
 }
@@ -202,38 +205,82 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
       switch (flow.step) {
         case 'ask_material': {
           // 用户保持当前材料
+          let matName: string | null = null;
           if (/当前|现有|保持|不[变换]/.test(text)) {
-            const mat = store.selectedMaterial?.name || '5A06铝合金';
-            experimentFlowRef.current = { ...flow, step: 'ask_voltage', material: mat };
-            const params = store.experimentParams;
-            return `材料已确认：**${mat}**\n\n**第2步：设置电压**\n当前电压：${params.voltage}V\n可选范围：1000V ~ 4000V\n\n请输入目标电压，或回复"用当前电压"保持现有设置。\n\n💡 提示：高应变率测试建议 3000V+，常规测试建议 2000V 左右。`;
+            matName = store.selectedMaterial?.name || '5A06铝合金';
+          } else {
+            matName = extractMaterial(text, materials);
           }
-          // 尝试提取材料名
-          const matName = extractMaterial(text, materials);
-          if (matName) {
-            // 执行选择材料
-            await executeAction('lab.selectMaterial', { materialName: matName });
-            experimentFlowRef.current = { ...flow, step: 'ask_voltage', material: matName };
+
+          if (!matName) {
+            return `抱歉，未能识别该材料名。系统支持以下材料：\n${materials.slice(0, 8).map(m => `• ${m.name}`).join('\n')}\n${materials.length > 8 ? `...等共${materials.length}种` : ''}\n\n请重新输入材料名称，或说"用当前材料"。`;
+          }
+
+          // Execute material selection
+          await executeAction('lab.selectMaterial', { materialName: matName });
+          flow.material = matName;
+
+          // Also check if voltage/waveform provided in same sentence
+          const extraVoltage = extractVoltage(text);
+          const extraWaveform = extractWaveform(text);
+          if (extraVoltage) {
+            flow.voltage = extraVoltage;
+            await executeAction('lab.setVoltage', { voltage: extraVoltage });
+          }
+          if (extraWaveform) flow.waveform = extraWaveform;
+
+          // Skip already-answered steps
+          if (flow.voltage && flow.waveform) {
+            flow.step = 'confirm';
+            experimentFlowRef.current = flow;
+            const waveLabels: Record<string, string> = { sine: '正弦波', square: '方波', triangle: '三角波', pulse: '脉冲波' };
+            const cur = store.experimentParams.current;
+            const pw = store.experimentParams.pulseWidth;
+            return `材料已选择：**${matName}** ✓\n电压：**${flow.voltage}V** ✓\n波形：**${waveLabels[flow.waveform] || flow.waveform}** ✓\n\n**实验参数确认：**\n━━━━━━━━━━━━━━\n📋 材料：${matName}\n⚡ 电压：${flow.voltage}V\n🔌 电流：${(cur / 1000).toFixed(1)}kA\n📐 脉宽：${pw}μs\n〰️ 波形：${waveLabels[flow.waveform] || flow.waveform}\n━━━━━━━━━━━━━━\n\n确认无误请回复"**确认开始**"，或说"取消"退出。`;
+          } else if (flow.voltage) {
+            flow.step = 'ask_waveform';
+            experimentFlowRef.current = flow;
+            return `材料已选择：**${matName}** ✓\n电压：**${flow.voltage}V** ✓\n\n**选择波形类型**\n• 正弦波 — 适用于常规测试\n• 方波 — 适用于冲击测试\n• 三角波 — 适用于疲劳测试\n• 脉冲波 — 适用于高应变率测试\n\n请选择波形类型，或回复"用当前波形"。`;
+          } else {
+            flow.step = 'ask_voltage';
+            experimentFlowRef.current = flow;
             const params = store.experimentParams;
             return `材料已选择：**${matName}** ✓\n\n**第2步：设置电压**\n当前电压：${params.voltage}V\n可选范围：1000V ~ 4000V\n\n请输入目标电压（如"3000V"），或回复"用当前电压"保持现有设置。`;
           }
-          // 未识别
-          return `抱歉，未能识别该材料名。系统支持以下材料：\n${materials.slice(0, 8).map(m => `• ${m.name}`).join('\n')}\n${materials.length > 8 ? `...等共${materials.length}种` : ''}\n\n请重新输入材料名称，或说"用当前材料"。`;
         }
 
         case 'ask_voltage': {
+          let voltage: number | null = null;
           if (/当前|现有|保持|不[变换]/.test(text)) {
-            const v = store.experimentParams.voltage;
-            experimentFlowRef.current = { ...flow, step: 'ask_waveform', voltage: v };
-            return `电压保持：**${v}V** ✓\n\n**第3步：选择波形类型**\n• 正弦波 — 标准正弦波形，适用于常规测试\n• 方波 — 快速上升沿，适用于冲击测试\n• 三角波 — 线性变化，适用于疲劳测试\n• 脉冲波 — 单脉冲波形，适用于高应变率测试\n\n请选择波形类型，或回复"用当前波形"。`;
+            voltage = store.experimentParams.voltage;
+          } else {
+            voltage = extractVoltage(text);
           }
-          const voltage = extractVoltage(text);
-          if (voltage) {
-            await executeAction('lab.setVoltage', { voltage });
-            experimentFlowRef.current = { ...flow, step: 'ask_waveform', voltage };
+
+          if (!voltage) {
+            return '请输入有效的电压值（1000~4000V），例如"2500V"或"3000"。';
+          }
+
+          await executeAction('lab.setVoltage', { voltage });
+          flow.voltage = voltage;
+
+          // Also check if waveform provided in same sentence
+          const extraWaveform = extractWaveform(text);
+          if (extraWaveform) flow.waveform = extraWaveform;
+
+          if (flow.waveform) {
+            flow.step = 'confirm';
+            experimentFlowRef.current = flow;
+            const waveLabels: Record<string, string> = { sine: '正弦波', square: '方波', triangle: '三角波', pulse: '脉冲波' };
+            const mat = flow.material || store.selectedMaterial?.name || '未知';
+            const cur = store.experimentParams.current;
+            const pw = store.experimentParams.pulseWidth;
+            return `电压已设置：**${voltage}V** ✓\n波形：**${waveLabels[flow.waveform] || flow.waveform}** ✓\n\n**实验参数确认：**\n━━━━━━━━━━━━━━\n📋 材料：${mat}\n⚡ 电压：${voltage}V\n🔌 电流：${(cur / 1000).toFixed(1)}kA\n📐 脉宽：${pw}μs\n〰️ 波形：${waveLabels[flow.waveform] || flow.waveform}\n━━━━━━━━━━━━━━\n\n确认无误请回复"**确认开始**"，或说"取消"退出。`;
+          } else {
+            flow.step = 'ask_waveform';
+            experimentFlowRef.current = flow;
             return `电压已设置：**${voltage}V** ✓\n\n**第3步：选择波形类型**\n• 正弦波 — 标准正弦波形，适用于常规测试\n• 方波 — 快速上升沿，适用于冲击测试\n• 三角波 — 线性变化，适用于疲劳测试\n• 脉冲波 — 单脉冲波形，适用于高应变率测试\n\n请选择波形类型，或回复"用当前波形"。`;
           }
-          return '请输入有效的电压值（1000~4000V），例如"2500V"或"3000"。';
         }
 
         case 'ask_waveform': {
@@ -273,6 +320,17 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
               timestamp: Date.now(),
             });
 
+            // Save to long-term memory
+            addExperimentMemory({
+              materialName: flow.material || '未知',
+              voltage: flow.voltage || store.experimentParams.voltage,
+              waveform: flow.waveform || store.experimentParams.waveform || 'sine',
+              peakStress: (flow.voltage || store.experimentParams.voltage) * 0.025,
+              strainRate: 2500,
+            });
+            setPreference('last_material', flow.material || '');
+            setPreference('last_voltage', String(flow.voltage || store.experimentParams.voltage));
+
             return `🚀 ${result.message}\n\n实验正在进行中，您可以在2D/3D视图中观察实验过程。实验完成后我会通知您。`;
           }
           if (isCancel(text)) {
@@ -292,8 +350,8 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
 
   // 处理用户输入（核心方法）
   const processUserInput = useCallback(
-    async (text: string): Promise<string> => {
-      if (!text.trim()) return '';
+    async (text: string, onStreamChunk?: (chunk: string, accumulated: string) => void, imageBase64?: string): Promise<string> => {
+      if (!text.trim() && !imageBase64) return '';
 
       setIsProcessing(true);
       cancelledRef.current = false;
@@ -303,15 +361,84 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
         // Step 0: 实验引导对话流
         const flow = experimentFlowRef.current;
 
-        // 0a: 检测"开始实验"意图 → 进入引导流程
+        // 0a: 检测"开始实验"意图 → 进入引导流程（智能提取已有参数）
         if (flow.step === 'idle' && isStartExperimentIntent(text)) {
           const store = useAppStore.getState();
-          const currentMat = store.selectedMaterial?.name || '未选择';
-          experimentFlowRef.current = { step: 'ask_material' };
-          const response = `好的，让我们一步步设置实验参数。\n\n**第1步：选择测试材料**\n当前材料：${currentMat}\n\n请告诉我您想测试什么材料？（如"Q235钢"、"5A06铝合金"、"花岗岩"等）\n\n💡 回复"用当前材料"保持现有选择，或说"取消"退出引导。`;
-          conversationManager.addAssistantMessage(response);
-          setIsProcessing(false);
-          return response;
+          const materials = store.materials;
+
+          // Try to extract all params from the initial request
+          const material = extractMaterial(text, materials);
+          const voltage = extractVoltage(text);
+          const waveform = extractWaveform(text);
+
+          // Build the flow state with whatever was provided
+          const newFlow: ExperimentFlowState = { step: 'idle' };
+          if (material) newFlow.material = material;
+          if (voltage) newFlow.voltage = voltage;
+          if (waveform) newFlow.waveform = waveform;
+
+          // Determine what's still missing
+          const missing: string[] = [];
+          if (!material && !store.selectedMaterial) missing.push('材料');
+          if (!voltage) missing.push('电压');
+          if (!waveform) missing.push('波形');
+
+          if (missing.length === 0) {
+            // Everything provided, go straight to confirm
+            newFlow.step = 'confirm';
+            experimentFlowRef.current = newFlow;
+            // Apply material selection
+            if (material) await executeAction('lab.selectMaterial', { materialName: material });
+            if (voltage) await executeAction('lab.setVoltage', { voltage });
+            const waveLabels: Record<string, string> = { sine: '正弦波', square: '方波', triangle: '三角波', pulse: '脉冲波' };
+            const matName = material || store.selectedMaterial?.name || '当前材料';
+            const v = voltage || store.experimentParams.voltage;
+            const w = waveform || store.experimentParams.waveform || 'sine';
+            const response = `参数确认：\n- 材料: ${matName}\n- 电压: ${v}V\n- 波形: ${waveLabels[w] || w}\n\n确认开始实验？（"确认"/"取消"）`;
+            conversationManager.addAssistantMessage(response);
+            setIsProcessing(false);
+            return response;
+          } else {
+            // Ask for the FIRST missing param only
+            if (!material && !store.selectedMaterial) {
+              newFlow.step = 'ask_material';
+            } else if (!voltage) {
+              newFlow.material = material || store.selectedMaterial?.name;
+              newFlow.step = 'ask_voltage';
+            } else {
+              newFlow.material = material || store.selectedMaterial?.name;
+              newFlow.voltage = voltage;
+              newFlow.step = 'ask_waveform';
+            }
+            experimentFlowRef.current = newFlow;
+
+            // Build a smart response acknowledging what was already provided
+            let response = `好的，让我设置实验参数。`;
+            if (material) response += `\n✓ 材料: ${material}`;
+            if (voltage) response += `\n✓ 电压: ${voltage}V`;
+            if (waveform) {
+              const waveLabels: Record<string, string> = { sine: '正弦波', square: '方波', triangle: '三角波', pulse: '脉冲波' };
+              response += `\n✓ 波形: ${waveLabels[waveform] || waveform}`;
+            }
+            response += `\n\n还需要确认: ${missing.join('、')}`;
+
+            if (newFlow.step === 'ask_material') {
+              response += `\n\n请告诉我测试材料？（如"Q235钢"、"5A06铝合金"）\n💡 回复"用当前材料"保持现有选择。`;
+            } else if (newFlow.step === 'ask_voltage') {
+              // Apply material if extracted
+              if (material) await executeAction('lab.selectMaterial', { materialName: material });
+              response += `\n\n请设置电压？（1000-4000V）`;
+            } else {
+              // Apply material and voltage if extracted
+              if (material) await executeAction('lab.selectMaterial', { materialName: material });
+              if (voltage) await executeAction('lab.setVoltage', { voltage });
+              response += `\n\n请选择波形？（正弦波/方波/三角波/脉冲波）`;
+            }
+
+            conversationManager.addAssistantMessage(response);
+            setIsProcessing(false);
+            return response;
+          }
         }
 
         // 0b: 处理引导流程中的用户输入
@@ -347,21 +474,46 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
           const messages = conversationManager.getMessagesForLLM();
           let response = '';
 
+          // Build native tool definitions for LLM function calling
+          const tools: LLMTool[] = getLLMTools().map(t => ({
+            type: 'function' as const,
+            function: t.function,
+          }));
+
+          // Transform messages, injecting multimodal content for images
+          const llmMessages = messages.map((m, i) => {
+            const msg = { role: m.role as 'user' | 'assistant' | 'system', content: m.content };
+            // If this is the last user message and we have an image, make it multimodal
+            if (imageBase64 && i === messages.length - 1 && m.role === 'user') {
+              return {
+                ...msg,
+                content: [
+                  { type: 'text' as const, text: typeof m.content === 'string' ? m.content : '' },
+                  { type: 'image_url' as const, image_url: { url: imageBase64, detail: 'auto' as const } },
+                ],
+              };
+            }
+            return msg;
+          });
+
           try {
             // 先尝试流式
             let streamResult = '';
             await chatWithLLMStream(
-              messages.map((m) => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content })),
-              (chunk) => {
-                streamResult += chunk;
-              }
+              llmMessages,
+              (chunk, accumulated) => {
+                streamResult = accumulated;
+                onStreamChunk?.(chunk, accumulated);
+              },
+              tools,
             );
             response = streamResult;
           } catch {
             // 降级到非流式
             try {
               response = await chatWithLLM(
-                messages.map((m) => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content }))
+                llmMessages,
+                tools,
               );
             } catch {
               response = getFallbackResponse(text);
@@ -472,6 +624,26 @@ function removeActionMarkersFromResponse(response: string): string {
  */
 function getFallbackResponse(input: string): string {
   const lower = input.toLowerCase();
+
+  // 自然对话应答
+  if (/^(嗯|哦|好的|明白|知道了|了解)$/i.test(input.trim())) {
+    return '好的，还有什么需要我帮忙的吗？';
+  }
+  if (/^(谢谢|感谢|辛苦了)$/i.test(input.trim())) {
+    return '不客气！有任何问题随时问我。';
+  }
+
+  // 实验历史查询
+  if (/(?:实验|测试)历史|做过.*(?:实验|测试)/i.test(input)) {
+    const history = getRecentExperiments(5);
+    if (history.length === 0) return '暂无实验历史记录。';
+    let response = `最近${history.length}次实验记录:\n\n`;
+    history.forEach((exp, i) => {
+      const date = new Date(exp.timestamp).toLocaleDateString('zh-CN');
+      response += `${i + 1}. ${date} - ${exp.materialName}, ${exp.voltage}V, 峰值应力${exp.peakStress.toFixed(1)}MPa\n`;
+    });
+    return response;
+  }
 
   // 问候
   if (/你好|hello|hi|嗨/.test(lower)) {

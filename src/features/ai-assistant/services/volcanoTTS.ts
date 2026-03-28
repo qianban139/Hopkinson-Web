@@ -2,6 +2,8 @@
 // 火山引擎语音合成大模型 - V3 HTTP Chunked接口
 // 开发环境通过Vite代理解决CORS，生产环境需后端代理
 
+import { loadTTSSettings } from './ttsSettings';
+
 interface VolcanoTTSConfig {
   appId: string;
   accessToken: string;
@@ -14,12 +16,15 @@ function getConfig(): VolcanoTTSConfig | null {
   const appId = import.meta.env.VITE_VOLCANO_APP_ID || '';
   const accessToken = import.meta.env.VITE_VOLCANO_ACCESS_TOKEN || '';
   if (!appId || !accessToken) return null;
+
+  const settings = loadTTSSettings();
+
   return {
     appId,
     accessToken,
-    voiceType: import.meta.env.VITE_VOLCANO_VOICE_TYPE || 'zh_female_meilinvyou_moon_bigtts',
+    voiceType: settings.voiceType,
     cluster: import.meta.env.VITE_VOLCANO_CLUSTER || 'volcano_mega_tts',
-    speedRatio: 1.0,
+    speedRatio: settings.speedRatio,
   };
 }
 

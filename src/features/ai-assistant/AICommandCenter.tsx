@@ -6,26 +6,37 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Mic, MicOff, X, Minimize2, Maximize2, Trash2,
   ChevronRight, Zap, Brain, Volume2, VolumeX,
-  Shield, Beaker, BarChart3, GripVertical,
+  Shield, Beaker, BarChart3, GripVertical, Settings2, ImagePlus,
+  Globe, Users, Radio,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { loadTTSSettings, saveTTSSettings, VOICE_OPTIONS, SPEED_OPTIONS, type TTSSettings } from './services/ttsSettings';
 import { useAIOrchestrator } from './hooks/useAIOrchestrator';
 import { useVoiceInteraction } from './hooks/useVoiceInteraction';
 import { useWakeWordListener } from './hooks/useWakeWordListener';
+import { useRealtimeVoice } from './hooks/useRealtimeVoice';
 import AIOperationLog from './AIOperationLog';
 import AIHighlight from './AIHighlight';
 import AIFloatingOrb from './AIFloatingOrb';
 import { sounds } from './utils/soundEffects';
+import { conversationManager } from './services/aiConversationManager';
+import MarkdownMessage from './MarkdownMessage';
+import { getProactiveSuggestions, type ProactiveSuggestion } from './services/proactiveAssistant';
+import { t, getLocale, setLocale, getAvailableLocales, type Locale } from './services/i18n';
+import { getCurrentUser, getAllUsers, createUser, switchUser, type UserProfile } from './services/collaborationService';
 import type { OrbState } from './types';
+
+const CHAT_UI_STORAGE_KEY = 'hopkinson_ai_chat_ui';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   timestamp: number;
+  image?: string; // base64 data URL
 }
 
-let msgCounter = 0;
+let msgCounter = Date.now();
 
 // 语音反馈Toast消息
 interface VoiceToast {
@@ -155,27 +166,62 @@ export default function AICommandCenter() {
 
   const onResizeEnd = useCallback(() => { setIsResizing(false); }, []);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
+  // Load initial messages from localStorage
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem(CHAT_UI_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(-50);
+      }
+    } catch {}
+    return [{
       id: 'welcome',
       role: 'assistant',
       text: '你好！我是小智，您的AI实验助手。您可以随时说"小智"唤醒我，我会全程为您操作。\n\n试试说"小智，帮我设置电压3000V"',
       timestamp: Date.now(),
-    },
-  ]);
+    }];
+  });
   const [inputText, setInputText] = useState('');
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [showTTSSettings, setShowTTSSettings] = useState(false);
+  const [ttsSettings, setTTSSettings] = useState<TTSSettings>(loadTTSSettings);
   const [voiceToasts, setVoiceToasts] = useState<VoiceToast[]>([]);
   const [isTTSCooldown, setIsTTSCooldown] = useState(false);
+  const [suggestions, setSuggestions] = useState<ProactiveSuggestion[]>([]);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // P3: 多语言 + 协作 + 实时语音
+  const [currentLang, setCurrentLang] = useState<Locale>(getLocale);
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  const [showUserPanel, setShowUserPanel] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getCurrentUser());
+  const [realtimeMode, setRealtimeMode] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const ttsEnabledRef = useRef(ttsEnabled);
 
+  // Filler phrases for natural conversation flow during processing
+  const fillerPhrases = useRef(['让我想想...', '正在分析...', '思考中...', '处理中...']);
+  const [fillerIndex, setFillerIndex] = useState(0);
+
   const setAssistantStatus = useAppStore((s) => s.setAssistantStatus);
   const currentPage = useAppStore((s) => s.currentPage);
 
   useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
+
+  // Persist messages to localStorage whenever they change (strip images to avoid quota issues)
+  useEffect(() => {
+    try {
+      const toSave = messages.slice(-50).map(m => m.image ? { ...m, image: undefined } : m);
+      localStorage.setItem(CHAT_UI_STORAGE_KEY, JSON.stringify(toSave));
+    } catch {}
+  }, [messages]);
 
   // ═══ AI编排引擎 ═══
   const {
@@ -186,6 +232,15 @@ export default function AICommandCenter() {
     processUserInput,
     clearOperations,
   } = useAIOrchestrator();
+
+  // Rotate filler phrases during processing
+  useEffect(() => {
+    if (!isProcessing) return;
+    const timer = setInterval(() => {
+      setFillerIndex(i => (i + 1) % fillerPhrases.current.length);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [isProcessing]);
 
   // ═══ TTS — 独立于面板使用 ═══
   const {
@@ -227,6 +282,37 @@ export default function AICommandCenter() {
     lang: 'zh-CN',
   });
 
+  // ═══ P3: 实时语音管线（全双工） ═══
+  const {
+    pipelineState,
+    interimText: realtimeInterimText,
+    energyLevel,
+    startPipeline,
+    stopPipeline,
+    notifyAISpeaking,
+    notifyAIDoneSpeaking,
+    isRunning: isRealtimeRunning,
+  } = useRealtimeVoice({
+    duplexMode: true,
+    onTranscript: (text) => {
+      handleCommand(text);
+    },
+    onInterrupt: () => {
+      cancelSpeech();
+    },
+    enabled: realtimeMode,
+  });
+
+  // Sync TTS state with realtime pipeline
+  useEffect(() => {
+    if (!realtimeMode || !isRealtimeRunning) return;
+    if (isSpeaking) {
+      notifyAISpeaking();
+    } else {
+      notifyAIDoneSpeaking();
+    }
+  }, [isSpeaking, realtimeMode, isRealtimeRunning, notifyAISpeaking, notifyAIDoneSpeaking]);
+
   // ═══ 语音反馈Toast ═══
   const showVoiceToast = useCallback((text: string, type: VoiceToast['type'] = 'result') => {
     const toast: VoiceToast = {
@@ -242,37 +328,86 @@ export default function AICommandCenter() {
     }, type === 'listening' ? 5000 : 3000);
   }, []);
 
+  // ═══ 图片处理 ═══
+  const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showVoiceToast('图片大小不能超过5MB', 'result');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setPendingImage(reader.result as string);
+    reader.readAsDataURL(file);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  }, [showVoiceToast]);
+
   // ═══ 核心命令处理（面板无关） ═══
   const handleCommand = useCallback(async (text: string) => {
-    if (!text.trim() || isProcessing) return;
+    if ((!text.trim() && !pendingImage) || isProcessing) return;
 
     cancelSpeech();
     sounds.messageSent();
 
     // 添加到聊天记录（无论面板是否打开）
+    const currentImage = pendingImage;
     const userMsg: ChatMessage = {
       id: `msg_${++msgCounter}`,
       role: 'user',
-      text: text.trim(),
+      text: text.trim() || (currentImage ? '[图片]' : ''),
       timestamp: Date.now(),
+      image: currentImage || undefined,
     };
     setMessages(prev => [...prev, userMsg]);
+    setPendingImage(null);
 
     // 显示处理中Toast
-    showVoiceToast(`处理: "${text.trim().slice(0, 20)}..."`, 'processing');
+    const displayText = text.trim() || '图片分析';
+    showVoiceToast(`处理: "${displayText.slice(0, 20)}..."`, 'processing');
 
-    const response = await processUserInput(text.trim());
+    // Create a placeholder AI message ID for streaming
+    const aiMsgId = `msg_${++msgCounter}`;
+    let isStreaming = false;
+
+    const response = await processUserInput(text.trim() || '请分析这张图片', (chunk, accumulated) => {
+      // First chunk: add the AI message bubble
+      if (!isStreaming) {
+        isStreaming = true;
+        setStreamingMsgId(aiMsgId);
+        setMessages(prev => [...prev, {
+          id: aiMsgId,
+          role: 'assistant' as const,
+          text: accumulated,
+          timestamp: Date.now(),
+        }]);
+      } else {
+        // Update the existing AI message with accumulated text
+        setMessages(prev => prev.map(m =>
+          m.id === aiMsgId ? { ...m, text: accumulated } : m
+        ));
+      }
+    }, currentImage || undefined);
+
+    setStreamingMsgId(null);
 
     if (response) {
       sounds.responseReceived();
 
-      const aiMsg: ChatMessage = {
-        id: `msg_${++msgCounter}`,
-        role: 'assistant',
-        text: response,
-        timestamp: Date.now(),
-      };
-      setMessages(prev => [...prev, aiMsg]);
+      if (isStreaming) {
+        // Finalize the streaming message with the complete response
+        setMessages(prev => prev.map(m =>
+          m.id === aiMsgId ? { ...m, text: response } : m
+        ));
+      } else {
+        // Non-streaming response (quick match, experiment flow, etc.)
+        const aiMsg: ChatMessage = {
+          id: aiMsgId,
+          role: 'assistant',
+          text: response,
+          timestamp: Date.now(),
+        };
+        setMessages(prev => [...prev, aiMsg]);
+      }
 
       // 语音反馈Toast（面板关闭时显示）
       if (!isPanelOpen) {
@@ -284,19 +419,21 @@ export default function AICommandCenter() {
         speak(response);
       }
     }
-  }, [isProcessing, processUserInput, speak, cancelSpeech, showVoiceToast, isPanelOpen]);
+  }, [isProcessing, processUserInput, speak, cancelSpeech, showVoiceToast, isPanelOpen, pendingImage]);
 
   // ═══ 后台唤醒词监听（"小爱同学"模式） ═══
   const { flowState, interimText: wakeInterimText } = useWakeWordListener({
     wakeWord: '小智',
-    enabled: !panelListening && !isProcessing && !isSpeaking && !isTTSCooldown, // TTS播放时暂停监听，防止回声识别
+    enabled: !panelListening && !isProcessing && !isTTSCooldown, // 允许TTS播放时唤醒打断
     onCommand: (command: string) => {
-      // 检测到唤醒词+命令 → 直接执行（不打开面板）
+      // 检测到唤醒词+命令 → 打断TTS并直接执行（不打开面板）
+      if (isSpeaking) cancelSpeech();
       sounds.wakeWordDetected();
       handleCommand(command);
     },
     onWakeOnly: () => {
-      // 只说了"小智" → 语音回复+Toast提示
+      // 只说了"小智" → 打断TTS，语音回复+Toast提示
+      if (isSpeaking) cancelSpeech();
       sounds.wakeWordDetected();
       const greeting = '我在，请说您的指令';
       showVoiceToast(greeting, 'listening');
@@ -347,6 +484,7 @@ export default function AICommandCenter() {
       text: '对话已清空。随时说"小智"唤醒我。',
       timestamp: Date.now(),
     }]);
+    conversationManager.clear();
     clearOperations();
   };
 
@@ -356,6 +494,15 @@ export default function AICommandCenter() {
       panelStopListening();
     }
   }, [isPanelOpen, panelListening, panelStopListening]);
+
+  // 主动建议 — 面板打开或页面切换时更新
+  useEffect(() => {
+    if (isPanelOpen) {
+      const newSuggestions = getProactiveSuggestions()
+        .filter(s => !dismissedSuggestions.has(s.id));
+      setSuggestions(newSuggestions);
+    }
+  }, [isPanelOpen, currentPage, dismissedSuggestions]);
 
   const quickCommands = getContextualCommands(currentPage);
 
@@ -553,6 +700,34 @@ export default function AICommandCenter() {
                 >
                   {ttsEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
                 </button>
+                {/* P3: 实时语音切换 */}
+                <button
+                  onClick={async () => {
+                    if (realtimeMode) {
+                      stopPipeline();
+                      setRealtimeMode(false);
+                    } else {
+                      setRealtimeMode(true);
+                      await startPipeline();
+                    }
+                  }}
+                  className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
+                    realtimeMode ? 'bg-green-500/20 text-green-400' : 'text-white/40 hover:text-white/60 hover:bg-white/5'
+                  }`}
+                  title={realtimeMode ? '关闭实时语音（全双工）' : '开启实时语音（全双工）'}
+                >
+                  <Radio className="w-3.5 h-3.5" />
+                </button>
+                {/* P3: 用户切换 */}
+                <button
+                  onClick={() => { setShowUserPanel(v => !v); setShowLangPicker(false); }}
+                  className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
+                    showUserPanel ? 'bg-[#8B5CF6]/20 text-[#8B5CF6]' : 'text-white/40 hover:text-white/60 hover:bg-white/5'
+                  }`}
+                  title={currentUser ? currentUser.name : t('collab.userName')}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                </button>
                 <button
                   onClick={handleClear}
                   className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
@@ -584,29 +759,138 @@ export default function AICommandCenter() {
               </div>
             )}
 
+
+            {/* P3: 用户/协作面板 */}
+            {showUserPanel && (
+              <div className="px-3 py-2.5 border-b border-[#8B5CF6]/10 bg-[#0A2540]/50 space-y-2">
+                <div className="text-xs text-white/50 font-medium">用户切换</div>
+                {/* 已有用户列表 */}
+                <div className="flex flex-wrap gap-1.5">
+                  {getAllUsers().map(user => (
+                    <button
+                      key={user.id}
+                      onClick={() => {
+                        switchUser(user.id);
+                        setCurrentUser(getCurrentUser());
+                        setShowUserPanel(false);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs transition-colors flex items-center gap-1 ${
+                        currentUser?.id === user.id
+                          ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/30'
+                          : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <span>{user.avatar || '👤'}</span>
+                      <span>{user.name}</span>
+                      <span className="text-[9px] text-white/30">
+                        {user.role === 'student' ? '学生' : user.role === 'researcher' ? '科研' : user.role === 'admin' ? '管理' : '操作员'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {/* 创建新用户 */}
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    placeholder="新用户名..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-[#8B5CF6]/40"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newUserName.trim()) {
+                        createUser(newUserName.trim());
+                        setCurrentUser(getCurrentUser());
+                        setNewUserName('');
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      if (newUserName.trim()) {
+                        createUser(newUserName.trim());
+                        setCurrentUser(getCurrentUser());
+                        setNewUserName('');
+                      }
+                    }}
+                    disabled={!newUserName.trim()}
+                    className="px-2 py-1 rounded-lg text-xs bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/30 disabled:opacity-30 hover:bg-[#8B5CF6]/30 transition-colors"
+                  >
+                    创建
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* P3: 实时语音状态条 */}
+            {realtimeMode && isRealtimeRunning && (
+              <div className="px-3 py-1.5 border-b border-green-500/10 bg-green-500/5 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[10px] text-green-400/70">
+                  全双工实时语音{pipelineState === 'listening' ? ' · 聆听中' : pipelineState === 'speaking' ? ' · AI播报中（可随时打断）' : ''}
+                </span>
+                {realtimeInterimText && (
+                  <span className="text-[10px] text-white/40 truncate flex-1">{realtimeInterimText}</span>
+                )}
+                {/* 能量条 */}
+                <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-400/60 rounded-full transition-all duration-75"
+                    style={{ width: `${energyLevel * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* 消息区域 */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} group`}
                 >
                   <div
-                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed relative ${
                       msg.role === 'user'
                         ? 'bg-[#00F5FF]/15 text-white/90 rounded-br-md'
                         : 'bg-white/5 text-white/80 rounded-bl-md border border-white/5'
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{msg.text}</div>
+                    <div>
+                      {msg.role === 'assistant' ? (
+                        <>
+                          <MarkdownMessage content={msg.text} />
+                          {streamingMsgId === msg.id && (
+                            <span className="inline-block w-1.5 h-4 bg-[#00F5FF] ml-0.5 animate-pulse align-text-bottom" />
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {msg.image && (
+                            <img src={msg.image} alt="用户上传" className="max-w-full max-h-40 rounded-lg mb-1.5" />
+                          )}
+                          <div className="whitespace-pre-wrap">{msg.text}</div>
+                        </>
+                      )}
+                    </div>
                     <div className="text-[10px] text-white/20 mt-1 text-right">
                       {new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
                     </div>
+                    {/* Action buttons - show on hover for AI messages */}
+                    {msg.role === 'assistant' && (
+                      <div className="absolute -bottom-5 left-0 hidden group-hover:flex items-center gap-1">
+                        <button
+                          onClick={() => navigator.clipboard.writeText(msg.text)}
+                          className="text-[10px] text-white/30 hover:text-white/60 px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 transition-colors"
+                        >
+                          复制
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
 
-              {isProcessing && (
+              {isProcessing && !streamingMsgId && (
                 <div className="flex justify-start">
                   <div className="bg-white/5 rounded-2xl rounded-bl-md px-4 py-3 border border-white/5">
                     <div className="flex items-center gap-2">
@@ -616,7 +900,7 @@ export default function AICommandCenter() {
                         <div className="w-1.5 h-1.5 rounded-full bg-[#00F5FF] animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                       <span className="text-xs text-[#00F5FF]/60">
-                        {orbState === 'thinking' ? '思考中...' : orbState === 'executing' ? '执行操作中...' : '处理中...'}
+                        {orbState === 'executing' ? '执行操作中...' : fillerPhrases.current[fillerIndex]}
                       </span>
                     </div>
                   </div>
@@ -625,6 +909,45 @@ export default function AICommandCenter() {
 
               <div ref={messagesEndRef} />
             </div>
+
+            {/* 主动建议 */}
+            {suggestions.length > 0 && (
+              <div className="px-4 pb-2 space-y-1.5">
+                {suggestions.slice(0, 2).map(suggestion => (
+                  <div
+                    key={suggestion.id}
+                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs border transition-colors ${
+                      suggestion.priority === 'high'
+                        ? 'bg-[#F59E0B]/10 border-[#F59E0B]/20 text-[#F59E0B]/90'
+                        : 'bg-[#00F5FF]/5 border-[#00F5FF]/15 text-white/70'
+                    }`}
+                  >
+                    <span className="flex-1 mr-2">{suggestion.text}</span>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {suggestion.action && (
+                        <button
+                          onClick={() => {
+                            handleCommand(suggestion.action!);
+                            setDismissedSuggestions(prev => new Set(prev).add(suggestion.id));
+                          }}
+                          className="px-2 py-0.5 rounded-full bg-[#00F5FF]/15 text-[#00F5FF] hover:bg-[#00F5FF]/25 transition-colors text-[10px]"
+                        >
+                          执行
+                        </button>
+                      )}
+                      {suggestion.dismissable && (
+                        <button
+                          onClick={() => setDismissedSuggestions(prev => new Set(prev).add(suggestion.id))}
+                          className="px-1.5 py-0.5 text-white/30 hover:text-white/60 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* 快捷指令 */}
             {messages.length <= 2 && (
@@ -652,8 +975,50 @@ export default function AICommandCenter() {
               </div>
             )}
 
+            {/* AI播报中提示 — 可打断 */}
+            {isSpeaking && (
+              <div className="px-4 py-2 bg-[#00F5FF]/5 border-t border-[#00F5FF]/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-0.5">
+                      {[0, 1, 2, 3, 4].map(i => (
+                        <div
+                          key={i}
+                          className="w-0.5 bg-[#00F5FF] rounded-full animate-pulse"
+                          style={{
+                            height: `${8 + Math.sin(i * 1.2) * 6}px`,
+                            animationDelay: `${i * 100}ms`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-[#00F5FF]/60">AI正在播报</span>
+                  </div>
+                  <button
+                    onClick={() => { cancelSpeech(); }}
+                    className="flex items-center gap-1 text-xs text-white/40 hover:text-[#00F5FF] transition-colors px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#00F5FF]/10 border border-white/10 hover:border-[#00F5FF]/20"
+                  >
+                    <X className="w-3 h-3" />
+                    打断
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* 输入区域 */}
             <div className="px-3 py-3 border-t border-[#00F5FF]/10 bg-[#051020]/50">
+              {/* 图片预览 */}
+              {pendingImage && (
+                <div className="mb-2 relative inline-block">
+                  <img src={pendingImage} alt="待发送" className="max-h-24 rounded-lg border border-[#00F5FF]/30" />
+                  <button
+                    onClick={() => setPendingImage(null)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500/80 text-white flex items-center justify-center text-xs hover:bg-red-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 {/* 面板内语音按钮（不需要唤醒词） */}
                 <button
@@ -669,20 +1034,37 @@ export default function AICommandCenter() {
                   {panelListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
 
+                {/* 图片上传按钮 */}
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={isProcessing}
+                  className="flex-shrink-0 w-9 h-9 rounded-full bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 flex items-center justify-center transition-all disabled:opacity-30"
+                  title="上传图片"
+                >
+                  <ImagePlus className="w-4 h-4" />
+                </button>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageSelect}
+                />
+
                 <input
                   ref={inputRef}
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={panelListening ? '正在聆听，直接说话...' : '输入指令或问题...'}
+                  placeholder={panelListening ? '正在聆听，直接说话...' : pendingImage ? '添加说明或直接发送...' : '输入指令或问题...'}
                   disabled={isProcessing || panelListening}
                   className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#00F5FF]/40 disabled:opacity-50 transition-colors"
                 />
 
                 <button
                   onClick={() => { handleCommand(inputText); setInputText(''); }}
-                  disabled={!inputText.trim() || isProcessing}
+                  disabled={(!inputText.trim() && !pendingImage) || isProcessing}
                   className="flex-shrink-0 w-9 h-9 rounded-full bg-[#00F5FF] text-[#0A2540] flex items-center justify-center disabled:opacity-30 hover:bg-[#00F5FF]/90 transition-all"
                 >
                   <Send className="w-4 h-4" />
