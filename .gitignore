@@ -9,3 +9,5 @@ dist
 .claude/
 context/
 docs/
+# 大视频文件（通过 GitHub Releases 托管）
+public/assets/videos/*.mp4

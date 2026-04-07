@@ -1104,7 +1104,7 @@ export default function VirtualLab() {
                       {/* 伪装视频 — 所有交互被屏蔽 */}
                       <video
                         ref={videoRef}
-                        src="/assets/videos/3Dmodel.mp4"
+                        src="https://github.com/qianban139/Hopkinson-Web/releases/download/v1.0-assets/3Dmodel.mp4"
                         muted
                         playsInline
                         preload="auto"

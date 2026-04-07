@@ -382,7 +382,7 @@ export default function Home() {
             <div className="h-[500px] rounded-2xl overflow-hidden border border-[#00F5FF]/20 relative group">
               <video
                 ref={videoRef}
-                src="/assets/videos/xiaotiao.mp4"
+                src="https://github.com/qianban139/Hopkinson-Web/releases/download/v1.0-assets/xiaotiao.mp4"
                 autoPlay
                 muted={isMuted}
                 loop
