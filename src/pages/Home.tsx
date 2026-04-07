@@ -383,6 +383,7 @@ export default function Home() {
               <video
                 ref={videoRef}
                 src="https://hopkinson-assets.oss-cn-hangzhou.aliyuncs.com/videos/xiaotiao.mp4"
+                crossOrigin="anonymous"
                 autoPlay
                 muted={isMuted}
                 loop
