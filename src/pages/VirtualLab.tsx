@@ -24,6 +24,7 @@ import { useExperimentWorkflow } from '@/store/experimentWorkflow';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
 import { useAppStore } from '@/store/useAppStore';
 import { useExperimentAnimation } from '@/hooks/useExperimentAnimation';
+import { runSHPBSimulation } from '@/services/shpbPhysicsEngine';
 import type { Material } from '@/types';
 
 // 波形类型
@@ -190,7 +191,8 @@ function ExperimentResultsSection() {
 }
 
 export default function VirtualLab() {
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+  const [viewMode, setViewMode] = useState<'2d' | '3d' | '3d-exp'>('2d');
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isAnimationPlaying] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   // 参数状态: 本地管理 + 响应AI store变更
@@ -320,6 +322,10 @@ export default function VirtualLab() {
       const idx = stageMap[stageName];
       if (idx !== undefined) animState.jumpToStage(idx);
     };
+    // AI侧边栏控制：参数设置时打开，实验运行时关闭
+    const handleSidebarOpen = () => setSidebarCollapsed(false);
+    const handleSidebarClose = () => setSidebarCollapsed(true);
+
     window.addEventListener('ai-start-experiment', handleStart);
     window.addEventListener('ai-pause-experiment', handlePause);
     window.addEventListener('ai-reset-experiment', handleReset);
@@ -327,6 +333,8 @@ export default function VirtualLab() {
     window.addEventListener('ai-set-confining', handleSetConfining);
     window.addEventListener('ai-toggle-confining', handleToggleConfining);
     window.addEventListener('ai-jump-stage', handleJumpStage);
+    window.addEventListener('ai-sidebar-open', handleSidebarOpen);
+    window.addEventListener('ai-sidebar-close', handleSidebarClose);
     return () => {
       window.removeEventListener('ai-start-experiment', handleStart);
       window.removeEventListener('ai-pause-experiment', handlePause);
@@ -335,6 +343,8 @@ export default function VirtualLab() {
       window.removeEventListener('ai-set-confining', handleSetConfining);
       window.removeEventListener('ai-toggle-confining', handleToggleConfining);
       window.removeEventListener('ai-jump-stage', handleJumpStage);
+      window.removeEventListener('ai-sidebar-open', handleSidebarOpen);
+      window.removeEventListener('ai-sidebar-close', handleSidebarClose);
     };
   }, [animState, setVoltage, setCurrent, setPulseWidth, enableConfining]);
 
@@ -344,6 +354,54 @@ export default function VirtualLab() {
       handleExperimentComplete();
     }
   }, [animState.isComplete, handleExperimentComplete]);
+
+  // 3D实验视频同步: 播放/暂停/完成
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || viewMode !== '3d-exp') return;
+
+    if (animState.isPlaying && video.paused) {
+      if (video.ended || animState.globalProgress === 0) {
+        video.currentTime = 0;
+      }
+      video.play().catch(() => {});
+    }
+
+    if (!animState.isPlaying && !video.paused) {
+      video.pause();
+    }
+
+    if (animState.isComplete && !video.paused) {
+      video.pause();
+    }
+  }, [animState.isPlaying, animState.isComplete, animState.globalProgress, viewMode]);
+
+  // 3D实验视频同步: 重置检测
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || viewMode !== '3d-exp') return;
+
+    if (!animState.isPlaying && !animState.isComplete && animState.stageIndex === -1) {
+      video.pause();
+      video.currentTime = 0;
+    }
+  }, [animState.stageIndex, animState.isPlaying, animState.isComplete, viewMode]);
+
+  // 3D实验视频同步: 切换标签时同步进度
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || viewMode !== '3d-exp') return;
+
+    if (animState.isPlaying) {
+      const targetTime = animState.globalProgress * video.duration;
+      if (isFinite(targetTime) && Math.abs(video.currentTime - targetTime) > 1) {
+        video.currentTime = targetTime;
+      }
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
+    }
+  }, [viewMode]);
 
   // 侧栏折叠状态
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -874,6 +932,14 @@ export default function VirtualLab() {
               >
                 3D视图
               </button>
+              <button
+                onClick={() => setViewMode('3d-exp')}
+                className={`px-4 py-1.5 rounded-lg text-sm transition-all ${
+                  viewMode === '3d-exp' ? 'bg-[#00F5FF] text-[#0A2540] font-medium' : 'bg-[#0A2540] text-white/70 hover:bg-[#0A2540]/80'
+                }`}
+              >
+                3D实验
+              </button>
             </div>
 
             {/* 安全检查状态 */}
@@ -994,7 +1060,7 @@ export default function VirtualLab() {
                         isComplete={animState.isComplete}
                       />
                     </motion.div>
-                  ) : (
+                  ) : viewMode === '3d' ? (
                     <motion.div
                       key="3d"
                       initial={{ opacity: 0 }}
@@ -1018,6 +1084,67 @@ export default function VirtualLab() {
                       <div className="absolute bottom-3 right-4 z-20 pointer-events-none">
                         <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/10 text-[9px] text-white/30 font-mono backdrop-blur-sm">
                           {animState.isPlaying ? `STAGE ${animState.stageIndex + 1}/6` : animState.isComplete ? 'DATA CAPTURED' : 'READY'}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="3d-exp"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: 'url(/background.png)',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      }}
+                      onContextMenu={(e) => e.preventDefault()}
+                    >
+                      {/* 伪装视频 — 所有交互被屏蔽 */}
+                      <video
+                        ref={videoRef}
+                        src="/assets/videos/3Dmodel.mp4"
+                        muted
+                        playsInline
+                        preload="auto"
+                        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                        style={{ outline: 'none' }}
+                      />
+
+                      {/* 左上角状态标签 */}
+                      <div className="absolute top-3 left-4 z-20 pointer-events-none">
+                        <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/20 text-[10px] text-[#00F5FF]/70 font-mono backdrop-blur-sm">
+                          3D EXPERIMENT · {animState.isPlaying ? 'SIMULATING' : animState.isComplete ? 'COMPLETE' : 'STANDBY'}
+                        </div>
+                      </div>
+
+                      {/* 右上角模拟渲染帧率 */}
+                      {animState.isPlaying && (
+                        <div className="absolute top-3 right-4 z-20 pointer-events-none">
+                          <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/10 text-[9px] text-white/30 font-mono backdrop-blur-sm">
+                            GPU RENDER · 60 FPS
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 左下角阶段信息 */}
+                      {animState.isPlaying && animState.stageIndex >= 0 && (
+                        <div className="absolute bottom-3 left-4 z-20 pointer-events-none">
+                          <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/20 text-[10px] text-[#00F5FF]/60 font-mono backdrop-blur-sm">
+                            STAGE {animState.stageIndex + 1}/6 · {animState.stages[animState.stageIndex]?.label}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 右下角进度/状态 */}
+                      <div className="absolute bottom-3 right-4 z-20 pointer-events-none">
+                        <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/10 text-[9px] text-white/30 font-mono backdrop-blur-sm">
+                          {animState.isPlaying
+                            ? `PROGRESS ${Math.round(animState.globalProgress * 100)}%`
+                            : animState.isComplete
+                              ? 'DATA CAPTURED'
+                              : 'READY'}
                         </div>
                       </div>
                     </motion.div>
@@ -1085,13 +1212,19 @@ export default function VirtualLab() {
                   )}
                 </span>
               </button>
-              {resultsPanelOpen && (
-                <ExperimentResultCharts
-                  voltage={voltage}
-                  peakStress={voltage * 0.025}
-                  strainRate={2500}
-                />
-              )}
+              {resultsPanelOpen && (() => {
+                const sim = selectedMaterial
+                  ? runSHPBSimulation({ material: selectedMaterial, voltage })
+                  : null;
+                return (
+                  <ExperimentResultCharts
+                    voltage={voltage}
+                    peakStress={sim?.peakStress ?? voltage * 0.025}
+                    strainRate={sim?.strainRate ?? 2500}
+                    material={selectedMaterial}
+                  />
+                );
+              })()}
             </div>
           )}
         </div>
