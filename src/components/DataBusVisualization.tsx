@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Shield, Beaker, Brain, Layers, BarChart3, Activity } from 'lucide-react';
+import { Shield, Beaker, BarChart3, Activity } from 'lucide-react';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
 import GlowCard from '@/shared/components/GlowCard';
 
@@ -25,11 +25,9 @@ interface DataEdge {
 }
 
 const NODES: ModuleNode[] = [
-  { id: 'monitor', label: '系统监控', icon: Shield, color: '#10B981', path: '/monitor', x: 80, y: 80 },
+  { id: 'monitor', label: '系统监控', icon: Shield, color: '#10B981', path: '/monitor', x: 80, y: 120 },
   { id: 'lab', label: '虚拟实验室', icon: Beaker, color: '#00F5FF', path: '/lab', x: 260, y: 50 },
-  { id: 'ai', label: 'AI优化', icon: Brain, color: '#8B5CF6', path: '/ai', x: 440, y: 80 },
-  { id: 'multifield', label: '多场耦合', icon: Layers, color: '#FF9F43', path: '/multifield', x: 350, y: 170 },
-  { id: 'analysis', label: '材料分析', icon: BarChart3, color: '#F472B6', path: '/analysis', x: 170, y: 170 },
+  { id: 'analysis', label: '材料分析', icon: BarChart3, color: '#F472B6', path: '/analysis', x: 440, y: 120 },
 ];
 
 export default function DataBusVisualization({ className }: { className?: string }) {
@@ -37,12 +35,8 @@ export default function DataBusVisualization({ className }: { className?: string
 
   const edges = useMemo((): DataEdge[] => [
     { from: 'monitor', to: 'lab', label: '安全检查', active: safetyChecklistCompleted },
-    { from: 'lab', to: 'ai', label: '实验数据', active: !!lastLabExperiment },
-    { from: 'ai', to: 'lab', label: '优化参数', active: !!aiOptimizedParams },
-    { from: 'lab', to: 'analysis', label: '波形数据', active: !!lastLabExperiment },
-    { from: 'multifield', to: 'analysis', label: '耦合数据', active: !!lastMultiFieldExperiment },
-    { from: 'lab', to: 'multifield', label: '基准数据', active: !!lastLabExperiment },
-  ], [safetyChecklistCompleted, lastLabExperiment, aiOptimizedParams, lastMultiFieldExperiment]);
+    { from: 'lab', to: 'analysis', label: '实验数据', active: !!lastLabExperiment },
+  ], [safetyChecklistCompleted, lastLabExperiment]);
 
   const nodeMap = useMemo(() => {
     const m: Record<string, ModuleNode> = {};

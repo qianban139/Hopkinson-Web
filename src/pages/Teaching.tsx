@@ -37,7 +37,7 @@ export default function Teaching() {
             { module: '虚拟实验室', path: '/lab' },
           ]}
           dataFrom={[
-            { module: 'AI智能控制', path: '/ai', hasData: true },
+            { module: '虚拟实验室', path: '/lab', hasData: true },
           ]}
         />
       </div>

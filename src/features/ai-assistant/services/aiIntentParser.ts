@@ -20,15 +20,16 @@ const QUICK_INTENTS: QuickIntent[] = [
     actionId: 'navigate.toPage',
     extractParams: () => ({ page: 'lab' }),
   },
+  // /ai 和 /multifield 已整合到 /lab，统一重定向
   {
     patterns: [/(?:去|打开|进入|跳转到?)(?:AI|人工智能)(?:智能)?控制/i, /go\s*(?:to\s*)?ai/i],
     actionId: 'navigate.toPage',
-    extractParams: () => ({ page: 'ai' }),
+    extractParams: () => ({ page: 'lab' }),
   },
   {
     patterns: [/(?:去|打开|进入|跳转到?)(?:多场|耦合|极端环境)/i],
     actionId: 'navigate.toPage',
-    extractParams: () => ({ page: 'multifield' }),
+    extractParams: () => ({ page: 'lab' }),
   },
   {
     patterns: [/(?:去|打开|进入|跳转到?)(?:材料|力学)?分析/i],

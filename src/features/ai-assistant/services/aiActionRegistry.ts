@@ -82,14 +82,14 @@ registerAction({
   id: 'navigate.toPage',
   category: 'navigation',
   name: '页面导航',
-  description: '导航到指定页面。可选页面: home(首页), lab(虚拟实验室), ai(AI智能控制), multifield(多场耦合实验), analysis(材料力学分析), monitor(系统监控)',
+  description: '导航到指定页面。可选页面: home(首页), lab(虚拟实验室), analysis(材料力学分析), monitor(系统监控), teaching(教学系统)。注意: AI优化和多场耦合已整合到虚拟实验室中',
   parameters: [
-    { name: 'page', type: 'select', description: '目标页面', required: true, options: ['home', 'lab', 'ai', 'multifield', 'analysis', 'monitor'] },
+    { name: 'page', type: 'select', description: '目标页面', required: true, options: ['home', 'lab', 'analysis', 'monitor', 'teaching'] },
   ],
   execute: async (params) => {
     const pageRoutes: Record<string, string> = {
-      home: '/', lab: '/lab', ai: '/ai', multifield: '/multifield',
-      analysis: '/analysis', monitor: '/monitor',
+      home: '/', lab: '/lab', ai: '/lab', multifield: '/lab',
+      analysis: '/analysis', monitor: '/monitor', teaching: '/teaching',
     };
     const page = params.page as string;
     const route = pageRoutes[page];
@@ -267,10 +267,10 @@ registerAction({
   category: 'ai',
   name: '启动AI优化',
   description: '启动三级AI优化流程(LSTM预测→WGAN-GP生成→PPO优化)，自动寻找最优实验参数',
-  targetPage: '/ai',
+  targetPage: '/lab',
   parameters: [],
   execute: async () => {
-    useAppStore.getState().setNavigateTo('/ai');
+    useAppStore.getState().setNavigateTo('/lab');
     // 短暂延迟等待页面切换
     await new Promise((r) => setTimeout(r, 500));
     useAppStore.getState().startAIOptimization();
@@ -305,7 +305,7 @@ registerAction({
   category: 'multifield',
   name: '选择多场耦合场景',
   description: '选择极端环境模拟场景预设。可选: mine(深部矿井), aerospace(航空航天), nuclear(核反应堆), ev-battery(电动汽车电池碰撞)',
-  targetPage: '/multifield',
+  targetPage: '/lab',
   parameters: [
     { name: 'scenario', type: 'select', description: '场景ID', required: true, options: ['mine', 'aerospace', 'nuclear', 'ev-battery'] },
   ],
@@ -313,7 +313,7 @@ registerAction({
     const labels: Record<string, string> = {
       mine: '深部矿井', aerospace: '航空航天', nuclear: '核反应堆', 'ev-battery': '电动汽车电池碰撞',
     };
-    useAppStore.getState().setNavigateTo('/multifield');
+    useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-select-scenario', { detail: params.scenario }));
     return { success: true, message: `已选择场景: ${labels[params.scenario as string] || params.scenario}` };
   },
@@ -325,14 +325,14 @@ registerAction({
   category: 'multifield',
   name: '设置多场耦合参数',
   description: '设置多场耦合实验的三场参数（温度、应力、电磁场）。温度范围20-1000°C，应力范围0-2000MPa，电磁场范围0-100T',
-  targetPage: '/multifield',
+  targetPage: '/lab',
   parameters: [
     { name: 'temperature', type: 'number', description: '温度(°C)', required: false, range: [20, 1000] },
     { name: 'stress', type: 'number', description: '应力(MPa)', required: false, range: [0, 2000] },
     { name: 'emField', type: 'number', description: '电磁场强度(T)', required: false, range: [0, 100] },
   ],
   execute: async (params) => {
-    useAppStore.getState().setNavigateTo('/multifield');
+    useAppStore.getState().setNavigateTo('/lab');
     const detail: Record<string, number> = {};
     const msgs: string[] = [];
     if (params.temperature !== undefined) { detail.temperature = params.temperature as number; msgs.push(`温度=${params.temperature}°C`); }
@@ -349,10 +349,10 @@ registerAction({
   category: 'multifield',
   name: '运行耦合仿真',
   description: '在多场耦合页面启动耦合仿真计算',
-  targetPage: '/multifield',
+  targetPage: '/lab',
   parameters: [],
   execute: async () => {
-    useAppStore.getState().setNavigateTo('/multifield');
+    useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-run-coupling'));
     return { success: true, message: '耦合仿真已启动，正在求解热-力-电磁耦合方程...' };
   },
@@ -489,13 +489,13 @@ registerAction({
   category: 'ai',
   name: '切换AI算法',
   description: '在AI智能控制页面切换优化算法选项卡。可选: lstm(LSTM时序预测), wgan(WGAN-GP波形生成), ppo(PPO强化学习)',
-  targetPage: '/ai',
+  targetPage: '/lab',
   parameters: [
     { name: 'algorithm', type: 'select', description: '算法名称', required: true, options: ['lstm', 'wgan', 'ppo'] },
   ],
   execute: async (params) => {
     const labels: Record<string, string> = { lstm: 'LSTM时序预测', wgan: 'WGAN-GP波形生成', ppo: 'PPO强化学习' };
-    useAppStore.getState().setNavigateTo('/ai');
+    useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-switch-tab', { detail: params.algorithm }));
     return { success: true, message: `已切换到${labels[params.algorithm as string] || params.algorithm}` };
   },
@@ -601,20 +601,6 @@ registerAction({
         '• "切换3D视图" — 切换2D/3D显示',
         '• "启用围压" — 开启三轴围压功能',
       ],
-      '/ai': [
-        '• "启动AI优化" — 运行三级AI优化流程',
-        '• "切换到LSTM算法" — 切换算法选项卡',
-        '• "设置学习率0.001" — 调整超参数',
-        '• "将优化参数应用到实验室" — 应用AI最优结果',
-      ],
-      '/multifield': [
-        '• "选择深部矿井场景" — 切换极端环境预设',
-        '• "设置温度500°C" — 设置温度场参数',
-        '• "设置应力1000MPa" — 设置应力场参数',
-        '• "启动耦合仿真" — 运行多场耦合计算',
-        '• "启用热软化效应" — 开关物理效应',
-        '• "发送结果到分析页" — 跨页面传递数据',
-      ],
       '/analysis': [
         '• "分析Ti-6Al-4V" — 选择分析材料',
         '• "启动AI预测" — 运行力学响应预测',
@@ -632,8 +618,8 @@ registerAction({
     };
 
     const pageLabels: Record<string, string> = {
-      '/': '首页', '/lab': '虚拟实验室', '/ai': 'AI智能控制',
-      '/multifield': '多场耦合', '/analysis': '材料力学分析', '/monitor': '系统监控',
+      '/': '首页', '/lab': '虚拟实验室',
+      '/analysis': '材料力学分析', '/monitor': '系统监控', '/teaching': '教学系统',
     };
 
     const pageLabel = pageLabels[currentPage] || currentPage;
@@ -672,11 +658,11 @@ registerAction({
     const material = state.selectedMaterial;
     const aiState = state.aiState;
 
-    const pageLabels: Record<string, string> = {
-      '/': '首页', '/lab': '虚拟实验室', '/ai': 'AI智能控制',
-      '/multifield': '多场耦合仿真', '/analysis': '材料力学分析', '/monitor': '系统监控',
+    const pageLabels2: Record<string, string> = {
+      '/': '首页', '/lab': '虚拟实验室',
+      '/analysis': '材料力学分析', '/monitor': '系统监控', '/teaching': '教学系统',
     };
-    const currentPageLabel = pageLabels[state.currentPage || '/'] || state.currentPage;
+    const currentPageLabel = pageLabels2[state.currentPage || '/'] || state.currentPage;
 
     // Material description
     const materialDesc = material
@@ -745,11 +731,10 @@ registerAction({
     const currentPage = useAppStore.getState().currentPage || '/';
     const descriptions: Record<string, string> = {
       '/': '首页 — 系统总览，展示霍普金森杆实验系统架构和核心功能入口',
-      '/lab': '虚拟实验室 — 可进行SHPB实验：选择材料、设置参数、启动实验、查看2D/3D模型和波形数据',
-      '/ai': 'AI智能控制 — 三级AI优化(LSTM预测→WGAN生成→PPO优化)，可训练模型、查看优化结果并应用到实验',
-      '/multifield': '多场耦合仿真 — 模拟极端环境(深矿/航空/核反应堆/EV碰撞)下的温度-应力-电磁三场耦合效应',
-      '/analysis': '材料力学分析 — 材料本构参数、应力-应变曲线、AI预测、雷达图对比、数据导出',
+      '/lab': '虚拟实验室 — 可进行SHPB实验：选择材料、设置参数、AI优化、多场耦合、启动实验、查看2D/3D模型和波形数据',
+      '/analysis': '材料力学分析 — 原始数据、信号处理、参数拟合、对比分析、报告生成',
       '/monitor': '系统监控 — 实时设备状态、告警配置、安全检查、操作日志',
+      '/teaching': '教学系统 — 知识图谱、学习路径、在线测验',
     };
     return { success: true, message: descriptions[currentPage] || `当前页面: ${currentPage}` };
   },
@@ -890,14 +875,14 @@ registerAction({
   category: 'ai',
   name: '启停算法训练',
   description: '启动或停止指定AI算法的训练。可选算法: lstm(LSTM时序预测), wgan(WGAN-GP波形生成), ppo(PPO强化学习)',
-  targetPage: '/ai',
+  targetPage: '/lab',
   parameters: [
     { name: 'algorithm', type: 'select', description: '算法名称', required: true, options: ['lstm', 'wgan', 'ppo'] },
     { name: 'action', type: 'select', description: '操作', required: false, options: ['start', 'stop'] },
   ],
   execute: async (params) => {
     const algoLabels: Record<string, string> = { lstm: 'LSTM', wgan: 'WGAN-GP', ppo: 'PPO' };
-    useAppStore.getState().setNavigateTo('/ai');
+    useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-toggle-training', {
       detail: { algorithm: params.algorithm, action: params.action || 'start' },
     }));
@@ -913,14 +898,14 @@ registerAction({
   category: 'ai',
   name: '设置AI超参数',
   description: '设置AI算法的超参数。LSTM: learningRate(学习率), hiddenLayers(隐藏层数), batchSize(批大小), epochs(训练轮数)。WGAN: learningRate, generatorLayers(生成器层数), batchSize, epochs。PPO: learningRate, clipRatio(裁剪比率), batchSize, policyIter(策略迭代)',
-  targetPage: '/ai',
+  targetPage: '/lab',
   parameters: [
     { name: 'algorithm', type: 'select', description: '算法名称', required: true, options: ['lstm', 'wgan', 'ppo'] },
     { name: 'param', type: 'string', description: '参数名称', required: true },
     { name: 'value', type: 'number', description: '参数值', required: true },
   ],
   execute: async (params) => {
-    useAppStore.getState().setNavigateTo('/ai');
+    useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-set-hyperparam', {
       detail: { algorithm: params.algorithm, param: params.param, value: params.value },
     }));
@@ -934,7 +919,7 @@ registerAction({
   category: 'multifield',
   name: '开关物理效应',
   description: '启用或禁用多场耦合中的物理效应。可选: thermalSoftening(热软化), adiabaticHeating(绝热升温), eddyCurrentLoss(涡流损耗)',
-  targetPage: '/multifield',
+  targetPage: '/lab',
   parameters: [
     { name: 'effect', type: 'select', description: '效应名称', required: true, options: ['thermalSoftening', 'adiabaticHeating', 'eddyCurrentLoss'] },
     { name: 'enabled', type: 'boolean', description: '是否启用', required: true },
@@ -943,7 +928,7 @@ registerAction({
     const labels: Record<string, string> = {
       thermalSoftening: '热软化', adiabaticHeating: '绝热升温', eddyCurrentLoss: '涡流损耗',
     };
-    useAppStore.getState().setNavigateTo('/multifield');
+    useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-toggle-effect', {
       detail: { effect: params.effect, enabled: params.enabled },
     }));
@@ -958,10 +943,10 @@ registerAction({
   category: 'multifield',
   name: '重置仿真',
   description: '重置多场耦合仿真到初始状态，清除仿真结果',
-  targetPage: '/multifield',
+  targetPage: '/lab',
   parameters: [],
   execute: async () => {
-    useAppStore.getState().setNavigateTo('/multifield');
+    useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-reset-multifield'));
     return { success: true, message: '多场耦合仿真已重置' };
   },
@@ -973,10 +958,10 @@ registerAction({
   category: 'multifield',
   name: '发送到分析页',
   description: '将多场耦合仿真结果发送到材料力学分析页面进行进一步分析',
-  targetPage: '/multifield',
+  targetPage: '/lab',
   parameters: [],
   execute: async () => {
-    useAppStore.getState().setNavigateTo('/multifield');
+    useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-send-to-analysis'));
     return { success: true, message: '仿真结果已发送到材料分析页面' };
   },

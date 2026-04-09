@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Beaker, Brain, Layers, BarChart3, Check, ChevronRight } from 'lucide-react';
+import { Shield, Beaker, BarChart3, Check, ChevronRight } from 'lucide-react';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
 
 type StepStatus = 'completed' | 'current' | 'pending';
@@ -19,8 +19,6 @@ interface WorkflowStep {
 const STEPS: WorkflowStep[] = [
   { id: 'monitor', label: '安全检查', path: '/monitor', icon: Shield, color: '#10B981' },
   { id: 'lab', label: '虚拟实验', path: '/lab', icon: Beaker, color: '#00F5FF' },
-  { id: 'ai', label: 'AI优化', path: '/ai', icon: Brain, color: '#8B5CF6' },
-  { id: 'multifield', label: '多场耦合', path: '/multifield', icon: Layers, color: '#FF9F43' },
   { id: 'analysis', label: '材料分析', path: '/analysis', icon: BarChart3, color: '#F472B6' },
 ];
 
@@ -28,13 +26,9 @@ export default function WorkflowProgressBar() {
   const location = useLocation();
   const safetyCompleted = useExperimentDataBus(s => s.safetyChecklistCompleted);
   const hasLabData = useExperimentDataBus(s => s.lastLabExperiment !== null);
-  const hasAIData = useExperimentDataBus(s => s.aiOptimizedParams !== null);
-  const hasMultiFieldData = useExperimentDataBus(s => s.lastMultiFieldExperiment !== null);
-
   const stepStatuses = useMemo((): Record<string, StepStatus> => {
     const pageMap: Record<string, string> = {
-      '/monitor': 'monitor', '/lab': 'lab', '/ai': 'ai',
-      '/multifield': 'multifield', '/analysis': 'analysis',
+      '/monitor': 'monitor', '/lab': 'lab', '/analysis': 'analysis',
     };
     const currentPage = pageMap[location.pathname] || '';
 
@@ -44,9 +38,7 @@ export default function WorkflowProgressBar() {
         statuses[step.id] = 'current';
       } else if (
         (step.id === 'monitor' && safetyCompleted) ||
-        (step.id === 'lab' && hasLabData) ||
-        (step.id === 'ai' && hasAIData) ||
-        (step.id === 'multifield' && hasMultiFieldData)
+        (step.id === 'lab' && hasLabData)
       ) {
         statuses[step.id] = 'completed';
       } else {
@@ -54,7 +46,7 @@ export default function WorkflowProgressBar() {
       }
     }
     return statuses;
-  }, [location.pathname, safetyCompleted, hasLabData, hasAIData, hasMultiFieldData]);
+  }, [location.pathname, safetyCompleted, hasLabData]);
 
   // Don't show on home page
   if (location.pathname === '/') return null;

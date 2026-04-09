@@ -6,6 +6,8 @@ import {
   Waves, Clock, Database, Beaker, Info, ChevronUp,
   Search, ChevronRight, ChevronDown, ArrowRight,
   Play, Pause, RotateCcw, PanelLeftClose, PanelLeftOpen, AlertTriangle,
+  Thermometer, Radio, Brain, CheckCircle2, X,
+  Wifi, WifiOff, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +25,8 @@ import ModuleConnectionBadge from '@/shared/components/ModuleConnectionBadge';
 import { useExperimentWorkflow } from '@/store/experimentWorkflow';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
 import { useAppStore } from '@/store/useAppStore';
+import { useConnectionStore, type LabMode } from '@/store/useConnectionStore';
+import { useBackendConnection } from '@/hooks/useBackendConnection';
 import { useExperimentAnimation } from '@/hooks/useExperimentAnimation';
 import { runSHPBSimulation } from '@/services/shpbPhysicsEngine';
 import type { Material } from '@/types';
@@ -218,9 +222,37 @@ export default function VirtualLab() {
   }, [storeParams.voltage, storeParams.current, storeParams.pulseWidth, storeParams.waveform]);
   const [confiningPressure, setConfiningPressure] = useState({ x: 50, y: 30, z: 20 });
   const [enableConfining, setEnableConfining] = useState(false);
+  // 多场耦合参数
+  const [enableMultiField, setEnableMultiField] = useState(false);
+  const [multiFieldTemp, setMultiFieldTemp] = useState(25);
+  const [multiFieldEMI, setMultiFieldEMI] = useState(0);
+  // AI 优化 Modal
+  const [showAIOptimize, setShowAIOptimize] = useState(false);
+  const [aiOptStep, setAiOptStep] = useState<'idle' | 'lstm' | 'wgan' | 'ppo' | 'done'>('idle');
+  const [aiOptProgress, setAiOptProgress] = useState(0);
+  const [aiOptResult, setAiOptResult] = useState<{ voltage: number; current: number; pulseWidth: number; improvement: number } | null>(null);
   const [showInfo, setShowInfo] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Phase 3: 双模式 (仿真 / 连接)
+  const labMode = useConnectionStore(s => s.labMode);
+  const setLabMode = useConnectionStore(s => s.setLabMode);
+  const { status: backendStatus, connect: connectBackend, disconnect: disconnectBackend } = useBackendConnection();
+  const backendVersion = useConnectionStore(s => s.backendVersion);
+  const isConnected = backendStatus === 'connected';
+
+  // 切换到连接模式前先确保后端在线
+  const handleModeSwitch = useCallback(async (mode: LabMode) => {
+    if (mode === 'connected' && backendStatus !== 'connected') {
+      const ok = await connectBackend();
+      if (!ok) return; // 连接失败不切换
+    }
+    if (mode === 'simulation' && backendStatus === 'connected') {
+      disconnectBackend();
+    }
+    setLabMode(mode);
+  }, [backendStatus, connectBackend, disconnectBackend, setLabMode]);
 
   // 全局状态
   const materials = useAppStore(s => s.materials);
@@ -284,6 +316,37 @@ export default function VirtualLab() {
       timestamp: Date.now(),
     });
   }, [selectedMaterial, voltage, current, pulseWidth, capacitance, publishLabExperiment]);
+
+  // AI 三级优化流程
+  const handleAIOptimize = useCallback(() => {
+    setShowAIOptimize(true);
+    setAiOptStep('lstm');
+    setAiOptProgress(0);
+    setAiOptResult(null);
+
+    // 模拟三阶段优化流程
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 2;
+      setAiOptProgress(progress);
+      if (progress === 34) setAiOptStep('wgan');
+      if (progress === 68) setAiOptStep('ppo');
+      if (progress >= 100) {
+        clearInterval(interval);
+        setAiOptStep('done');
+        // 基于当前参数生成优化结果
+        const optVoltage = Math.min(4000, Math.round(voltage * (1 + (Math.random() * 0.15 - 0.05))));
+        const optCurrent = Math.min(50000, Math.round(current * (1 + (Math.random() * 0.1))));
+        const optPulseWidth = Math.round(pulseWidth * (0.9 + Math.random() * 0.15));
+        const improvement = +(8 + Math.random() * 12).toFixed(1);
+        setAiOptResult({ voltage: optVoltage, current: optCurrent, pulseWidth: optPulseWidth, improvement });
+        // 发布到数据总线
+        useExperimentDataBus.getState().publishAIOptimization({
+          voltage: optVoltage, current: optCurrent, pulseWidth: optPulseWidth,
+        });
+      }
+    }, 80);
+  }, [voltage, current, pulseWidth]);
 
   // AI事件监听: 启动/暂停/重置/预设
   useEffect(() => {
@@ -421,17 +484,65 @@ export default function VirtualLab() {
 
   return (
     <div className="min-h-screen pt-24">
-      {/* 模块连接指示 */}
-      <div className="h-8 bg-[#051020] border-b border-[#00F5FF]/10 flex items-center px-4">
+      {/* 模块连接指示 + 双模式切换 */}
+      <div className="h-10 bg-[#051020] border-b border-[#00F5FF]/10 flex items-center justify-between px-4">
         <ModuleConnectionBadge
           dataTo={[
-            { module: 'AI智能控制', path: '/ai' },
             { module: '材料力学分析', path: '/analysis' },
           ]}
           dataFrom={[
             { module: '系统监控', path: '/monitor', hasData: safetyChecklistCompleted },
           ]}
         />
+
+        {/* Phase 3: 仿真 / 连接模式切换 */}
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-white/10 overflow-hidden text-xs">
+            <button
+              onClick={() => handleModeSwitch('simulation')}
+              className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
+                labMode === 'simulation'
+                  ? 'bg-[#00F5FF]/20 text-[#00F5FF] font-medium'
+                  : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+              }`}
+            >
+              <Zap className="w-3 h-3" />仿真模式
+            </button>
+            <button
+              onClick={() => handleModeSwitch('connected')}
+              className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
+                labMode === 'connected'
+                  ? 'bg-emerald-500/20 text-emerald-400 font-medium'
+                  : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+              }`}
+            >
+              {backendStatus === 'connecting' || backendStatus === 'reconnecting' ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : isConnected ? (
+                <Wifi className="w-3 h-3" />
+              ) : (
+                <WifiOff className="w-3 h-3" />
+              )}
+              连接模式
+            </button>
+          </div>
+
+          {/* 连接状态指示 */}
+          {labMode === 'connected' && (
+            <div className="flex items-center gap-1.5 text-[10px]">
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                isConnected ? 'bg-emerald-400 shadow-[0_0_4px_rgba(16,185,129,0.6)]' :
+                backendStatus === 'connecting' || backendStatus === 'reconnecting' ? 'bg-yellow-400 animate-pulse' :
+                'bg-red-400'
+              }`} />
+              <span className="text-white/40">
+                {isConnected ? `v${backendVersion || '?'}` :
+                 backendStatus === 'connecting' ? '连接中' :
+                 backendStatus === 'reconnecting' ? '重连中' : '未连接'}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* AI启动确认弹窗 */}
@@ -494,6 +605,141 @@ export default function VirtualLab() {
                   确认启动
                 </Button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI 三级优化 Modal */}
+      <AnimatePresence>
+        {showAIOptimize && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => { if (aiOptStep === 'done' || aiOptStep === 'idle') { setShowAIOptimize(false); setAiOptStep('idle'); } }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#0A2540] border border-[#8B5CF6]/30 rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#8B5CF6]/20 flex items-center justify-center">
+                    <Brain className="w-5 h-5 text-[#8B5CF6]" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">AI 三级优化引擎</h3>
+                    <p className="text-[10px] text-white/40">LSTM 预测 → WGAN-GP 增强 → PPO 精细搜索</p>
+                  </div>
+                </div>
+                {(aiOptStep === 'done' || aiOptStep === 'idle') && (
+                  <button onClick={() => { setShowAIOptimize(false); setAiOptStep('idle'); }} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* 三阶段进度 */}
+              <div className="space-y-3 mb-5">
+                {([
+                  { id: 'lstm', label: 'LSTM 时序预测', desc: '扫描参数空间，预测最优区域', color: '#00F5FF', threshold: 0 },
+                  { id: 'wgan', label: 'WGAN-GP 数据增强', desc: '生成高质量训练数据', color: '#FF9F43', threshold: 34 },
+                  { id: 'ppo', label: 'PPO 策略优化', desc: '强化学习精细搜索', color: '#1DD1A1', threshold: 68 },
+                ] as const).map((stage) => {
+                  const isActive = aiOptStep === stage.id;
+                  const isDone = aiOptProgress > stage.threshold + 32;
+                  const stageProgress = isActive ? Math.min(100, Math.max(0, (aiOptProgress - stage.threshold) * 100 / 32)) : isDone ? 100 : 0;
+                  return (
+                    <div key={stage.id} className="rounded-lg border overflow-hidden" style={{ borderColor: isActive ? `${stage.color}40` : isDone ? `${stage.color}20` : 'rgba(255,255,255,0.06)' }}>
+                      <div className="px-3 py-2 flex items-center justify-between" style={{ background: isActive ? `${stage.color}10` : 'transparent' }}>
+                        <div className="flex items-center gap-2">
+                          {isDone ? (
+                            <CheckCircle2 className="w-4 h-4" style={{ color: stage.color }} />
+                          ) : isActive ? (
+                            <motion.div className="w-4 h-4 rounded-full border-2 border-t-transparent" style={{ borderColor: stage.color }} animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full border border-white/20" />
+                          )}
+                          <div>
+                            <span className="text-xs font-medium" style={{ color: isActive || isDone ? stage.color : 'rgba(255,255,255,0.4)' }}>{stage.label}</span>
+                            <span className="text-[10px] text-white/30 ml-2">{stage.desc}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono" style={{ color: stage.color }}>{isDone ? '100%' : isActive ? `${stageProgress.toFixed(0)}%` : ''}</span>
+                      </div>
+                      {(isActive || isDone) && (
+                        <div className="h-1 bg-[#051020]">
+                          <motion.div className="h-full" style={{ backgroundColor: stage.color, width: `${stageProgress}%` }} transition={{ duration: 0.3 }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 总进度 */}
+              <div className="mb-4">
+                <div className="flex justify-between text-[10px] mb-1">
+                  <span className="text-white/40">总进度</span>
+                  <span className="text-[#8B5CF6] font-mono">{aiOptProgress}%</span>
+                </div>
+                <div className="h-2 bg-[#051020] rounded-full overflow-hidden">
+                  <motion.div className="h-full rounded-full bg-gradient-to-r from-[#00F5FF] via-[#FF9F43] to-[#1DD1A1]" style={{ width: `${aiOptProgress}%` }} />
+                </div>
+              </div>
+
+              {/* 优化结果 */}
+              {aiOptStep === 'done' && aiOptResult && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                  <div className="bg-[#051020] rounded-lg p-4 border border-[#1DD1A1]/20">
+                    <div className="text-xs text-[#1DD1A1] font-medium mb-2 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      优化完成 · 性能提升 {aiOptResult.improvement}%
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center">
+                        <div className="text-[#00F5FF] font-mono text-sm font-bold">{aiOptResult.voltage}</div>
+                        <div className="text-[9px] text-white/40">电压 V</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[#1DD1A1] font-mono text-sm font-bold">{(aiOptResult.current / 1000).toFixed(1)}</div>
+                        <div className="text-[9px] text-white/40">电流 kA</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[#FF9F43] font-mono text-sm font-bold">{aiOptResult.pulseWidth}</div>
+                        <div className="text-[9px] text-white/40">脉宽 μs</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => { setShowAIOptimize(false); setAiOptStep('idle'); }}
+                      variant="outline"
+                      className="flex-1 border-white/20 text-white/60"
+                    >
+                      关闭
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setVoltage(aiOptResult.voltage);
+                        setCurrent(aiOptResult.current);
+                        setPulseWidth(aiOptResult.pulseWidth);
+                        setShowAIOptimize(false);
+                        setAiOptStep('idle');
+                      }}
+                      className="flex-1 bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40 hover:bg-[#8B5CF6]/30"
+                    >
+                      <Sparkles className="w-4 h-4 mr-1.5" />
+                      应用参数
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -739,20 +985,67 @@ export default function VirtualLab() {
                 </Select>
               </div>
 
-              {/* ── 围压控制 ── */}
-              <div className="rounded-lg border border-[#00F5FF]/10 overflow-hidden">
-                <div className="px-3 py-2 bg-[#0A2540]/40 flex items-center justify-between">
-                  <label className="text-[11px] text-white/60 font-medium">围压控制</label>
-                  <Switch checked={enableConfining} onCheckedChange={setEnableConfining} disabled={isAnimationPlaying} />
+              {/* ── 多场耦合参数 ── */}
+              <div className="rounded-lg border border-[#FF9F43]/15 overflow-hidden">
+                <div className="px-3 py-2 bg-[#FF9F43]/5 flex items-center justify-between">
+                  <label className="text-[11px] text-[#FF9F43] font-medium flex items-center gap-1.5">
+                    <Thermometer className="w-3.5 h-3.5" />
+                    多场耦合
+                  </label>
+                  <Switch checked={enableMultiField} onCheckedChange={setEnableMultiField} disabled={isAnimationPlaying} />
                 </div>
-                {enableConfining && (
+                {enableMultiField && (
                   <div className="px-3 py-2 space-y-2">
-                    {(['x', 'y', 'z'] as const).map((axis) => (
-                      <SliderInputCombo key={axis} value={confiningPressure[axis]} onChange={(v) => setConfiningPressure(prev => ({ ...prev, [axis]: v }))} min={0} max={200} step={5} disabled={isAnimationPlaying} label={`${axis.toUpperCase()}轴`} unit="MPa" color="#00F5FF" />
-                    ))}
+                    {/* 温度场 */}
+                    <SliderInputCombo value={multiFieldTemp} onChange={setMultiFieldTemp} min={-50} max={1000} step={10} disabled={isAnimationPlaying} label="温度" unit="°C" icon={<Thermometer className="w-4 h-4 text-[#FF6B6B]" />} color="#FF6B6B" />
+                    {/* 围压 */}
+                    <div className="pt-1 border-t border-white/5">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] text-white/40">围压控制</span>
+                        <Switch checked={enableConfining} onCheckedChange={setEnableConfining} disabled={isAnimationPlaying} />
+                      </div>
+                      {enableConfining && (
+                        <div className="space-y-1.5">
+                          {(['x', 'y', 'z'] as const).map((axis) => (
+                            <SliderInputCombo key={axis} value={confiningPressure[axis]} onChange={(v) => setConfiningPressure(prev => ({ ...prev, [axis]: v }))} min={0} max={200} step={5} disabled={isAnimationPlaying} label={`${axis.toUpperCase()}轴`} unit="MPa" color="#00F5FF" />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* 电磁场 */}
+                    <div className="pt-1 border-t border-white/5">
+                      <SliderInputCombo value={multiFieldEMI} onChange={setMultiFieldEMI} min={0} max={95} step={5} disabled={isAnimationPlaying} label="EMI 场强" unit="dB" icon={<Radio className="w-4 h-4 text-[#A855F6]" />} color="#A855F6" />
+                    </div>
                   </div>
                 )}
               </div>
+
+              {!enableMultiField && (
+                /* ── 围压控制（多场耦合关闭时独立显示） ── */
+                <div className="rounded-lg border border-[#00F5FF]/10 overflow-hidden">
+                  <div className="px-3 py-2 bg-[#0A2540]/40 flex items-center justify-between">
+                    <label className="text-[11px] text-white/60 font-medium">围压控制</label>
+                    <Switch checked={enableConfining} onCheckedChange={setEnableConfining} disabled={isAnimationPlaying} />
+                  </div>
+                  {enableConfining && (
+                    <div className="px-3 py-2 space-y-2">
+                      {(['x', 'y', 'z'] as const).map((axis) => (
+                        <SliderInputCombo key={axis} value={confiningPressure[axis]} onChange={(v) => setConfiningPressure(prev => ({ ...prev, [axis]: v }))} min={0} max={200} step={5} disabled={isAnimationPlaying} label={`${axis.toUpperCase()}轴`} unit="MPa" color="#00F5FF" />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── AI 智能优化 ── */}
+              <button
+                onClick={handleAIOptimize}
+                disabled={isAnimationPlaying}
+                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#8B5CF6]/20 to-[#6366F1]/20 border border-[#8B5CF6]/30 text-[#8B5CF6] text-xs font-medium flex items-center justify-center gap-2 hover:from-[#8B5CF6]/30 hover:to-[#6366F1]/30 transition-all disabled:opacity-40"
+              >
+                <Brain className="w-4 h-4" />
+                AI 三级优化 (LSTM → WGAN → PPO)
+              </button>
 
               {/* ── 实时计算 ── */}
               <div className="rounded-lg border border-[#00F5FF]/15 overflow-hidden">
@@ -894,7 +1187,7 @@ export default function VirtualLab() {
                     <p>模拟电磁驱动霍普金森杆（SHPB）实验过程，支持参数优化与波形预测。</p>
                     <div className="flex items-center gap-1 text-[#00F5FF]">
                       <ArrowRight className="w-3 h-3" />
-                      <span>数据自动传递至 AI控制 和 材料分析</span>
+                      <span>数据自动传递至材料力学分析页面</span>
                     </div>
                     <div className="flex items-center gap-1 text-[#1DD1A1]">
                       <ArrowRight className="w-3 h-3" />

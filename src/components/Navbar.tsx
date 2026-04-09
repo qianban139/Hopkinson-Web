@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Zap, FlaskConical, Brain, Layers, BarChart3, Monitor, Home, GraduationCap } from 'lucide-react';
+import { Menu, Zap, FlaskConical, BarChart3, Monitor, Home, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAppStore } from '@/store/useAppStore';
@@ -12,11 +12,9 @@ export const AI_ASSISTANT_TOGGLE_EVENT = 'ai-assistant-toggle';
 const navItems = [
   { label: '首页', path: '/', icon: Home },
   { label: '虚拟实验室', path: '/lab', icon: FlaskConical },
-  { label: 'AI智能控制', path: '/ai', icon: Brain },
-  { label: '多场耦合实验', path: '/multifield', icon: Layers },
   { label: '材料力学分析', path: '/analysis', icon: BarChart3 },
   { label: '系统监控', path: '/monitor', icon: Monitor },
-  { label: 'AI教学', path: '/teaching', icon: GraduationCap },
+  { label: '教学系统', path: '/teaching', icon: GraduationCap },
 ];
 
 export default function Navbar() {
@@ -31,8 +29,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const pageMap: Record<string, string> = {
-      '/': 'home', '/lab': 'lab', '/ai': 'ai',
-      '/multifield': 'multifield', '/analysis': 'analysis', '/monitor': 'monitor', '/teaching': 'teaching',
+      '/': 'home', '/lab': 'lab', '/analysis': 'analysis', '/monitor': 'monitor', '/teaching': 'teaching',
     };
     setCurrentPage(pageMap[location.pathname] || 'home');
   }, [location.pathname, setCurrentPage]);

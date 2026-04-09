@@ -6,6 +6,7 @@ import NeuralNetworkBackground from '@/components/NeuralNetworkBackground';
 import GridOverlay from '@/components/GridOverlay';
 import { AICommandCenter } from '@/features/ai-assistant';
 import AINotificationToast from '@/features/ai-assistant/AINotificationToast';
+import AISuggestionBar from '@/features/ai-assistant/AISuggestionBar';
 import MonitorStrip from '@/components/MonitorStrip';
 import ExperimentControlBar from '@/components/ExperimentControlBar';
 import AIAmbientGlow from '@/components/AIAmbientGlow';
@@ -14,8 +15,6 @@ import Home from '@/pages/Home';
 
 // 路由懒加载 - 首屏只加载Home
 const VirtualLab = lazy(() => import('@/pages/VirtualLab'));
-const AIControl = lazy(() => import('@/pages/AIControl'));
-const MultiField = lazy(() => import('@/pages/MultiField'));
 const MaterialAnalysis = lazy(() => import('@/pages/MaterialAnalysis'));
 const SystemMonitor = lazy(() => import('@/pages/SystemMonitor'));
 const Teaching = lazy(() => import('@/pages/Teaching'));
@@ -46,8 +45,6 @@ function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/lab" element={<VirtualLab />} />
-                <Route path="/ai" element={<AIControl />} />
-                <Route path="/multifield" element={<MultiField />} />
                 <Route path="/analysis" element={<MaterialAnalysis />} />
                 <Route path="/monitor" element={<SystemMonitor />} />
                 <Route path="/teaching" element={<Teaching />} />
@@ -64,6 +61,9 @@ function App() {
 
         {/* AI操作通知Toast */}
         <AINotificationToast />
+
+        {/* 跨页面 AI 建议条（Phase 2） */}
+        <AISuggestionBar />
 
         {/* AI中央控制系统 */}
         <AICommandCenter />

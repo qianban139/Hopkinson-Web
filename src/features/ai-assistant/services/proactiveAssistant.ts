@@ -63,23 +63,12 @@ export function getProactiveSuggestions(): ProactiveSuggestion[] {
     });
   }
 
-  // 5. AI优化完成
-  if (app.aiState.step === 'complete' && app.currentPage === 'ai') {
+  // 5. AI优化完成（v0.6.0 起 AI 优化整合到 /lab）
+  if (app.aiState.step === 'complete' && app.currentPage === 'lab') {
     suggestions.push({
       id: 'optimization_done',
       text: 'AI优化已完成，查看优化结果？',
       action: '查看AI优化结果',
-      priority: 'low',
-      dismissable: true,
-    });
-  }
-
-  // 6. 首次进入某页面的引导提示
-  if (app.currentPage === 'multifield') {
-    suggestions.push({
-      id: 'multifield_guide',
-      text: '多场耦合模块支持热-力-电磁耦合分析，需要我介绍吗？',
-      action: '介绍多场耦合功能',
       priority: 'low',
       dismissable: true,
     });
