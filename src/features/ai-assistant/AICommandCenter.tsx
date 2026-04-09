@@ -7,7 +7,7 @@ import {
   Send, Mic, MicOff, X, Minimize2, Maximize2, Trash2,
   ChevronRight, Zap, Brain, Volume2, VolumeX,
   Shield, Beaker, BarChart3, GripVertical, Settings2, ImagePlus,
-  Globe, Users, Radio,
+  Globe, Users, Radio, BookOpen,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { loadTTSSettings, saveTTSSettings, VOICE_OPTIONS, SPEED_OPTIONS, type TTSSettings } from './services/ttsSettings';
@@ -23,6 +23,7 @@ import { conversationManager } from './services/aiConversationManager';
 import MarkdownMessage from './MarkdownMessage';
 import AIReasoningChain from './AIReasoningChain';
 import { AGENT_REGISTRY } from './agent';
+import LiteraturePanel from './LiteraturePanel';
 import { getProactiveSuggestions, type ProactiveSuggestion } from './services/proactiveAssistant';
 import { t, getLocale, setLocale, getAvailableLocales, type Locale } from './services/i18n';
 import { getCurrentUser, getAllUsers, createUser, switchUser, type UserProfile } from './services/collaborationService';
@@ -237,6 +238,9 @@ export default function AICommandCenter() {
   const [agentMode, setAgentMode] = useState(false);
   const agentModeRef = useRef(agentMode);
   useEffect(() => { agentModeRef.current = agentMode; }, [agentMode]);
+
+  // Phase 5: 文献面板
+  const [showLiteraturePanel, setShowLiteraturePanel] = useState(false);
 
   // Rotate filler phrases during processing
   useEffect(() => {
@@ -747,6 +751,16 @@ export default function AICommandCenter() {
                 >
                   <Users className="w-3.5 h-3.5" />
                 </button>
+                {/* Phase 5: 文献库面板 */}
+                <button
+                  onClick={() => setShowLiteraturePanel((v) => !v)}
+                  className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
+                    showLiteraturePanel ? 'bg-[#10B981]/20 text-[#10B981]' : 'text-white/40 hover:text-white/60 hover:bg-white/5'
+                  }`}
+                  title="文献知识库"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                </button>
                 <button
                   onClick={handleClear}
                   className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
@@ -1152,6 +1166,16 @@ export default function AICommandCenter() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Phase 5: 文献知识库面板 */}
+      <LiteraturePanel
+        isOpen={showLiteraturePanel}
+        onClose={() => setShowLiteraturePanel(false)}
+        onCite={(lit) => {
+          const citeText = `请参考文献：${lit.authors[0]}${lit.authors.length > 1 ? ' et al.' : ''} (${lit.year}) "${lit.title}"`;
+          handleCommand(citeText);
+          setShowLiteraturePanel(false);
+        }}
+      />
     </>
   );
 }
