@@ -12,6 +12,8 @@ import { getLLMTools } from '../services/aiIntentParser';
 import { addExperimentMemory, setPreference, getRecentExperiments } from '../services/memoryService';
 import { runOrchestrator } from '../agent';
 import type { AgentThought, AgentRole } from '../agent/types';
+import { retrieve, buildAugmentedQuery, extractUsedCitations } from '@/services/rag';
+import type { Citation } from '@/services/rag';
 import type { AIOperation, OrbState, LLMFunctionCall, AIHighlightTarget } from '../types';
 
 // ═══════════════════════════════════════════════
@@ -97,6 +99,11 @@ interface UseAIOrchestratorReturn {
   lastThoughts: AgentThought[];
   /** 最近一次激活的 Agent 角色 */
   lastAgentRole: AgentRole | null;
+  /** RAG 模式开关 */
+  ragEnabled: boolean;
+  setRagEnabled: (v: boolean) => void;
+  /** 最近一次回复关联的引用 */
+  lastCitations: Citation[];
 
   // 操作
   processUserInput: (
@@ -116,6 +123,8 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastThoughts, setLastThoughts] = useState<AgentThought[]>([]);
   const [lastAgentRole, setLastAgentRole] = useState<AgentRole | null>(null);
+  const [ragEnabled, setRagEnabled] = useState(true);
+  const [lastCitations, setLastCitations] = useState<Citation[]>([]);
   const cancelledRef = useRef(false);
 
   // 实验引导对话流
@@ -514,10 +523,32 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
         // Step 2: 走LLM理解
         setOrbState('thinking');
 
+        // RAG 检索增强：在发送给 LLM 之前，检索相关文献
+        let ragCitations: Citation[] = [];
+        let augmentedText = text;
+        if (ragEnabled) {
+          try {
+            const ragContext = retrieve(text, { topK: 4, minScore: 0.05 });
+            if (ragContext.retrievedChunks.length > 0) {
+              augmentedText = buildAugmentedQuery(text, ragContext);
+              ragCitations = ragContext.citations;
+            }
+          } catch {
+            // RAG 失败不影响主流程
+          }
+        }
+
         // 检查是否配置了LLM
         if (isLLMConfigured()) {
           // 使用LLM处理
           const messages = conversationManager.getMessagesForLLM();
+          // 将最后一条用户消息替换为 RAG 增强版本
+          if (ragCitations.length > 0 && messages.length > 0) {
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg.role === 'user') {
+              lastMsg.content = augmentedText;
+            }
+          }
           let response = '';
 
           // Build native tool definitions for LLM function calling
@@ -566,6 +597,14 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
             }
           }
 
+          // 提取 RAG 引用
+          if (ragCitations.length > 0) {
+            const usedCitations = extractUsedCitations(response, ragCitations);
+            setLastCitations(usedCitations.length > 0 ? usedCitations : ragCitations);
+          } else {
+            setLastCitations([]);
+          }
+
           // 检查LLM返回中是否包含动作指令
           const actionCalls = extractActionsFromResponse(response);
           if (actionCalls.length > 0) {
@@ -583,8 +622,15 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
           setOrbState('idle');
           return response;
         } else {
-          // 无LLM配置，使用本地知识库
-          const response = getFallbackResponse(text);
+          // 无LLM配置，使用本地知识库 + RAG 文献
+          let response = getFallbackResponse(text);
+          if (ragCitations.length > 0) {
+            response += '\n\n---\n📚 **相关文献参考**：\n' +
+              ragCitations.map(c => `[${c.index}] ${c.shortLabel} — ${c.fullTitle}${c.doi ? ` (${c.doi})` : ''}`).join('\n');
+            setLastCitations(ragCitations);
+          } else {
+            setLastCitations([]);
+          }
           conversationManager.addAssistantMessage(response);
           setOrbState('idle');
           return response;
@@ -619,6 +665,9 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
     isProcessing,
     lastThoughts,
     lastAgentRole,
+    ragEnabled,
+    setRagEnabled,
+    lastCitations,
     processUserInput,
     clearOperations,
     cancelOperation,

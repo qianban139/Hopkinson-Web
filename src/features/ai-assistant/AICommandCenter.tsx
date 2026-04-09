@@ -226,6 +226,9 @@ export default function AICommandCenter() {
     isProcessing,
     lastThoughts,
     lastAgentRole,
+    ragEnabled,
+    setRagEnabled,
+    lastCitations,
     processUserInput,
     clearOperations,
   } = useAIOrchestrator();
@@ -906,6 +909,28 @@ export default function AICommandCenter() {
                 </div>
               ))}
 
+              {/* Phase 5: RAG 引用列表 */}
+              {lastCitations.length > 0 && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
+                <div className="mx-1 p-3 rounded-xl bg-[#10B981]/5 border border-[#10B981]/15">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-xs">📚</span>
+                    <span className="text-[11px] font-medium text-[#10B981]/90">参考文献 ({lastCitations.length})</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {lastCitations.map((c) => (
+                      <div key={c.literatureId} className="text-[11px] text-white/60 leading-snug">
+                        <span className="text-[#10B981]/80 font-medium">[{c.index}]</span>{' '}
+                        <span className="text-white/70">{c.shortLabel}</span>{' '}
+                        <span className="text-white/40">— {c.fullTitle}</span>
+                        {c.doi && (
+                          <span className="text-[#10B981]/50 ml-1 text-[10px]">DOI: {c.doi}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Phase 2: Agent 推理链可视化 */}
               {lastThoughts.length > 0 && lastAgentRole && (
                 <AIReasoningChain
@@ -1081,6 +1106,20 @@ export default function AICommandCenter() {
                   title={agentMode ? '深度模式（Agent 多步推理） · 点击关闭' : '开启深度模式 · 多 Agent 协作推理'}
                 >
                   <Brain className="w-4 h-4" />
+                </button>
+
+                {/* Phase 5: RAG 文献检索模式切换 */}
+                <button
+                  onClick={() => setRagEnabled((v) => !v)}
+                  disabled={isProcessing}
+                  className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-30 text-xs font-bold ${
+                    ragEnabled
+                      ? 'bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                      : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
+                  }`}
+                  title={ragEnabled ? '文献检索增强已开启 · 回答将引用专业文献' : '开启 RAG 模式 · 使 AI 引用文献回答'}
+                >
+                  📚
                 </button>
                 <input
                   ref={imageInputRef}
