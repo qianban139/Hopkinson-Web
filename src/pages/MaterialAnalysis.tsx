@@ -2,18 +2,23 @@ import { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } fr
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Search, Download, ChevronRight, ChevronDown,
-  FileSpreadsheet, FileJson, ImageDown, FileText, Sparkles,
-  ZoomIn, ZoomOut, Microscope,
+  FileSpreadsheet, FileJson, Sparkles,
+  ZoomIn, ZoomOut, Microscope, Waves, SlidersHorizontal,
+  GitCompareArrows, ClipboardList, Database,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import * as echarts from 'echarts';
 import { useAppStore } from '@/store/useAppStore';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
 import GlowCard from '@/shared/components/GlowCard';
 import ModuleConnectionBadge from '@/shared/components/ModuleConnectionBadge';
+import SignalProcessingPanel from '@/features/material-analysis/SignalProcessingPanel';
+import ConstitutiveFittingPanel from '@/features/material-analysis/ConstitutiveFittingPanel';
+import ReportGenerationPanel from '@/features/material-analysis/ReportGenerationPanel';
 import type { Material } from '@/types';
 
 /* ------------------------------------------------------------------ */
@@ -403,17 +408,16 @@ export default function MaterialAnalysis() {
       </aside>
 
       {/* ======================== Right Main Content ======================== */}
-      <main className="flex-1 overflow-y-auto scrollbar-thin">
+      <main className="flex-1 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#051020]/90 backdrop-blur-md border-b border-white/10 px-6 py-3 flex items-center justify-between">
+        <div className="flex-shrink-0 bg-[#051020]/90 backdrop-blur-md border-b border-white/10 px-6 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-white">材料本构分析</h1>
+            <h1 className="text-lg font-bold text-white">材料力学分析</h1>
             <ModuleConnectionBadge
               dataFrom={[
-                { module: '虚拟实验', path: '/virtual-lab', hasData: !!lastLab },
-                { module: '多场耦合', path: '/multi-field', hasData: !!lastMulti },
+                { module: '虚拟实验室', path: '/lab', hasData: !!lastLab },
               ]}
-              dataTo={[{ module: 'AI智控', path: '/ai-control' }]}
+              dataTo={[]}
               className="mt-1"
             />
           </div>
@@ -423,248 +427,340 @@ export default function MaterialAnalysis() {
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* -------- Section 1: AI智能预测 -------- */}
-          <GlowCard glowColor="#8B5CF6" pulse hoverable={false} className="p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Brain className="w-5 h-5 text-[#8B5CF6]" />
-              <h2 className="text-base font-bold">AI智能预测</h2>
-              <Sparkles className="w-4 h-4 text-[#8B5CF6]/60" />
-            </div>
+        {/* 5 Tab 分析系统 */}
+        <Tabs defaultValue="raw" className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="flex-shrink-0 w-full bg-[#051020] border-b border-white/10 rounded-none h-11 px-6 justify-start gap-1">
+            <TabsTrigger value="raw" className="text-xs data-[state=active]:bg-[#00F5FF]/15 data-[state=active]:text-[#00F5FF] gap-1.5 px-3">
+              <Database className="w-3.5 h-3.5" /> 原始数据
+            </TabsTrigger>
+            <TabsTrigger value="signal" className="text-xs data-[state=active]:bg-[#FF9F43]/15 data-[state=active]:text-[#FF9F43] gap-1.5 px-3">
+              <Waves className="w-3.5 h-3.5" /> 信号处理
+            </TabsTrigger>
+            <TabsTrigger value="fitting" className="text-xs data-[state=active]:bg-[#8B5CF6]/15 data-[state=active]:text-[#8B5CF6] gap-1.5 px-3">
+              <SlidersHorizontal className="w-3.5 h-3.5" /> 参数拟合
+            </TabsTrigger>
+            <TabsTrigger value="compare" className="text-xs data-[state=active]:bg-[#1DD1A1]/15 data-[state=active]:text-[#1DD1A1] gap-1.5 px-3">
+              <GitCompareArrows className="w-3.5 h-3.5" /> 对比分析
+            </TabsTrigger>
+            <TabsTrigger value="report" className="text-xs data-[state=active]:bg-[#F472B6]/15 data-[state=active]:text-[#F472B6] gap-1.5 px-3">
+              <ClipboardList className="w-3.5 h-3.5" /> 报告生成
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Sliders */}
-              <div className="space-y-4 md:col-span-2">
-                <div>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-white/60">应变率</span>
-                    <span className="text-[#00F5FF] font-mono">{strainRate} /s</span>
-                  </div>
-                  <Slider
-                    min={100} max={10000} step={100}
-                    value={[strainRate]}
-                    onValueChange={v => setStrainRate(v[0])}
-                    className="[&_[data-slot=slider-range]]:bg-[#8B5CF6] [&_[data-slot=slider-thumb]]:border-[#8B5CF6]"
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-white/60">温度</span>
-                    <span className="text-[#00F5FF] font-mono">{temperature} °C</span>
-                  </div>
-                  <Slider
-                    min={20} max={800} step={10}
-                    value={[temperature]}
-                    onValueChange={v => setTemperature(v[0])}
-                    className="[&_[data-slot=slider-range]]:bg-[#8B5CF6] [&_[data-slot=slider-thumb]]:border-[#8B5CF6]"
-                  />
-                </div>
-                <Button
-                  onClick={handleAIPredict}
-                  disabled={aiPredicting}
-                  className="w-full bg-gradient-to-r from-[#0A4A6B] to-[#0E7490] hover:from-[#0C5A7E] hover:to-[#1098B0] text-[#00F5FF] font-semibold h-10 text-sm border border-[#00F5FF]/20"
-                >
-                  {aiPredicting ? '预测中...' : '开始AI预测'}
-                </Button>
-
-                {/* Sensitivity preview mini-chart */}
-                <div className="mt-2">
-                  <div className="text-[10px] text-white/40 mb-1">应变率灵敏度预览 (±20%)</div>
-                  <SensitivityMiniChart
-                    material={selectedMaterial}
-                    strainRate={strainRate}
-                    temperature={temperature}
-                  />
-                </div>
-              </div>
-
-              {/* Result */}
-              <div className="flex flex-col justify-center">
-                {aiResult ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="space-y-2 bg-[#051020] rounded-lg p-4 border border-[#8B5CF6]/20"
-                  >
-                    <div className="text-xs text-white/50">预测结果</div>
-                    <div className="flex justify-between items-end">
-                      <span className="text-xs text-white/60">σ</span>
-                      <span className="text-xl font-bold text-[#00F5FF]">{aiResult.sigma} <span className="text-xs font-normal">MPa</span></span>
-                    </div>
-                    <div className="flex justify-between items-end">
-                      <span className="text-xs text-white/60">ε</span>
-                      <span className="text-lg font-semibold text-[#1DD1A1]">{aiResult.epsilon}</span>
-                    </div>
-                    <div className="flex justify-between items-end">
-                      <span className="text-xs text-white/60">R²</span>
-                      <span className="text-lg font-semibold text-[#FF9F43]">{aiResult.r2}</span>
-                    </div>
-                  </motion.div>
+          {/* ═══════ Tab 1: 原始数据 ═══════ */}
+          <TabsContent value="raw" className="flex-1 overflow-y-auto mt-0 scrollbar-thin">
+            <div className="p-6 space-y-6">
+              {/* 数据来源 */}
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-white/40">数据来源:</span>
+                {lastLab ? (
+                  <span className="px-2 py-1 rounded bg-[#1DD1A1]/10 text-[#1DD1A1] border border-[#1DD1A1]/20">
+                    虚拟实验室 · {lastLab.materialName} · {new Date(lastLab.timestamp).toLocaleTimeString()}
+                  </span>
                 ) : (
-                  <div className="text-center text-xs text-white/30 py-6">
-                    调整参数后点击开始预测
-                  </div>
+                  <span className="px-2 py-1 rounded bg-white/5 text-white/30 border border-white/10">
+                    材料数据库（未接收实验数据）
+                  </span>
                 )}
               </div>
-            </div>
-          </GlowCard>
 
-          {/* -------- Section 2: Stress-Strain Curve -------- */}
-          <GlowCard glowColor="#00F5FF" hoverable={false} className="p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-[3px] h-5 rounded-full bg-[#00F5FF]" />
-              <h2 className="text-base font-bold bg-gradient-to-r from-[#00F5FF] to-[#00B4CC] bg-clip-text text-transparent">应力-应变曲线</h2>
-            </div>
-            <StressStrainChart
-              materials={materialsForChart}
-              highlightId={selectedId}
-              aiCurve={aiResult && selectedMaterial ? buildAIPredictionCurve(selectedMaterial, strainRate, temperature) : null}
-              onReady={chart => { stressChartRef.current = chart; }}
-            />
-          </GlowCard>
+              {/* 应力-应变曲线 */}
+              <GlowCard glowColor="#00F5FF" hoverable={false} className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-[3px] h-5 rounded-full bg-[#00F5FF]" />
+                    <h2 className="text-base font-bold bg-gradient-to-r from-[#00F5FF] to-[#00B4CC] bg-clip-text text-transparent">应力-应变曲线</h2>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="ghost" onClick={handleZoomIn} className="h-7 w-7 p-0 text-white/40 hover:text-white"><ZoomIn className="w-3.5 h-3.5" /></Button>
+                    <Button size="sm" variant="ghost" onClick={handleZoomOut} className="h-7 w-7 p-0 text-white/40 hover:text-white"><ZoomOut className="w-3.5 h-3.5" /></Button>
+                    <Button size="sm" variant="ghost" onClick={handleZoomReset} className="h-7 px-2 text-[10px] text-white/40 hover:text-white">重置</Button>
+                  </div>
+                </div>
+                <StressStrainChart
+                  materials={materialsForChart}
+                  highlightId={selectedId}
+                  aiCurve={aiResult && selectedMaterial ? buildAIPredictionCurve(selectedMaterial, strainRate, temperature) : null}
+                  onReady={chart => { stressChartRef.current = chart; }}
+                />
+              </GlowCard>
 
-          {/* -------- Section 3: J-C Parameters + Radar (two columns) -------- */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* J-C Parameters */}
-            <GlowCard glowColor="#FF9F43" hoverable={false} className="p-5">
-              <h2 className="text-base font-bold mb-3">J-C本构参数</h2>
-              <div className="text-[11px] text-white/50 mb-3 font-mono bg-[#051020] rounded px-3 py-2 border border-white/10">
-                {'σ = (A + Bε'}
-                <sup>n</sup>
-                {')(1 + Cln'}
-                <span className="text-[#00F5FF]">ε̇*</span>
-                {')(1 - T*'}
-                <sup>m</sup>
-                {')'}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+              {/* 材料基本参数 */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {([
-                  ['A', jc.A, 'MPa', '屈服强度'],
-                  ['B', jc.B, 'MPa', '硬化系数'],
-                  ['n', jc.n, '', '硬化指数'],
-                  ['C', jc.C, '', '应变率系数'],
-                  ['m', jc.m, '', '热软化指数'],
-                ] as const).map(([label, value, unit, desc]) => (
-                  <div key={label} className="bg-[#051020] rounded-lg p-2.5 border border-white/10">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-bold text-[#FF9F43]">{label}</span>
-                      <span className="text-sm font-mono text-white">{typeof value === 'number' && value < 1 ? value.toFixed(3) : value}</span>
-                    </div>
-                    <div className="text-[10px] text-white/40 mt-0.5">{desc} {unit && `(${unit})`}</div>
+                  { label: '密度', value: `${(selectedMaterial.density / 1000).toFixed(2)}`, unit: 'g/cm³', color: '#00F5FF' },
+                  { label: '弹性模量', value: `${(selectedMaterial.elasticModulus / 1e9).toFixed(1)}`, unit: 'GPa', color: '#1DD1A1' },
+                  { label: '屈服强度', value: `${(selectedMaterial.yieldStrength / 1e6).toFixed(0)}`, unit: 'MPa', color: '#FFD700' },
+                  { label: '波速', value: `${Math.sqrt(selectedMaterial.elasticModulus / selectedMaterial.density).toFixed(0)}`, unit: 'm/s', color: '#8B5CF6' },
+                ] as const).map((p) => (
+                  <div key={p.label} className="bg-[#051020] rounded-lg p-3 border border-white/5">
+                    <div className="text-[10px] text-white/40 mb-1">{p.label}</div>
+                    <div className="text-lg font-mono font-bold" style={{ color: p.color }}>{p.value}</div>
+                    <div className="text-[10px] text-white/30">{p.unit}</div>
                   </div>
                 ))}
-                <div className="bg-[#051020] rounded-lg p-2.5 border border-[#1DD1A1]/20">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs font-bold text-[#1DD1A1]">R²</span>
-                    <span className="text-sm font-mono text-[#1DD1A1]">{r2.toFixed(4)}</span>
-                  </div>
-                  <div className="text-[10px] text-white/40 mt-0.5">拟合优度</div>
+              </div>
+
+              {/* 数据导出 */}
+              <div className="flex items-center justify-between bg-[#051020] rounded-lg p-3 border border-white/5">
+                <div className="flex items-center gap-2 text-xs text-white/40">
+                  <Download className="w-3.5 h-3.5" />
+                  导出原始数据
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleExportCSV} className="border-white/15 text-white/60 text-[10px] h-7 gap-1">
+                    <FileSpreadsheet className="w-3 h-3" /> CSV
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleExportJSON} className="border-white/15 text-white/60 text-[10px] h-7 gap-1">
+                    <FileJson className="w-3 h-3" /> JSON
+                  </Button>
                 </div>
               </div>
-            </GlowCard>
-
-            {/* Radar Chart */}
-            <GlowCard glowColor="#1DD1A1" hoverable={false} className="p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-[3px] h-5 rounded-full bg-[#8B5CF6]" />
-                <h2 className="text-base font-bold bg-gradient-to-r from-[#8B5CF6] to-[#A78BFA] bg-clip-text text-transparent">性能雷达图</h2>
-              </div>
-              <RadarChart values={radar} materialName={selectedMaterial.name} />
-            </GlowCard>
-          </div>
-
-          {/* -------- Microstructure Animation -------- */}
-          <GlowCard glowColor="#8B5CF6" hoverable={false} className="p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-[3px] h-5 rounded-full bg-[#FFD700]" />
-              <h2 className="text-base font-bold bg-gradient-to-r from-[#FFD700] to-[#FFA500] bg-clip-text text-transparent">微观变形机制</h2>
-              <span className="text-xs text-white/40 ml-2">应变率对微观结构的影响</span>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#0A2540]/60 rounded-xl p-4 border border-white/5">
-                <div className="text-xs text-[#00F5FF] font-medium mb-2">低应变率 (~10²/s)</div>
-                <div className="text-[10px] text-white/50 mb-3">位错滑移主导变形</div>
-                <svg viewBox="0 0 200 100" className="w-full h-20">
-                  <style>{`
-                    @keyframes dislocationSlide { 0% { transform: translateX(0); } 100% { transform: translateX(8px); } }
-                    @keyframes dislocationLine { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
-                  `}</style>
-                  {Array.from({length: 7}).map((_, row) =>
-                    Array.from({length: 10}).map((_, col) => (
-                      <circle key={`l${row}-${col}`} cx={10 + col * 19} cy={8 + row * 13}
-                        r="2.5" fill={row === 3 && col > 3 ? '#00F5FF' : '#ffffff30'}
-                        style={row === 3 && col > 3 ? { animation: `dislocationSlide ${1.5 + col * 0.15}s ease-in-out infinite alternate` } : {}} />
-                    ))
+          </TabsContent>
+
+          {/* ═══════ Tab 2: 信号处理 ═══════ */}
+          <TabsContent value="signal" className="flex-1 overflow-y-auto mt-0 scrollbar-thin">
+            <SignalProcessingPanel />
+          </TabsContent>
+
+          {/* ═══════ Tab 3: 参数拟合 ═══════ */}
+          <TabsContent value="fitting" className="flex-1 overflow-y-auto mt-0 scrollbar-thin">
+            <div className="p-6 space-y-6">
+              {/* AI 预测 */}
+              <GlowCard glowColor="#8B5CF6" pulse hoverable={false} className="p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Brain className="w-5 h-5 text-[#8B5CF6]" />
+                  <h2 className="text-base font-bold">AI 本构参数预测</h2>
+                  <Sparkles className="w-4 h-4 text-[#8B5CF6]/60" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-4 md:col-span-2">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span className="text-white/60">应变率</span>
+                        <span className="text-[#00F5FF] font-mono">{strainRate} /s</span>
+                      </div>
+                      <Slider min={100} max={10000} step={100} value={[strainRate]} onValueChange={v => setStrainRate(v[0])}
+                        className="[&_[data-slot=slider-range]]:bg-[#8B5CF6] [&_[data-slot=slider-thumb]]:border-[#8B5CF6]" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span className="text-white/60">温度</span>
+                        <span className="text-[#00F5FF] font-mono">{temperature} °C</span>
+                      </div>
+                      <Slider min={20} max={800} step={10} value={[temperature]} onValueChange={v => setTemperature(v[0])}
+                        className="[&_[data-slot=slider-range]]:bg-[#8B5CF6] [&_[data-slot=slider-thumb]]:border-[#8B5CF6]" />
+                    </div>
+                    <Button onClick={handleAIPredict} disabled={aiPredicting}
+                      className="w-full bg-gradient-to-r from-[#0A4A6B] to-[#0E7490] hover:from-[#0C5A7E] hover:to-[#1098B0] text-[#00F5FF] font-semibold h-10 text-sm border border-[#00F5FF]/20">
+                      {aiPredicting ? '预测中...' : '开始 AI 预测'}
+                    </Button>
+                    <div className="mt-2">
+                      <div className="text-[10px] text-white/40 mb-1">应变率灵敏度预览 (±20%)</div>
+                      <SensitivityMiniChart material={selectedMaterial} strainRate={strainRate} temperature={temperature} />
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    {aiResult ? (
+                      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-2 bg-[#051020] rounded-lg p-4 border border-[#8B5CF6]/20">
+                        <div className="text-xs text-white/50">预测结果</div>
+                        <div className="flex justify-between items-end"><span className="text-xs text-white/60">σ</span><span className="text-xl font-bold text-[#00F5FF]">{aiResult.sigma} <span className="text-xs font-normal">MPa</span></span></div>
+                        <div className="flex justify-between items-end"><span className="text-xs text-white/60">ε</span><span className="text-lg font-semibold text-[#1DD1A1]">{aiResult.epsilon}</span></div>
+                        <div className="flex justify-between items-end"><span className="text-xs text-white/60">R²</span><span className="text-lg font-semibold text-[#FF9F43]">{aiResult.r2}</span></div>
+                      </motion.div>
+                    ) : (
+                      <div className="text-center text-xs text-white/30 py-6">调整参数后点击开始预测</div>
+                    )}
+                  </div>
+                </div>
+              </GlowCard>
+
+              {/* J-C 参数 + 雷达图 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <GlowCard glowColor="#FF9F43" hoverable={false} className="p-5">
+                  <h2 className="text-base font-bold mb-3">J-C 本构参数</h2>
+                  <div className="text-[11px] text-white/50 mb-3 font-mono bg-[#051020] rounded px-3 py-2 border border-white/10">
+                    {'σ = (A + Bε'}<sup>n</sup>{')(1 + Cln'}<span className="text-[#00F5FF]">ε̇*</span>{')(1 - T*'}<sup>m</sup>{')'}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      ['A', jc.A, 'MPa', '屈服强度'], ['B', jc.B, 'MPa', '硬化系数'],
+                      ['n', jc.n, '', '硬化指数'], ['C', jc.C, '', '应变率系数'], ['m', jc.m, '', '热软化指数'],
+                    ] as const).map(([label, value, unit, desc]) => (
+                      <div key={label} className="bg-[#051020] rounded-lg p-2.5 border border-white/10">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xs font-bold text-[#FF9F43]">{label}</span>
+                          <span className="text-sm font-mono text-white">{typeof value === 'number' && value < 1 ? value.toFixed(3) : value}</span>
+                        </div>
+                        <div className="text-[10px] text-white/40 mt-0.5">{desc} {unit && `(${unit})`}</div>
+                      </div>
+                    ))}
+                    <div className="bg-[#051020] rounded-lg p-2.5 border border-[#1DD1A1]/20">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-xs font-bold text-[#1DD1A1]">R²</span>
+                        <span className="text-sm font-mono text-[#1DD1A1]">{r2.toFixed(4)}</span>
+                      </div>
+                      <div className="text-[10px] text-white/40 mt-0.5">拟合优度</div>
+                    </div>
+                  </div>
+                </GlowCard>
+
+                <GlowCard glowColor="#1DD1A1" hoverable={false} className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-[3px] h-5 rounded-full bg-[#8B5CF6]" />
+                    <h2 className="text-base font-bold bg-gradient-to-r from-[#8B5CF6] to-[#A78BFA] bg-clip-text text-transparent">性能雷达图</h2>
+                  </div>
+                  <RadarChart values={radar} materialName={selectedMaterial.name} />
+                </GlowCard>
+              </div>
+
+              {/* 多本构模型拟合（Phase 4 新增） */}
+              <ConstitutiveFittingPanel
+                material={selectedMaterial}
+                strainRate={strainRate}
+                temperature={temperature}
+              />
+
+              {/* 微观变形机制 */}
+              <GlowCard glowColor="#8B5CF6" hoverable={false} className="p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-[3px] h-5 rounded-full bg-[#FFD700]" />
+                  <h2 className="text-base font-bold bg-gradient-to-r from-[#FFD700] to-[#FFA500] bg-clip-text text-transparent">微观变形机制</h2>
+                  <span className="text-xs text-white/40 ml-2">应变率对微观结构的影响</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-[#0A2540]/60 rounded-xl p-4 border border-white/5">
+                    <div className="text-xs text-[#00F5FF] font-medium mb-2">低应变率 (~10²/s)</div>
+                    <div className="text-[10px] text-white/50 mb-3">位错滑移主导变形</div>
+                    <svg viewBox="0 0 200 100" className="w-full h-20">
+                      <style>{`@keyframes dislocationSlide { 0% { transform: translateX(0); } 100% { transform: translateX(8px); } }`}</style>
+                      {Array.from({length: 7}).map((_, row) =>
+                        Array.from({length: 10}).map((_, col) => (
+                          <circle key={`l${row}-${col}`} cx={10 + col * 19} cy={8 + row * 13}
+                            r="2.5" fill={row === 3 && col > 3 ? '#00F5FF' : '#ffffff30'}
+                            style={row === 3 && col > 3 ? { animation: `dislocationSlide ${1.5 + col * 0.15}s ease-in-out infinite alternate` } : {}} />
+                        ))
+                      )}
+                      <text x="100" y="97" fill="#00F5FF" fontSize="8" textAnchor="middle" opacity="0.6">滑移面</text>
+                    </svg>
+                  </div>
+                  <div className="bg-[#0A2540]/60 rounded-xl p-4 border border-white/5">
+                    <div className="text-xs text-[#EF4444] font-medium mb-2">高应变率 (~10⁴/s)</div>
+                    <div className="text-[10px] text-white/50 mb-3">绝热剪切带形成</div>
+                    <svg viewBox="0 0 200 100" className="w-full h-20">
+                      <style>{`@keyframes shearGlow { 0%,100% { opacity: 0.12; } 50% { opacity: 0.55; } }`}</style>
+                      {Array.from({length: 7}).map((_, row) =>
+                        Array.from({length: 10}).map((_, col) => {
+                          const inBand = Math.abs(row - 3 + (col - 5) * 0.3) < 0.8;
+                          const offset = row > 3 ? (row - 3) * 3 : 0;
+                          return <circle key={`h${row}-${col}`} cx={10 + col * 19 + offset} cy={8 + row * 13}
+                            r="2.5" fill={inBand ? '#EF4444' : '#ffffff30'} />;
+                        })
+                      )}
+                      <line x1="25" y1="70" x2="180" y2="28" stroke="#EF4444" strokeWidth="9" style={{ animation: 'shearGlow 0.7s ease-in-out infinite' }} />
+                      <line x1="25" y1="70" x2="180" y2="28" stroke="#EF4444" strokeWidth="1" strokeDasharray="3 2" opacity="0.7" />
+                      <text x="130" y="97" fill="#EF4444" fontSize="8" textAnchor="middle" opacity="0.6">绝热剪切带</text>
+                    </svg>
+                  </div>
+                </div>
+              </GlowCard>
+            </div>
+          </TabsContent>
+
+          {/* ═══════ Tab 4: 对比分析 ═══════ */}
+          <TabsContent value="compare" className="flex-1 overflow-y-auto mt-0 scrollbar-thin">
+            <div className="p-6 space-y-6">
+              {/* 对比模式提示 */}
+              <div className="flex items-center gap-3 bg-[#1DD1A1]/5 border border-[#1DD1A1]/15 rounded-lg p-4">
+                <GitCompareArrows className="w-5 h-5 text-[#1DD1A1] flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-white/80">多材料对比分析</p>
+                  <p className="text-[11px] text-white/40 mt-0.5">
+                    {compareMode
+                      ? `对比模式已开启，已选 ${compareIds.length + 1} 种材料。在左侧点击其他材料添加到对比。`
+                      : '打开左下角「对比模式」开关，然后点击不同材料进行对比。'}
+                  </p>
+                </div>
+                <Switch checked={compareMode} onCheckedChange={v => { setCompareMode(v); if (!v) setCompareIds([]); }} />
+              </div>
+
+              {/* 对比曲线 */}
+              <GlowCard glowColor="#1DD1A1" hoverable={false} className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-[3px] h-5 rounded-full bg-[#1DD1A1]" />
+                  <h2 className="text-base font-bold">应力-应变对比曲线</h2>
+                  {compareMode && compareIds.length > 0 && (
+                    <span className="text-[10px] text-white/30 ml-2">{materialsForChart.length} 种材料</span>
                   )}
-                  {/* Dislocation lines — increased count */}
-                  {[42, 55, 68].map((y, i) => (
-                    <line key={`dl${i}`} x1="0" y1={y} x2="200" y2={y}
-                      stroke="#00F5FF" strokeWidth="0.5" strokeDasharray="4 2" opacity={0.3 + i * 0.1}
-                      style={{ animation: `dislocationLine ${2 + i * 0.4}s linear infinite` }} />
-                  ))}
-                  <text x="100" y="97" fill="#00F5FF" fontSize="8" textAnchor="middle" opacity="0.6">滑移面</text>
-                </svg>
-              </div>
-              <div className="bg-[#0A2540]/60 rounded-xl p-4 border border-white/5">
-                <div className="text-xs text-[#EF4444] font-medium mb-2">高应变率 (~10⁴/s)</div>
-                <div className="text-[10px] text-white/50 mb-3">绝热剪切带形成</div>
-                <svg viewBox="0 0 200 100" className="w-full h-20">
-                  <style>{`
-                    @keyframes shearGlow { 0%,100% { opacity: 0.12; } 50% { opacity: 0.55; } }
-                    @keyframes shearGlow2 { 0%,100% { opacity: 0.08; } 50% { opacity: 0.4; } }
-                    @keyframes shearGlow3 { 0%,100% { opacity: 0.06; } 50% { opacity: 0.3; } }
-                  `}</style>
-                  {Array.from({length: 7}).map((_, row) =>
-                    Array.from({length: 10}).map((_, col) => {
-                      const inBand = Math.abs(row - 3 + (col - 5) * 0.3) < 0.8;
-                      const offset = row > 3 ? (row - 3) * 3 : 0;
-                      return <circle key={`h${row}-${col}`} cx={10 + col * 19 + offset} cy={8 + row * 13}
-                        r="2.5" fill={inBand ? '#EF4444' : '#ffffff30'} />;
-                    })
-                  )}
-                  {/* Primary shear band — faster pulse (0.7s) */}
-                  <line x1="25" y1="70" x2="180" y2="28" stroke="#EF4444" strokeWidth="9"
-                    style={{ animation: 'shearGlow 0.7s ease-in-out infinite' }} />
-                  {/* Secondary shear bands */}
-                  <line x1="15" y1="85" x2="170" y2="43" stroke="#EF4444" strokeWidth="5"
-                    style={{ animation: 'shearGlow2 0.9s ease-in-out infinite' }} />
-                  <line x1="35" y1="58" x2="190" y2="16" stroke="#EF4444" strokeWidth="4"
-                    style={{ animation: 'shearGlow3 1.1s ease-in-out infinite' }} />
-                  <line x1="25" y1="70" x2="180" y2="28" stroke="#EF4444" strokeWidth="1" strokeDasharray="3 2" opacity="0.7" />
-                  <text x="130" y="97" fill="#EF4444" fontSize="8" textAnchor="middle" opacity="0.6">绝热剪切带</text>
-                </svg>
-              </div>
-            </div>
-          </GlowCard>
+                </div>
+                <StressStrainChart
+                  materials={materialsForChart}
+                  highlightId={selectedId}
+                  aiCurve={null}
+                  onReady={chart => { stressChartRef.current = chart; }}
+                />
+              </GlowCard>
 
-          {/* -------- Section 4: Export Bar -------- */}
-          <GlowCard glowColor="#00F5FF" hoverable={false} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Download className="w-4 h-4 text-[#00F5FF]" />
-                <span className="text-sm font-medium">导出数据</span>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={handleExportCSV}
-                  className="border-white/20 text-white/70 hover:text-white hover:bg-white/10 text-xs h-8 gap-1.5">
-                  <FileSpreadsheet className="w-3.5 h-3.5" /> CSV
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleExportJSON}
-                  className="border-white/20 text-white/70 hover:text-white hover:bg-white/10 text-xs h-8 gap-1.5">
-                  <FileJson className="w-3.5 h-3.5" /> JSON
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleExportPNG}
-                  className="border-white/20 text-white/70 hover:text-white hover:bg-white/10 text-xs h-8 gap-1.5">
-                  <ImageDown className="w-3.5 h-3.5" /> PNG
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleExportReport}
-                  className="border-white/20 text-white/70 hover:text-white hover:bg-white/10 text-xs h-8 gap-1.5">
-                  <FileText className="w-3.5 h-3.5" /> 报告
-                </Button>
-              </div>
+              {/* 性能雷达对比 */}
+              <GlowCard glowColor="#8B5CF6" hoverable={false} className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-[3px] h-5 rounded-full bg-[#8B5CF6]" />
+                  <h2 className="text-base font-bold">性能雷达图</h2>
+                </div>
+                <RadarChart values={radar} materialName={selectedMaterial.name} />
+              </GlowCard>
+
+              {/* 关键参数对比表 */}
+              {compareMode && compareIds.length > 0 && (
+                <GlowCard glowColor="#00F5FF" hoverable={false} className="p-5">
+                  <h2 className="text-base font-bold mb-3">关键参数对比</h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-2 text-white/40 font-medium">材料</th>
+                          <th className="text-right py-2 text-white/40 font-medium">密度 (g/cm³)</th>
+                          <th className="text-right py-2 text-white/40 font-medium">弹性模量 (GPa)</th>
+                          <th className="text-right py-2 text-white/40 font-medium">屈服强度 (MPa)</th>
+                          <th className="text-right py-2 text-white/40 font-medium">J-C A</th>
+                          <th className="text-right py-2 text-white/40 font-medium">J-C n</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {materialsForChart.map((mat, i) => {
+                          const mjc = mockJCParams(mat);
+                          return (
+                            <tr key={mat.id} className="border-b border-white/5">
+                              <td className="py-2 font-medium" style={{ color: CHART_COLORS[i % CHART_COLORS.length] }}>{mat.name}</td>
+                              <td className="text-right py-2 text-white/60 font-mono">{(mat.density / 1000).toFixed(2)}</td>
+                              <td className="text-right py-2 text-white/60 font-mono">{(mat.elasticModulus / 1e9).toFixed(1)}</td>
+                              <td className="text-right py-2 text-white/60 font-mono">{(mat.yieldStrength / 1e6).toFixed(0)}</td>
+                              <td className="text-right py-2 text-white/60 font-mono">{mjc.A}</td>
+                              <td className="text-right py-2 text-white/60 font-mono">{mjc.n.toFixed(3)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </GlowCard>
+              )}
             </div>
-          </GlowCard>
-        </div>
+          </TabsContent>
+
+          {/* ═══════ Tab 5: 报告生成 ═══════ */}
+          <TabsContent value="report" className="flex-1 overflow-y-auto mt-0 scrollbar-thin">
+            <ReportGenerationPanel
+              material={selectedMaterial}
+              jcParams={jc}
+              fitR2={r2}
+              strainRate={strainRate}
+              temperature={temperature}
+              aiResult={aiResult}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
       </div>
     </motion.div>
