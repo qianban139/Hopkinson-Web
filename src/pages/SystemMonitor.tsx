@@ -5,7 +5,7 @@ import {
   Thermometer, Radio, Battery, Bell, Settings2,
   CheckCircle2, XCircle, TrendingUp, Clock, Play, Pause,
   Shield, ShieldCheck, ShieldAlert, Loader2, ArrowRight,
-  Cpu, CircleDot
+  Cpu, CircleDot, Wifi, WifiOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppStore } from '@/store/useAppStore';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
+import { useConnectionStore } from '@/store/useConnectionStore';
+import { useBackendConnection } from '@/hooks/useBackendConnection';
 import ModuleConnectionBadge from '@/shared/components/ModuleConnectionBadge';
 import GlowCard from '@/shared/components/GlowCard';
 import * as echarts from 'echarts';
@@ -613,6 +615,12 @@ export default function SystemMonitor() {
   const setMonitorData = useAppStore(s => s.setMonitorData);
   const safetyChecklistCompleted = useExperimentDataBus(s => s.safetyChecklistCompleted);
 
+  // Phase 3: 后端连接
+  const { status: backendStatus, connect: connectBackend, disconnect: disconnectBackend } = useBackendConnection();
+  const backendVersion = useConnectionStore(s => s.backendVersion);
+  const backendDevices = useConnectionStore(s => s.devices);
+  const isBackendConnected = backendStatus === 'connected';
+
   const [isMonitoring, setIsMonitoring] = useState(true);
   const [targetValues, setTargetValues] = useState({ voltage: 2000, current: 25000, capacitance: 85, temperature: 45, emi: 72 });
   const [trendData, setTrendData] = useState<{ time: string; voltage: number; current: number; temp: number }[]>([]);
@@ -738,9 +746,9 @@ export default function SystemMonitor() {
     };
   }, []);
 
-  // 数据生成
+  // 数据生成 — 后端连接时跳过本地模拟（数据由 WS 注入 appStore）
   useEffect(() => {
-    if (!isMonitoring) return;
+    if (!isMonitoring || isBackendConnected) return;
     const interval = setInterval(() => {
       setTargetValues(prev => ({
         voltage: generateStableValue(prev.voltage, 2000, 150),
@@ -751,7 +759,20 @@ export default function SystemMonitor() {
       }));
     }, 2000);
     return () => clearInterval(interval);
-  }, [isMonitoring, generateStableValue]);
+  }, [isMonitoring, isBackendConnected, generateStableValue]);
+
+  // 后端连接时，从 appStore.monitorData 同步到 targetValues
+  const monitorData = useAppStore(s => s.monitorData);
+  useEffect(() => {
+    if (!isBackendConnected) return;
+    setTargetValues({
+      voltage: monitorData.voltage,
+      current: monitorData.current,
+      capacitance: monitorData.capacitance ?? 85,
+      temperature: monitorData.temperature,
+      emi: monitorData.emi,
+    });
+  }, [isBackendConnected, monitorData]);
 
   // 趋势数据收集 (30秒滚动窗口)
   useEffect(() => {
@@ -841,7 +862,6 @@ export default function SystemMonitor() {
           dataTo={[{ module: '虚拟实验室', path: '/lab', hasData: safetyChecklistCompleted }]}
           dataFrom={[
             { module: '虚拟实验室', path: '/lab' },
-            { module: '多场耦合', path: '/multifield' },
           ]}
         />
       </div>
@@ -988,6 +1008,26 @@ export default function SystemMonitor() {
               </Badge>
             </div>
             <div className="flex items-center gap-3">
+              {/* Phase 3: 后端连接按钮 */}
+              <Button
+                onClick={() => isBackendConnected ? disconnectBackend() : connectBackend()}
+                variant="outline"
+                className={`border-white/20 text-white/70 ${HOVER_CLASS} ${
+                  isBackendConnected ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400' :
+                  backendStatus === 'connecting' || backendStatus === 'reconnecting' ? 'border-yellow-500/30 text-yellow-400' : ''
+                }`}
+              >
+                {isBackendConnected ? (
+                  <><Wifi className="w-4 h-4 mr-1" />已连接{backendVersion ? ` v${backendVersion}` : ''}</>
+                ) : backendStatus === 'connecting' ? (
+                  <><Loader2 className="w-4 h-4 mr-1 animate-spin" />连接中...</>
+                ) : backendStatus === 'reconnecting' ? (
+                  <><Loader2 className="w-4 h-4 mr-1 animate-spin" />重连中...</>
+                ) : (
+                  <><WifiOff className="w-4 h-4 mr-1" />连接后端</>
+                )}
+              </Button>
+
               <Button
                 onClick={() => setIsMonitoring(!isMonitoring)}
                 variant="outline"
@@ -1124,7 +1164,20 @@ export default function SystemMonitor() {
 
             {/* 设备状态矩阵 + 操作日志时间线 */}
             <div className="grid grid-cols-2 gap-4">
-              <DeviceStatusMatrix devices={deviceStatuses} />
+              <DeviceStatusMatrix devices={
+                isBackendConnected
+                  ? [
+                      // 后端真实设备优先
+                      ...backendDevices.map(d => ({
+                        name: `${d.name}`,
+                        online: d.status === 'online' || d.status === 'busy',
+                        lastSeen: new Date(d.lastHeartbeat).toLocaleTimeString('zh-CN'),
+                      })),
+                      // 加上模拟的本地设备
+                      ...deviceStatuses.filter(d => !backendDevices.some(bd => bd.name.includes(d.name))),
+                    ]
+                  : deviceStatuses
+              } />
               <OperationLogTimeline logs={operationLogs} />
             </div>
           </div>
