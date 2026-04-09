@@ -10,7 +10,7 @@
 
 - **平台定位**：真实设备 + 真实数据 + AI 智能 + 教学/科研双用途
 - **技术栈**：React 19 + TypeScript 5.9 (strict) + Vite 7
-- **当前版本**：0.9.0
+- **当前版本**：1.0.0
 - **生产环境**：https://hopkinson-bar.vercel.app
 
 ## 关键文件路径

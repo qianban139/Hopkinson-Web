@@ -7,6 +7,41 @@
 
 ---
 
+## [1.0.0] - 2026-04-09
+
+### 新增（RAG 知识增强 + 知识图谱 · Phase 5）
+
+- **RAG 文献检索子系统** (`src/services/rag/`)
+  - `types.ts` — 文献、嵌入文档、检索结果、引用、实验记忆类型定义
+  - `embedding.ts` — 中文分词 + TF-IDF 向量化 + 余弦相似度
+  - `vectorStore.ts` — 内存向量数据库，支持 top-K 检索
+  - `retrievalEngine.ts` — 检索 → 引用构建 → LLM 提示上下文生成
+  - `experimentMemory.ts` — 跨实验记忆持久化（localStorage），相似实验召回
+- **文献语料库** (`src/data/literature.ts`)
+  - 28 篇精选 SHPB 与材料动态力学领域文献
+  - 覆盖 6 大类：SHPB 理论 / 本构模型 / 材料科学 / 信号处理 / 实验方法 / 数值仿真
+- **AI 助手 RAG 模式集成**
+  - `useAIOrchestrator` 在 LLM 调用前自动检索相关文献，注入增强上下文
+  - LLM 回复后自动提取 `[1][2]` 引用编号，展示引用文献卡片
+  - 无 LLM 配置时，RAG 结果作为补充附在本地知识库回答后
+  - 📚 RAG 模式切换按钮（默认开启）
+- **文献知识图谱** (`LiteratureKnowledgeGraph.tsx`)
+  - Canvas 力导向布局，展示主题 → 文献 → 材料的关联网络
+  - 节点可拖拽，悬停显示文献详情，点击跳转详情视图
+  - 6 色分类图例 + 材料节点标注
+- **文献库浏览面板** (`LiteraturePanel.tsx`)
+  - 侧边滑出面板，分类浏览 / 关键词搜索 / 文献详情
+  - 列表视图与知识图谱视图双模切换
+  - 「引用到对话」一键注入 AI 对话
+  - AICommandCenter 头部新增 📖 文献库按钮
+
+### 变更
+
+- `package.json` 版本号 0.9.0 → 1.0.0（首个功能完整里程碑）
+- `CLAUDE.md` 版本号同步更新
+
+---
+
 ## [0.9.0] - 2026-04-09
 
 ### 新增（信号处理 + 本构拟合 + 报告生成 · Phase 4）
@@ -292,6 +327,7 @@
 
 ---
 
+[1.0.0]: https://github.com/qianban139/Hopkinson-Web/releases/tag/v1.0.0
 [0.9.0]: https://github.com/qianban139/Hopkinson-Web/releases/tag/v0.9.0
 [0.8.0]: https://github.com/qianban139/Hopkinson-Web/releases/tag/v0.8.0
 [0.7.0]: https://github.com/qianban139/Hopkinson-Web/releases/tag/v0.7.0
