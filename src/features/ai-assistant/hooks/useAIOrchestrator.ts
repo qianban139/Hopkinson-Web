@@ -10,6 +10,8 @@ import { chatWithLLM, chatWithLLMStream, isLLMConfigured } from '@/services/llmS
 import type { LLMTool } from '@/services/llmService';
 import { getLLMTools } from '../services/aiIntentParser';
 import { addExperimentMemory, setPreference, getRecentExperiments } from '../services/memoryService';
+import { runOrchestrator } from '../agent';
+import type { AgentThought, AgentRole } from '../agent/types';
 import type { AIOperation, OrbState, LLMFunctionCall, AIHighlightTarget } from '../types';
 
 // ═══════════════════════════════════════════════
@@ -91,9 +93,18 @@ interface UseAIOrchestratorReturn {
   operations: AIOperation[];
   currentHighlight: AIHighlightTarget | null;
   isProcessing: boolean;
+  /** Agent 推理链（最近一次 Agent 模式调用产生的思考步骤） */
+  lastThoughts: AgentThought[];
+  /** 最近一次激活的 Agent 角色 */
+  lastAgentRole: AgentRole | null;
 
   // 操作
-  processUserInput: (text: string, onStreamChunk?: (chunk: string, accumulated: string) => void, imageBase64?: string) => Promise<string>;
+  processUserInput: (
+    text: string,
+    onStreamChunk?: (chunk: string, accumulated: string) => void,
+    imageBase64?: string,
+    options?: { useAgentMode?: boolean; forceRole?: AgentRole },
+  ) => Promise<string>;
   clearOperations: () => void;
   cancelOperation: () => void;
 }
@@ -103,6 +114,8 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
   const [operations, setOperations] = useState<AIOperation[]>([]);
   const [currentHighlight, setCurrentHighlight] = useState<AIHighlightTarget | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lastThoughts, setLastThoughts] = useState<AgentThought[]>([]);
+  const [lastAgentRole, setLastAgentRole] = useState<AgentRole | null>(null);
   const cancelledRef = useRef(false);
 
   // 实验引导对话流
@@ -350,12 +363,45 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
 
   // 处理用户输入（核心方法）
   const processUserInput = useCallback(
-    async (text: string, onStreamChunk?: (chunk: string, accumulated: string) => void, imageBase64?: string): Promise<string> => {
+    async (
+      text: string,
+      onStreamChunk?: (chunk: string, accumulated: string) => void,
+      imageBase64?: string,
+      options?: { useAgentMode?: boolean; forceRole?: AgentRole },
+    ): Promise<string> => {
       if (!text.trim() && !imageBase64) return '';
 
       setIsProcessing(true);
       cancelledRef.current = false;
       conversationManager.addUserMessage(text);
+
+      // Agent 深度模式：跳过快速通道，走多步推理
+      if (options?.useAgentMode) {
+        try {
+          setOrbState('thinking');
+          setLastThoughts([]);
+          const result = await runOrchestrator({
+            userInput: text,
+            imageBase64,
+            forceRole: options.forceRole,
+            onThought: (t) => {
+              setLastThoughts((prev) => [...prev, t]);
+              onStreamChunk?.('', `${t.content}\n`);
+            },
+          });
+          setLastAgentRole(result.agentRole);
+          conversationManager.addAssistantMessage(result.response);
+          setOrbState('idle');
+          setIsProcessing(false);
+          return result.response;
+        } catch (err) {
+          setOrbState('error');
+          const errorMsg = `Agent 模式异常：${err instanceof Error ? err.message : '未知错误'}`;
+          setIsProcessing(false);
+          setTimeout(() => setOrbState('idle'), 2000);
+          return errorMsg;
+        }
+      }
 
       try {
         // Step 0: 实验引导对话流
@@ -571,6 +617,8 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
     operations,
     currentHighlight,
     isProcessing,
+    lastThoughts,
+    lastAgentRole,
     processUserInput,
     clearOperations,
     cancelOperation,

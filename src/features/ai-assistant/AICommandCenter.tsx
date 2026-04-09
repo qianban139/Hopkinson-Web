@@ -21,6 +21,8 @@ import AIFloatingOrb from './AIFloatingOrb';
 import { sounds } from './utils/soundEffects';
 import { conversationManager } from './services/aiConversationManager';
 import MarkdownMessage from './MarkdownMessage';
+import AIReasoningChain from './AIReasoningChain';
+import { AGENT_REGISTRY } from './agent';
 import { getProactiveSuggestions, type ProactiveSuggestion } from './services/proactiveAssistant';
 import { t, getLocale, setLocale, getAvailableLocales, type Locale } from './services/i18n';
 import { getCurrentUser, getAllUsers, createUser, switchUser, type UserProfile } from './services/collaborationService';
@@ -56,15 +58,8 @@ function getContextualCommands(currentPage: string) {
     lab: [
       { label: '开始实验', icon: Zap, command: '帮我开始一个实验' },
       { label: '快速实验', icon: Zap, command: '用默认参数开始实验' },
-      { label: 'AI推荐参数', icon: Brain, command: '帮我推荐最优参数' },
-    ],
-    ai: [
-      { label: 'AI优化', icon: Brain, command: '启动AI优化' },
-      { label: '查看结果', icon: BarChart3, command: '分析优化结果' },
-    ],
-    multifield: [
-      { label: '选择场景', icon: Zap, command: '帮我选择一个耦合场景' },
-      { label: '执行耦合', icon: Brain, command: '执行多场耦合分析' },
+      { label: 'AI三级优化', icon: Brain, command: '启动AI三级优化' },
+      { label: '多场耦合', icon: Zap, command: '开启多场耦合' },
     ],
     analysis: [
       { label: 'AI预测', icon: Brain, command: '运行AI预测' },
@@ -229,9 +224,16 @@ export default function AICommandCenter() {
     operations,
     currentHighlight,
     isProcessing,
+    lastThoughts,
+    lastAgentRole,
     processUserInput,
     clearOperations,
   } = useAIOrchestrator();
+
+  // Phase 2: 深度模式（Agent 多步推理） - 按消息附带推理链
+  const [agentMode, setAgentMode] = useState(false);
+  const agentModeRef = useRef(agentMode);
+  useEffect(() => { agentModeRef.current = agentMode; }, [agentMode]);
 
   // Rotate filler phrases during processing
   useEffect(() => {
@@ -386,7 +388,7 @@ export default function AICommandCenter() {
           m.id === aiMsgId ? { ...m, text: accumulated } : m
         ));
       }
-    }, currentImage || undefined);
+    }, currentImage || undefined, agentModeRef.current ? { useAgentMode: true } : undefined);
 
     setStreamingMsgId(null);
 
@@ -420,6 +422,20 @@ export default function AICommandCenter() {
       }
     }
   }, [isProcessing, processUserInput, speak, cancelSpeech, showVoiceToast, isPanelOpen, pendingImage]);
+
+  // 监听跨页面 AI 建议条触发的命令
+  useEffect(() => {
+    const onSuggestion = (e: Event) => {
+      const ce = e as CustomEvent<{ command: string }>;
+      if (ce.detail?.command) {
+        // 自动展开面板，让用户看到执行过程
+        setIsPanelOpen(true);
+        handleCommand(ce.detail.command);
+      }
+    };
+    window.addEventListener('ai-suggestion-trigger', onSuggestion);
+    return () => window.removeEventListener('ai-suggestion-trigger', onSuggestion);
+  }, [handleCommand]);
 
   // ═══ 后台唤醒词监听（"小爱同学"模式） ═══
   const { flowState, interimText: wakeInterimText } = useWakeWordListener({
@@ -890,6 +906,15 @@ export default function AICommandCenter() {
                 </div>
               ))}
 
+              {/* Phase 2: Agent 推理链可视化 */}
+              {lastThoughts.length > 0 && lastAgentRole && (
+                <AIReasoningChain
+                  thoughts={lastThoughts}
+                  defaultExpanded={isProcessing}
+                  accentColor={AGENT_REGISTRY[lastAgentRole].color}
+                />
+              )}
+
               {isProcessing && !streamingMsgId && (
                 <div className="flex justify-start">
                   <div className="bg-white/5 rounded-2xl rounded-bl-md px-4 py-3 border border-white/5">
@@ -900,7 +925,7 @@ export default function AICommandCenter() {
                         <div className="w-1.5 h-1.5 rounded-full bg-[#00F5FF] animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                       <span className="text-xs text-[#00F5FF]/60">
-                        {orbState === 'executing' ? '执行操作中...' : fillerPhrases.current[fillerIndex]}
+                        {agentMode ? '🤖 Agent 推理中...' : (orbState === 'executing' ? '执行操作中...' : fillerPhrases.current[fillerIndex])}
                       </span>
                     </div>
                   </div>
@@ -1042,6 +1067,20 @@ export default function AICommandCenter() {
                   title="上传图片"
                 >
                   <ImagePlus className="w-4 h-4" />
+                </button>
+
+                {/* Phase 2: 深度模式（Agent 多步推理）切换 */}
+                <button
+                  onClick={() => setAgentMode((v) => !v)}
+                  disabled={isProcessing}
+                  className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-30 ${
+                    agentMode
+                      ? 'bg-gradient-to-br from-[#A78BFA] to-[#00F5FF] text-white shadow-[0_0_12px_rgba(167,139,250,0.5)]'
+                      : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
+                  }`}
+                  title={agentMode ? '深度模式（Agent 多步推理） · 点击关闭' : '开启深度模式 · 多 Agent 协作推理'}
+                >
+                  <Brain className="w-4 h-4" />
                 </button>
                 <input
                   ref={imageInputRef}
