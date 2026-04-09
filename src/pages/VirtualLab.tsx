@@ -1386,12 +1386,7 @@ export default function VirtualLab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: 'url(/background.png)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      }}
+                      className="absolute inset-0 bg-gradient-to-b from-[#0A2540] to-[#051020]"
                       onContextMenu={(e) => e.preventDefault()}
                     >
                       {/* 伪装视频 — 所有交互被屏蔽 */}
