@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 
 // 实验4阶段定义 (适配 3D 实验视频)
 export type ExperimentStage =
@@ -19,12 +19,13 @@ export interface StageConfig {
   description: string;
 }
 
-// 默认阶段配置 — 与 3D 实验视频片段对应，总时长 12000ms 匹配视频长度
+// 默认阶段配置 — 与 3D 实验视频片段对应
+// 总时长 18000ms：给波形绘制与数据采集留足可视化时间
 export const STAGE_CONFIGS: StageConfig[] = [
   { stage: 'confiningPressure', label: '试样变换围压', duration: 3000, description: '试样装入并调节围压条件' },
-  { stage: 'charging',          label: '电容充电',     duration: 3000, description: '电容组储能充电，电压递增至目标值' },
-  { stage: 'strikerLaunch',     label: '子弹发射',     duration: 4000, description: '电磁驱动子弹加速并撞击试样，应力波传播' },
-  { stage: 'dataCollect',       label: '数据采集',     duration: 2000, description: '应变片采集三波信号并实时分析' },
+  { stage: 'charging',          label: '电容充电',     duration: 3500, description: '电容组储能充电，电压递增至目标值' },
+  { stage: 'strikerLaunch',     label: '子弹发射',     duration: 7500, description: '电磁驱动子弹加速并撞击试样，应力波在杆中传播' },
+  { stage: 'dataCollect',       label: '数据采集',     duration: 4000, description: '应变片采集三波信号并实时分析' },
 ];
 
 export interface AnimationState {
@@ -53,7 +54,16 @@ export interface UseExperimentAnimationReturn extends AnimationState {
   stages: StageConfig[];
 }
 
-export function useExperimentAnimation(): UseExperimentAnimationReturn {
+export interface UseExperimentAnimationOptions {
+  /** 覆盖总时长（毫秒）。提供时所有阶段会按比例缩放以匹配此总时长 */
+  totalDurationMs?: number;
+}
+
+export function useExperimentAnimation(
+  options: UseExperimentAnimationOptions = {}
+): UseExperimentAnimationReturn {
+  const { totalDurationMs } = options;
+
   const [state, setState] = useState<AnimationState>({
     currentStage: 'idle',
     stageIndex: -1,
@@ -68,7 +78,20 @@ export function useExperimentAnimation(): UseExperimentAnimationReturn {
   const startTimeRef = useRef<number>(0);
   const pausedAtRef = useRef<number>(0);
 
-  const totalDuration = STAGE_CONFIGS.reduce((sum, s) => sum + s.duration, 0);
+  // 根据 totalDurationMs 按比例缩放阶段配置
+  const stageConfigs = useMemo(() => {
+    if (!totalDurationMs || !isFinite(totalDurationMs) || totalDurationMs <= 0) {
+      return STAGE_CONFIGS;
+    }
+    const baseTotal = STAGE_CONFIGS.reduce((s, c) => s + c.duration, 0);
+    const scale = totalDurationMs / baseTotal;
+    return STAGE_CONFIGS.map(c => ({ ...c, duration: c.duration * scale }));
+  }, [totalDurationMs]);
+
+  const totalDuration = useMemo(
+    () => stageConfigs.reduce((sum, s) => sum + s.duration, 0),
+    [stageConfigs],
+  );
 
   // 根据已过时间计算当前状态
   const computeState = useCallback((elapsed: number): Omit<AnimationState, 'isPlaying'> => {
@@ -77,13 +100,13 @@ export function useExperimentAnimation(): UseExperimentAnimationReturn {
     }
 
     if (elapsed >= totalDuration) {
-      const last = STAGE_CONFIGS[STAGE_CONFIGS.length - 1];
-      return { currentStage: last.stage, stageIndex: STAGE_CONFIGS.length - 1, stageProgress: 1, globalProgress: 1, isComplete: true, elapsedTime: totalDuration };
+      const last = stageConfigs[stageConfigs.length - 1];
+      return { currentStage: last.stage, stageIndex: stageConfigs.length - 1, stageProgress: 1, globalProgress: 1, isComplete: true, elapsedTime: totalDuration };
     }
 
     let accumulated = 0;
-    for (let i = 0; i < STAGE_CONFIGS.length; i++) {
-      const config = STAGE_CONFIGS[i];
+    for (let i = 0; i < stageConfigs.length; i++) {
+      const config = stageConfigs[i];
       if (elapsed < accumulated + config.duration) {
         const stageElapsed = elapsed - accumulated;
         return {
@@ -99,7 +122,7 @@ export function useExperimentAnimation(): UseExperimentAnimationReturn {
     }
 
     return { currentStage: 'idle', stageIndex: -1, stageProgress: 0, globalProgress: 0, isComplete: false, elapsedTime: 0 };
-  }, [totalDuration]);
+  }, [totalDuration, stageConfigs]);
 
   // 动画帧循环
   const tick = useCallback((timestamp: number) => {
@@ -150,17 +173,17 @@ export function useExperimentAnimation(): UseExperimentAnimationReturn {
   // 跳转到指定阶段
   const jumpToStage = useCallback((index: number) => {
     cancelAnimationFrame(rafRef.current);
-    const clampedIndex = Math.max(0, Math.min(index, STAGE_CONFIGS.length - 1));
+    const clampedIndex = Math.max(0, Math.min(index, stageConfigs.length - 1));
 
     let elapsed = 0;
     for (let i = 0; i < clampedIndex; i++) {
-      elapsed += STAGE_CONFIGS[i].duration;
+      elapsed += stageConfigs[i].duration;
     }
 
     pausedAtRef.current = elapsed;
     const computed = computeState(elapsed);
     setState(prev => ({ ...prev, ...computed, isPlaying: false }));
-  }, [computeState]);
+  }, [computeState, stageConfigs]);
 
   // 清理
   useEffect(() => {
@@ -174,6 +197,6 @@ export function useExperimentAnimation(): UseExperimentAnimationReturn {
     reset,
     jumpToStage,
     totalDuration,
-    stages: STAGE_CONFIGS,
+    stages: stageConfigs,
   };
 }

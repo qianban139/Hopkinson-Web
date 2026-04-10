@@ -195,8 +195,10 @@ function ExperimentResultsSection() {
 }
 
 export default function VirtualLab() {
-  const [viewMode, setViewMode] = useState<'2d' | '3d' | '3d-exp'>('2d');
+  const [viewMode, setViewMode] = useState<'2d' | '3d' | '3d-exp'>('3d-exp');
   const videoRef = useRef<HTMLVideoElement>(null);
+  // 视频时长 — 用于适配实验流程的总时长
+  const [videoDurationMs, setVideoDurationMs] = useState<number | undefined>(undefined);
   const [isAnimationPlaying] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   // 参数状态: 本地管理 + 响应AI store变更
@@ -285,8 +287,8 @@ export default function VirtualLab() {
     return () => window.removeEventListener('ai-set-view-mode', handler);
   }, []);
 
-  // 动画状态(用于波形面板)
-  const animState = useExperimentAnimation();
+  // 动画状态(用于波形面板) — 实验时长自适应 3D 视频时长
+  const animState = useExperimentAnimation({ totalDurationMs: videoDurationMs });
 
   // 计算参数
   const capacitance = (voltage * voltage * 0.000003);
@@ -424,14 +426,16 @@ export default function VirtualLab() {
     if (!video || viewMode !== '3d-exp') return;
 
     if (animState.isPlaying) {
+      // 视频已自然播完则停在最后一帧（实验可能比视频更长）
+      if (video.ended) return;
       if (video.paused) {
-        if (video.ended || animState.stageIndex === -1) {
+        if (animState.stageIndex === -1) {
           video.currentTime = 0;
         }
         video.play().catch(() => {});
       }
     } else if (!animState.isComplete) {
-      // 只在用户主动暂停时暂停视频（实验完成不强制暂停，让视频自然播完）
+      // 仅在用户主动暂停时暂停视频；实验完成时不强制暂停
       if (!video.paused) video.pause();
     }
   }, [animState.isPlaying, animState.isComplete, animState.stageIndex, viewMode]);
@@ -1394,6 +1398,13 @@ export default function VirtualLab() {
                         muted
                         playsInline
                         preload="auto"
+                        onLoadedMetadata={() => {
+                          const v = videoRef.current;
+                          if (v && isFinite(v.duration) && v.duration > 0) {
+                            // 实验流程时长跟随视频时长动态缩放
+                            setVideoDurationMs(v.duration * 1000);
+                          }
+                        }}
                         className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                         style={{ outline: 'none' }}
                       />
