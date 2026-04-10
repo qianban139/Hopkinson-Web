@@ -219,34 +219,12 @@ function commonTooltip(valueFormatter?: (v: number) => string): echarts.EChartsO
 }
 
 function commonToolbox(): echarts.EChartsOption['toolbox'] {
-  return {
-    show: true,
-    right: 12,
-    top: 4,
-    iconStyle: { borderColor: 'rgba(0,245,255,0.6)' },
-    emphasis: { iconStyle: { borderColor: '#00F5FF' } },
-    feature: {
-      dataZoom: { yAxisIndex: 'none', title: { zoom: '框选缩放', back: '还原' } },
-      restore: { title: '重置' },
-      saveAsImage: { title: '保存', backgroundColor: '#051020', pixelRatio: 2 },
-    },
-  };
+  return { show: false };
 }
 
 function commonDataZoom(): echarts.EChartsOption['dataZoom'] {
   return [
     { type: 'inside', xAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true },
-    {
-      type: 'slider',
-      xAxisIndex: 0,
-      height: 14,
-      bottom: 8,
-      backgroundColor: 'rgba(0,245,255,0.03)',
-      borderColor: 'rgba(0,245,255,0.2)',
-      fillerColor: 'rgba(0,245,255,0.15)',
-      handleStyle: { color: '#00F5FF', borderColor: '#00F5FF' },
-      textStyle: { color: 'rgba(255,255,255,0.4)', fontSize: 9 },
-    },
   ];
 }
 
@@ -276,24 +254,24 @@ function createChartOption(
     animationEasing: 'cubicOut',
     title: {
       text: title,
-      textStyle: { color: '#00F5FF', fontSize: 13, fontWeight: 'bold' },
-      left: 14,
-      top: 6,
+      textStyle: { color: '#00F5FF', fontSize: 11, fontWeight: 'bold' },
+      left: 10,
+      top: 2,
     },
     grid: {
-      left: 64,
-      right: 20,
-      top: 48,
-      bottom: zoomable ? 68 : 40,
+      left: 52,
+      right: 14,
+      top: 28,
+      bottom: 28,
       containLabel: false,
     },
     legend: {
       data: series.map(s => s.name),
-      textStyle: { color: LABEL_COLOR, fontSize: 10 },
-      top: 8,
+      textStyle: { color: LABEL_COLOR, fontSize: 9 },
+      top: 2,
       right: 50,
-      itemWidth: 14,
-      itemHeight: 8,
+      itemWidth: 10,
+      itemHeight: 6,
       icon: 'roundRect',
     },
     tooltip: commonTooltip(tooltipFmt),
@@ -306,7 +284,7 @@ function createChartOption(
       axisTick: { lineStyle: { color: AXIS_COLOR } },
       axisLabel: {
         color: LABEL_COLOR,
-        fontSize: 10,
+        fontSize: 9,
         formatter: (v: string | number) => {
           const n = typeof v === 'number' ? v : parseFloat(v);
           if (isNaN(n)) return String(v);
@@ -315,8 +293,8 @@ function createChartOption(
       },
       name: xUnit ? `${xName} / ${xUnit}` : xName,
       nameLocation: 'middle',
-      nameGap: zoomable ? 38 : 26,
-      nameTextStyle: { color: LABEL_COLOR, fontSize: 10 },
+      nameGap: 16,
+      nameTextStyle: { color: LABEL_COLOR, fontSize: 9 },
       splitLine: { show: false },
     },
     yAxis: {
@@ -326,7 +304,7 @@ function createChartOption(
       axisTick: { lineStyle: { color: AXIS_COLOR } },
       axisLabel: {
         color: LABEL_COLOR,
-        fontSize: 10,
+        fontSize: 9,
         formatter: (v: number) => {
           if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k';
           if (Math.abs(v) < 0.01 && v !== 0) return v.toExponential(1);
@@ -335,8 +313,8 @@ function createChartOption(
       },
       name: yUnit ? `${yName} / ${yUnit}` : yName,
       nameLocation: 'middle',
-      nameGap: 45,
-      nameTextStyle: { color: LABEL_COLOR, fontSize: 10 },
+      nameGap: 34,
+      nameTextStyle: { color: LABEL_COLOR, fontSize: 9 },
       splitLine: { lineStyle: { color: SPLIT_COLOR } },
     },
     series: series.map(s => ({
@@ -363,8 +341,7 @@ function createChartOption(
       markPoint: s.markPointMax
         ? {
             symbol: 'pin',
-            symbolSize: 36,
-            symbolOffset: [0, '-40%'],
+            symbolSize: 30,
             itemStyle: { color: s.color, borderColor: '#fff', borderWidth: 1 },
             label: {
               color: '#fff',
@@ -537,9 +514,9 @@ export default function ExperimentResultCharts({
   const absorbedRatio = peakEnergy > 0 ? (Math.max(...data.absE) / peakEnergy) * 100 : 0;
 
   return (
-    <div className={className}>
+    <div className={`flex flex-col h-full ${className}`}>
       {/* KPI 统计条 */}
-      <div className="grid grid-cols-6 gap-2 px-3 py-2 bg-gradient-to-r from-[#051020]/80 via-[#0A2540]/60 to-[#051020]/80 border-b border-[#00F5FF]/20">
+      <div className="grid grid-cols-6 gap-1.5 px-2 py-1 bg-gradient-to-r from-[#051020]/80 via-[#0A2540]/60 to-[#051020]/80 border-b border-[#00F5FF]/20 flex-shrink-0">
         <KpiCard label="峰值应力" value={peakStress.toFixed(1)} unit="MPa" color="#00F5FF" />
         <KpiCard label="峰值应变率" value={peakStrainRate >= 1000 ? (peakStrainRate / 1000).toFixed(2) + 'k' : peakStrainRate.toFixed(0)} unit="s⁻¹" color="#FFD700" />
         <KpiCard label="最大应变" value={(peakStrain * 100).toFixed(2)} unit="%" color="#A855F7" />
@@ -548,13 +525,13 @@ export default function ExperimentResultCharts({
         <KpiCard label="反射系数" value={data.Rc.toFixed(3)} unit="" color="#EF4444" />
       </div>
 
-      {/* 6 图网格 */}
-      <div className="grid grid-cols-2 gap-[1px] bg-[#00F5FF]/10">
+      {/* 6 图网格 — 3行2列，自适应填满剩余高度，pb-7 为底部监控条留空间 */}
+      <div className="grid grid-cols-2 grid-rows-3 gap-[1px] bg-[#00F5FF]/10 flex-1 min-h-0 pb-7">
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
             ref={el => { chartRefs.current[i] = el; }}
-            className="w-full h-[280px] bg-gradient-to-br from-[#051020] to-[#0A2540]"
+            className="w-full h-full min-h-0 bg-gradient-to-br from-[#051020] to-[#0A2540]"
           />
         ))}
       </div>

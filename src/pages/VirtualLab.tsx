@@ -311,8 +311,6 @@ export default function VirtualLab() {
       setSafetyWarning(true);
       return;
     }
-    // 开始实验时自动收起侧栏，让可视化区域最大化
-    setSidebarCollapsed(true);
     animState.play();
   }, [safetyChecklistCompleted, animState]);
 
@@ -1646,7 +1644,7 @@ export default function VirtualLab() {
 
           {/* 实验完成后展示6图结果 */}
           {animState.isComplete && (
-            <div className={`bg-[#051020] relative z-10 ${resultsPanelOpen ? 'flex-1 flex flex-col min-h-0 overflow-auto' : 'hidden'}`}>
+            <div className={`bg-[#051020] relative z-10 ${resultsPanelOpen ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : 'hidden'}`}>
               {/* 结果面板顶部栏 — 收起按钮 */}
               <button
                 onClick={() => setResultsPanelOpen(false)}
@@ -1671,6 +1669,7 @@ export default function VirtualLab() {
                     peakStress={sim?.peakStress ?? voltage * 0.025}
                     strainRate={sim?.strainRate ?? 2500}
                     material={selectedMaterial}
+                    className="flex-1 min-h-0"
                   />
                 );
               })()}
