@@ -21,6 +21,7 @@ interface ExperimentProcess2DProps {
 // 阶段颜色
 const STAGE_COLORS: Record<ExperimentStage, string> = {
   idle: '#666',
+  specimenChange: '#F97316',
   confiningPressure: '#A855F7',
   charging: '#FFD700',
   strikerLaunch: '#00F5FF',

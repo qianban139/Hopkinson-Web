@@ -416,6 +416,22 @@ export function useAIOrchestrator(): UseAIOrchestratorReturn {
         // Step 0: 实验引导对话流
         const flow = experimentFlowRef.current;
 
+        // 0-快速: 检测"默认/快速开始实验"意图 → 直接用当前参数启动
+        if (flow.step === 'idle' && /(?:默认|快速).*(?:实验|测试|开始)|用默认参数/.test(text)) {
+          setOrbState('executing');
+          const result = await executeAction('lab.startExperiment', {});
+          setOrbState('idle');
+          const store = useAppStore.getState();
+          const matName = store.selectedMaterial?.name || '默认材料';
+          const v = store.experimentParams.voltage;
+          const response = result.success
+            ? `快速实验已启动 ⚡\n- 材料: ${matName}\n- 电压: ${v}V\n- 电流: ${(store.experimentParams.current / 1000).toFixed(1)}kA\n- 脉宽: ${store.experimentParams.pulseWidth}μs`
+            : result.message;
+          conversationManager.addAssistantMessage(response);
+          setIsProcessing(false);
+          return response;
+        }
+
         // 0a: 检测"开始实验"意图 → 进入引导流程（智能提取已有参数）
         if (flow.step === 'idle' && isStartExperimentIntent(text)) {
           const store = useAppStore.getState();

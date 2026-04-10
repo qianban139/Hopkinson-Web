@@ -235,11 +235,12 @@ function commonToolbox(): echarts.EChartsOption['toolbox'] {
 
 function commonDataZoom(): echarts.EChartsOption['dataZoom'] {
   return [
-    { type: 'inside', throttle: 50 },
+    { type: 'inside', xAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true },
     {
       type: 'slider',
+      xAxisIndex: 0,
       height: 14,
-      bottom: 22,
+      bottom: 8,
       backgroundColor: 'rgba(0,245,255,0.03)',
       borderColor: 'rgba(0,245,255,0.2)',
       fillerColor: 'rgba(0,245,255,0.15)',
@@ -277,12 +278,12 @@ function createChartOption(
       text: title,
       textStyle: { color: '#00F5FF', fontSize: 13, fontWeight: 'bold' },
       left: 14,
-      top: 8,
+      top: 6,
     },
     grid: {
       left: 64,
       right: 20,
-      top: 42,
+      top: 48,
       bottom: zoomable ? 68 : 40,
       containLabel: false,
     },
@@ -314,7 +315,7 @@ function createChartOption(
       },
       name: xUnit ? `${xName} / ${xUnit}` : xName,
       nameLocation: 'middle',
-      nameGap: 26,
+      nameGap: zoomable ? 38 : 26,
       nameTextStyle: { color: LABEL_COLOR, fontSize: 10 },
       splitLine: { show: false },
     },
@@ -333,8 +334,8 @@ function createChartOption(
         },
       },
       name: yUnit ? `${yName} / ${yUnit}` : yName,
-      nameLocation: 'end',
-      nameGap: 12,
+      nameLocation: 'middle',
+      nameGap: 45,
       nameTextStyle: { color: LABEL_COLOR, fontSize: 10 },
       splitLine: { lineStyle: { color: SPLIT_COLOR } },
     },
@@ -362,7 +363,8 @@ function createChartOption(
       markPoint: s.markPointMax
         ? {
             symbol: 'pin',
-            symbolSize: 44,
+            symbolSize: 36,
+            symbolOffset: [0, '-40%'],
             itemStyle: { color: s.color, borderColor: '#fff', borderWidth: 1 },
             label: {
               color: '#fff',
@@ -552,7 +554,7 @@ export default function ExperimentResultCharts({
           <div
             key={i}
             ref={el => { chartRefs.current[i] = el; }}
-            className="w-full h-[260px] bg-gradient-to-br from-[#051020] to-[#0A2540]"
+            className="w-full h-[280px] bg-gradient-to-br from-[#051020] to-[#0A2540]"
           />
         ))}
       </div>

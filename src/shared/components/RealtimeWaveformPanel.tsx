@@ -50,11 +50,12 @@ export default function RealtimeWaveformPanel({
   const voltageScale = voltage / 2000;
 
   // 根据实验阶段计算可见数据量（渐进绘制）
-  // 新 4 阶段流程:
-  //   0: confiningPressure (试样变换围压) — 无波形
-  //   1: charging          (电容充电)     — 无波形
-  //   2: strikerLaunch     (子弹发射)     — 入射/反射/透射波在该阶段内渐进绘制
-  //   3: dataCollect       (数据采集)     — 所有波形完整
+  // 5 阶段流程:
+  //   0: specimenChange    (试样变换) — 无波形
+  //   1: confiningPressure (增加围压) — 无波形
+  //   2: charging          (电容充电) — 无波形
+  //   3: strikerLaunch     (子弹发射) — 入射/反射/透射波在该阶段内渐进绘制
+  //   4: dataCollect       (数据采集) — 所有波形完整
   const waveformData = useMemo(() => {
     const totalPoints = incidentWaveData.length;
 
@@ -62,12 +63,12 @@ export default function RealtimeWaveformPanel({
     let reflectedCount = 0;
     let transmittedCount = 0;
 
-    if (stageIndex >= 3) {
+    if (stageIndex >= 4) {
       // dataCollect 阶段 — 全部完整
       incidentCount = totalPoints;
       reflectedCount = totalPoints;
       transmittedCount = totalPoints;
-    } else if (stageIndex === 2) {
+    } else if (stageIndex === 3) {
       // strikerLaunch 阶段 — 波形在 0-100% 的子进度内渐进绘制
       // 入射波: 0-60% 内完成
       // 反射/透射波: 25%-90% 内完成
@@ -131,7 +132,7 @@ export default function RealtimeWaveformPanel({
         data: [
           ...(showRaw ? ['原始信号'] : []),
           '入射波 (AI优化)',
-          ...(stageIndex >= 2 ? ['反射波 (AI优化)', '透射波 (AI优化)'] : []),
+          ...(stageIndex >= 3 ? ['反射波 (AI优化)', '透射波 (AI优化)'] : []),
         ],
         textStyle: { color: 'rgba(255,255,255,0.7)', fontSize: 10 },
         icon: 'roundRect',
@@ -190,7 +191,7 @@ export default function RealtimeWaveformPanel({
           z: 1,
           silent: true,
         }] : []),
-        ...((showRaw && stageIndex >= 2 && (waveFilter === 'all' || waveFilter === 'reflected')) ? [{
+        ...((showRaw && stageIndex >= 3 && (waveFilter === 'all' || waveFilter === 'reflected')) ? [{
           name: '原始信号',
           type: 'line' as const,
           data: waveformData.reflectedRaw,
@@ -202,7 +203,7 @@ export default function RealtimeWaveformPanel({
           silent: true,
           legendHoverLink: false,
         }] : []),
-        ...((showRaw && stageIndex >= 2 && (waveFilter === 'all' || waveFilter === 'transmitted')) ? [{
+        ...((showRaw && stageIndex >= 3 && (waveFilter === 'all' || waveFilter === 'transmitted')) ? [{
           name: '原始信号',
           type: 'line' as const,
           data: waveformData.transmittedRaw,
@@ -237,7 +238,7 @@ export default function RealtimeWaveformPanel({
             itemStyle: { color: '#10B981' },
           },
         }] : []),
-        ...(stageIndex >= 2 && (waveFilter === 'all' || waveFilter === 'reflected') ? [{
+        ...(stageIndex >= 3 && (waveFilter === 'all' || waveFilter === 'reflected') ? [{
           name: '反射波 (AI优化)',
           type: 'line' as const,
           data: waveformData.reflected,
@@ -253,7 +254,7 @@ export default function RealtimeWaveformPanel({
             ]),
           },
         }] : []),
-        ...(stageIndex >= 2 && (waveFilter === 'all' || waveFilter === 'transmitted') ? [{
+        ...(stageIndex >= 3 && (waveFilter === 'all' || waveFilter === 'transmitted') ? [{
           name: '透射波 (AI优化)',
           type: 'line' as const,
           data: waveformData.transmitted,
@@ -271,7 +272,7 @@ export default function RealtimeWaveformPanel({
         }] : []),
       ],
       // 阶段 0-1 (围压/充电) 标注
-      ...(stageIndex < 2 ? {
+      ...(stageIndex < 3 ? {
         graphic: [
           {
             type: 'text',
@@ -315,8 +316,8 @@ export default function RealtimeWaveformPanel({
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <h3 className="text-xs font-semibold text-white flex items-center gap-2">
           <Waves className="w-3.5 h-3.5 text-[#00F5FF]" />
-          {stageIndex < 2 ? '三波信号 (等待实验)' : '三波信号 — 原始 vs AI 优化'}
-          {stageIndex >= 2 && (
+          {stageIndex < 3 ? '三波信号 (等待实验)' : '三波信号 — 原始 vs AI 优化'}
+          {stageIndex >= 3 && (
             <span className="flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded bg-gradient-to-r from-[#00F5FF]/20 to-[#A855F7]/20 border border-[#00F5FF]/30">
               <Sparkles className="w-3 h-3 text-[#FFD700]" />
               <span className="text-[9px] text-[#00F5FF] font-mono">
@@ -339,13 +340,13 @@ export default function RealtimeWaveformPanel({
             {showRaw ? '● 原始信号' : '○ 原始信号'}
           </button>
           <Badge className="bg-[#10B981]/20 text-[#10B981] text-[10px] border-[#10B981]/30 px-1.5 py-0">
-            入射 {stageIndex >= 2 ? '●' : '○'}
+            入射 {stageIndex >= 3 ? '●' : '○'}
           </Badge>
           <Badge className="bg-[#3B82F6]/20 text-[#3B82F6] text-[10px] border-[#3B82F6]/30 px-1.5 py-0">
-            反射 {stageIndex >= 2 ? '●' : '○'}
+            反射 {stageIndex >= 3 ? '●' : '○'}
           </Badge>
           <Badge className="bg-[#EF4444]/20 text-[#EF4444] text-[10px] border-[#EF4444]/30 px-1.5 py-0">
-            透射 {stageIndex >= 2 ? '●' : '○'}
+            透射 {stageIndex >= 3 ? '●' : '○'}
           </Badge>
         </div>
       </div>

@@ -414,6 +414,29 @@
   }
 }
 
+/* 隐藏浏览器原生视频控件覆盖层（下载/投屏/画中画按钮） */
+video::-webkit-media-controls {
+  display: none !important;
+}
+video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+video::-webkit-media-controls-panel {
+  display: none !important;
+}
+video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+}
+video::-internal-media-controls-overlay-cast-button {
+  display: none !important;
+}
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+}
+video::-webkit-media-controls-download-button {
+  display: none !important;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

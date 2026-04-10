@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as echarts from 'echarts';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -45,6 +46,18 @@ const PARAM_PRESETS = [
   { label: '高应变率', voltage: 3500, current: 40000, pulseWidth: 350, desc: '高速冲击(>3000/s)' },
   { label: '岩石冲击', voltage: 3000, current: 35000, pulseWidth: 700, desc: '岩石/混凝土适用' },
   { label: '低速测试', voltage: 1200, current: 15000, pulseWidth: 800, desc: '聚合物/泡沫适用' },
+];
+
+// 材料实验模板 — 一键设置材料 + 参数
+const MATERIAL_TEMPLATES = [
+  { label: '铝合金标准', materialId: 'metal-01', voltage: 2000, current: 25000, pulseWidth: 500, icon: '🔩', desc: '5A06 铝合金标准冲击' },
+  { label: '钢材高速', materialId: 'metal-02', voltage: 3000, current: 35000, pulseWidth: 400, icon: '⚡', desc: 'Q235 高应变率冲击' },
+  { label: '钛合金航空', materialId: 'metal-03', voltage: 2800, current: 30000, pulseWidth: 450, icon: '✈️', desc: 'TC4 航空级动态测试' },
+  { label: '45#钢常规', materialId: 'metal-04', voltage: 2200, current: 28000, pulseWidth: 500, icon: '🔧', desc: '45#钢通用工况' },
+  { label: '红砂岩冲击', materialId: 'rock-01', voltage: 3200, current: 38000, pulseWidth: 700, icon: '🪨', desc: '红砂岩矿业冲击' },
+  { label: '花岗岩破碎', materialId: 'rock-02', voltage: 3500, current: 40000, pulseWidth: 650, icon: '⛏️', desc: '花岗岩高速破碎' },
+  { label: '紫铜软材', materialId: 'metal-06', voltage: 1500, current: 18000, pulseWidth: 600, icon: '🟠', desc: 'T2 纯铜低速测试' },
+  { label: '7075高强铝', materialId: 'metal-05', voltage: 2500, current: 30000, pulseWidth: 420, icon: '🛡️', desc: '7075 高强度铝合金' },
 ];
 
 // 材料分类折叠组件
@@ -195,6 +208,7 @@ function ExperimentResultsSection() {
 }
 
 export default function VirtualLab() {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'2d' | '3d' | '3d-exp'>('3d-exp');
   const videoRef = useRef<HTMLVideoElement>(null);
   // 视频时长 — 用于适配实验流程的总时长
@@ -289,6 +303,18 @@ export default function VirtualLab() {
 
   // 动画状态(用于波形面板) — 实验时长自适应 3D 视频时长
   const animState = useExperimentAnimation({ totalDurationMs: videoDurationMs });
+
+  // 安全检查拦截 — 未通过安全检查时跳转到系统监控页执行检查
+  const [safetyWarning, setSafetyWarning] = useState(false);
+  const handlePlay = useCallback(() => {
+    if (!safetyChecklistCompleted) {
+      setSafetyWarning(true);
+      return;
+    }
+    // 开始实验时自动收起侧栏，让可视化区域最大化
+    setSidebarCollapsed(true);
+    animState.play();
+  }, [safetyChecklistCompleted, animState]);
 
   // 计算参数
   const capacitance = (voltage * voltage * 0.000003);
@@ -425,47 +451,31 @@ export default function VirtualLab() {
     const video = videoRef.current;
     if (!video || viewMode !== '3d-exp') return;
 
-    if (animState.isPlaying) {
-      // 视频已自然播完则停在最后一帧（实验可能比视频更长）
-      if (video.ended) return;
-      if (video.paused) {
-        if (animState.stageIndex === -1) {
-          video.currentTime = 0;
-        }
-        video.play().catch(() => {});
-      }
-    } else if (!animState.isComplete) {
-      // 仅在用户主动暂停时暂停视频；实验完成时不强制暂停
-      if (!video.paused) video.pause();
-    }
-  }, [animState.isPlaying, animState.isComplete, animState.stageIndex, viewMode]);
-
-  // 3D实验视频同步: 重置检测
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || viewMode !== '3d-exp') return;
-
+    // 重置状态
     if (!animState.isPlaying && !animState.isComplete && animState.stageIndex === -1) {
       video.pause();
       video.currentTime = 0;
+      return;
     }
-  }, [animState.stageIndex, animState.isPlaying, animState.isComplete, viewMode]);
 
-  // 3D实验视频同步: 切换标签时同步进度
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || viewMode !== '3d-exp') return;
+    // 暂停状态（非完成）
+    if (!animState.isPlaying && !animState.isComplete) {
+      if (!video.paused) video.pause();
+      return;
+    }
 
-    if (animState.isPlaying) {
+    // 播放中 — 以实验进度为主控制视频时间轴，确保帧级同步
+    if (animState.isPlaying && isFinite(video.duration) && video.duration > 0) {
       const targetTime = animState.globalProgress * video.duration;
-      if (isFinite(targetTime) && Math.abs(video.currentTime - targetTime) > 1) {
+      // 偏差超过 0.3 秒则校正
+      if (isFinite(targetTime) && Math.abs(video.currentTime - targetTime) > 0.3) {
         video.currentTime = targetTime;
       }
-      if (video.paused) {
+      if (video.paused && !video.ended) {
         video.play().catch(() => {});
       }
     }
-  }, [viewMode]);
+  }, [animState.isPlaying, animState.isComplete, animState.stageIndex, animState.globalProgress, viewMode]);
 
   // 侧栏折叠状态
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -473,6 +483,8 @@ export default function VirtualLab() {
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   // 波形显示 tab
   const [waveformTab, setWaveformTab] = useState('all');
+  // 波形面板默认关闭，用户可手动展开
+  const [waveformPanelOpen, setWaveformPanelOpen] = useState(false);
   const [resultsPanelOpen, setResultsPanelOpen] = useState(true);
 
   // 筛选材料
@@ -599,11 +611,61 @@ export default function VirtualLab() {
                   取消
                 </Button>
                 <Button
-                  onClick={() => { setShowAIConfirm(false); animState.reset(); animState.play(); }}
+                  onClick={() => { setShowAIConfirm(false); animState.reset(); handlePlay(); }}
                   className="flex-1 bg-[#00F5FF]/20 text-[#00F5FF] border border-[#00F5FF]/40 hover:bg-[#00F5FF]/30"
                 >
                   <Play className="w-4 h-4 mr-1.5" />
                   确认启动
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 安全检查未完成提示 */}
+      <AnimatePresence>
+        {safetyWarning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setSafetyWarning(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#0A2540] border border-[#F59E0B]/30 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-[#F59E0B]/20 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-[#F59E0B]" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold">需要安全检查</h3>
+                  <p className="text-xs text-white/50">实验前必须完成安全检查流程</p>
+                </div>
+              </div>
+              <p className="text-sm text-white/60 mb-5">
+                请先前往系统监控页面完成安全检查，所有检查项通过后方可启动实验。
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setSafetyWarning(false)}
+                  variant="outline"
+                  className="flex-1 border-white/20 text-white/60"
+                >
+                  取消
+                </Button>
+                <Button
+                  onClick={() => { setSafetyWarning(false); navigate('/monitor'); }}
+                  className="flex-1 bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40 hover:bg-[#F59E0B]/30"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                  前往安全检查
                 </Button>
               </div>
             </motion.div>
@@ -1095,6 +1157,47 @@ export default function VirtualLab() {
                 </div>
               </div>
 
+              {/* ── 实验模板 — 一键设置材料 + 参数 ── */}
+              <div className="rounded-lg border border-[#A855F7]/20 overflow-hidden">
+                <div className="px-3 py-1.5 bg-gradient-to-r from-[#A855F7]/10 to-transparent">
+                  <span className="text-[11px] text-[#A855F7] font-medium">实验模板</span>
+                </div>
+                <div className="px-2 py-2 grid grid-cols-2 gap-1.5">
+                  {MATERIAL_TEMPLATES.map((tpl) => {
+                    const isActive = selectedMaterial.id === tpl.materialId && voltage === tpl.voltage;
+                    return (
+                      <button
+                        key={tpl.label}
+                        disabled={isAnimationPlaying}
+                        onClick={() => {
+                          const mat = materials.find(m => m.id === tpl.materialId);
+                          if (mat) setSelectedMaterial(mat);
+                          setVoltage(tpl.voltage);
+                          setCurrent(tpl.current);
+                          setPulseWidth(tpl.pulseWidth);
+                        }}
+                        className={`p-2 rounded-lg border text-left transition-all disabled:opacity-40 ${
+                          isActive
+                            ? 'bg-[#A855F7]/15 border-[#A855F7]/50'
+                            : 'bg-[#0A2540]/50 border-white/8 hover:border-[#A855F7]/30 hover:bg-[#A855F7]/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm leading-none">{tpl.icon}</span>
+                          <span className={`text-[11px] font-medium ${isActive ? 'text-[#A855F7]' : 'text-white/80'}`}>{tpl.label}</span>
+                        </div>
+                        <div className="text-[9px] text-white/40 mt-1 leading-tight">{tpl.desc}</div>
+                        <div className="flex gap-2 mt-1.5 text-[8px] font-mono text-white/30">
+                          <span>{tpl.voltage}V</span>
+                          <span>{(tpl.current / 1000).toFixed(0)}kA</span>
+                          <span>{tpl.pulseWidth}μs</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* ── 核心力学参数 ── */}
               <div className="rounded-lg border border-[#00F5FF]/15 overflow-hidden">
                 <div className="px-3 py-1.5 bg-gradient-to-r from-[#1DD1A1]/8 to-transparent">
@@ -1266,7 +1369,7 @@ export default function VirtualLab() {
                 </button>
               ) : (
                 <button
-                  onClick={() => animState.play()}
+                  onClick={() => handlePlay()}
                   className="h-8 px-3 rounded-lg bg-[#10B981] text-white font-medium text-xs flex items-center gap-1.5 hover:bg-[#10B981]/80 shadow-[0_0_12px_rgba(16,185,129,0.4)] transition-all"
                   title="开始实验"
                 >
@@ -1323,9 +1426,10 @@ export default function VirtualLab() {
 
           {/* 可调大小的可视化 + 波形区域 */}
           {!(animState.isComplete && resultsPanelOpen) && (
+          <>
           <ResizablePanelGroup direction="vertical" className="flex-1 min-h-0">
-            {/* 2D/3D 可视化区域 — 默认 65% */}
-            <ResizablePanel defaultSize={65} minSize={40}>
+            {/* 2D/3D 可视化区域 — 波形面板关闭时占满 */}
+            <ResizablePanel defaultSize={waveformPanelOpen ? 65 : 100} minSize={40}>
               <div className="h-full relative bg-gradient-to-b from-[#0A2540] to-[#051020]">
                 <AnimatePresence mode="wait">
                   {viewMode === '2d' ? (
@@ -1398,16 +1502,28 @@ export default function VirtualLab() {
                         muted
                         playsInline
                         preload="auto"
+                        disablePictureInPicture
+                        disableRemotePlayback
+                        controlsList="nodownload noplaybackrate nofullscreen"
                         onLoadedMetadata={() => {
                           const v = videoRef.current;
                           if (v && isFinite(v.duration) && v.duration > 0) {
-                            // 实验流程时长跟随视频时长动态缩放
+                            setVideoDurationMs(v.duration * 1000);
+                          }
+                        }}
+                        onCanPlay={() => {
+                          // 备用：部分浏览器 onLoadedMetadata 未触发时兜底
+                          const v = videoRef.current;
+                          if (v && isFinite(v.duration) && v.duration > 0 && !videoDurationMs) {
                             setVideoDurationMs(v.duration * 1000);
                           }
                         }}
                         className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                         style={{ outline: 'none' }}
                       />
+
+                      {/* 透明遮罩层 — 拦截右键/hover，防止浏览器显示视频控件 */}
+                      <div className="absolute inset-0 z-10" onContextMenu={e => e.preventDefault()} />
 
                       {/* 左上角状态标签 */}
                       <div className="absolute top-3 left-4 z-20 pointer-events-none">
@@ -1450,63 +1566,99 @@ export default function VirtualLab() {
               </div>
             </ResizablePanel>
 
-            <ResizableHandle withHandle className="bg-[#00F5FF]/10 hover:bg-[#00F5FF]/30 transition-colors [&>div]:bg-[#0A2540] [&>div]:border-[#00F5FF]/30 [&>div]:h-5 [&>div]:w-10 [&_svg]:text-[#00F5FF]/60 [&_svg]:size-4" />
-
-            {/* 波形区域 — 默认 35% */}
-            <ResizablePanel defaultSize={35} minSize={20}>
-              <div className="h-full flex flex-col bg-[#051020]">
-                {/* 波形 Tabs */}
-                <div className="flex items-center border-b border-[#00F5FF]/10 px-2 flex-shrink-0">
-                  {['all', 'incident', 'reflected', 'transmitted'].map(tab => (
-                    <button
-                      key={tab}
-                      onClick={() => setWaveformTab(tab)}
-                      className={`px-3 py-2 text-xs font-medium transition-colors relative ${
-                        waveformTab === tab ? 'text-[#00F5FF]' : 'text-white/40 hover:text-white/60'
-                      }`}
-                    >
-                      {{ all: '全部波形', incident: '入射波', reflected: '反射波', transmitted: '透射波' }[tab]}
-                      {waveformTab === tab && (
-                        <motion.div layoutId="waveform-tab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00F5FF]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex-1">
-                  <RealtimeWaveformPanel
-                    currentStage={animState.currentStage}
-                    stageIndex={animState.stageIndex}
-                    stageProgress={animState.stageProgress}
-                    voltage={voltage}
-                    stiffnessK={selectedMaterial.stiffnessK}
-                    dampingC={selectedMaterial.dampingC}
-                    className="h-full"
-                    waveFilter={waveformTab as any}
-                  />
-                </div>
-              </div>
-            </ResizablePanel>
+            {/* 波形面板折叠时不显示拖拽手柄和面板 */}
+            {waveformPanelOpen && (
+              <>
+                <ResizableHandle withHandle className="bg-[#00F5FF]/10 hover:bg-[#00F5FF]/30 transition-colors [&>div]:bg-[#0A2540] [&>div]:border-[#00F5FF]/30 [&>div]:h-5 [&>div]:w-10 [&_svg]:text-[#00F5FF]/60 [&_svg]:size-4" />
+                <ResizablePanel defaultSize={35} minSize={20}>
+                  <div className="h-full flex flex-col bg-[#051020]">
+                    {/* 波形 Tabs */}
+                    <div className="flex items-center border-b border-[#00F5FF]/10 px-2 flex-shrink-0">
+                      {['all', 'incident', 'reflected', 'transmitted'].map(tab => (
+                        <button
+                          key={tab}
+                          onClick={() => setWaveformTab(tab)}
+                          className={`px-3 py-2 text-xs font-medium transition-colors relative ${
+                            waveformTab === tab ? 'text-[#00F5FF]' : 'text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          {{ all: '全部波形', incident: '入射波', reflected: '反射波', transmitted: '透射波' }[tab]}
+                          {waveformTab === tab && (
+                            <motion.div layoutId="waveform-tab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00F5FF]" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex-1">
+                      <RealtimeWaveformPanel
+                        currentStage={animState.currentStage}
+                        stageIndex={animState.stageIndex}
+                        stageProgress={animState.stageProgress}
+                        voltage={voltage}
+                        stiffnessK={selectedMaterial.stiffnessK}
+                        dampingC={selectedMaterial.dampingC}
+                        className="h-full"
+                        waveFilter={waveformTab as any}
+                      />
+                    </div>
+                  </div>
+                </ResizablePanel>
+              </>
+            )}
           </ResizablePanelGroup>
+          {/* 波形面板 & 实验结果 — 右侧浮动图标 */}
+          <div className="absolute right-3 bottom-16 z-30 flex flex-col gap-2">
+            {/* 实验结果切换（仅实验完成后显示） */}
+            {animState.isComplete && (
+              <button
+                onClick={() => setResultsPanelOpen(v => !v)}
+                title={resultsPanelOpen ? '收起实验结果' : '展开实验结果'}
+                className={`group relative w-9 h-9 rounded-lg flex items-center justify-center transition-all shadow-lg backdrop-blur-sm ${
+                  resultsPanelOpen
+                    ? 'bg-[#FFD700]/25 border border-[#FFD700]/60 shadow-[#FFD700]/20'
+                    : 'bg-[#0A2540]/90 border border-[#FFD700]/30 hover:border-[#FFD700]/60 hover:bg-[#FFD700]/15'
+                }`}
+              >
+                <Database className="w-4 h-4 text-[#FFD700]" />
+                <span className="absolute right-full mr-2 px-2 py-1 rounded bg-[#0A2540] border border-[#FFD700]/30 text-[10px] text-[#FFD700] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  {resultsPanelOpen ? '收起结果' : '展开结果'}
+                </span>
+              </button>
+            )}
+            {/* 波形面板切换 */}
+            <button
+              onClick={() => setWaveformPanelOpen(v => !v)}
+              title={waveformPanelOpen ? '收起波形面板' : '展开波形面板'}
+              className={`group relative w-9 h-9 rounded-lg flex items-center justify-center transition-all shadow-lg backdrop-blur-sm ${
+                waveformPanelOpen
+                  ? 'bg-[#00F5FF]/25 border border-[#00F5FF]/60 shadow-[#00F5FF]/20'
+                  : 'bg-[#0A2540]/90 border border-[#00F5FF]/30 hover:border-[#00F5FF]/60 hover:bg-[#00F5FF]/15'
+              }`}
+            >
+              <Waves className="w-4 h-4 text-[#00F5FF]" />
+              <span className="absolute right-full mr-2 px-2 py-1 rounded bg-[#0A2540] border border-[#00F5FF]/30 text-[10px] text-[#00F5FF] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                {waveformPanelOpen ? '收起波形' : '展开波形'}
+              </span>
+            </button>
+          </div>
+          </>
           )}
 
           {/* 实验完成后展示6图结果 */}
           {animState.isComplete && (
-            <div className={`border-t border-[#00F5FF]/20 bg-[#051020] relative z-10 ${resultsPanelOpen ? 'flex-1 flex flex-col min-h-0 overflow-auto' : 'flex-shrink-0'}`}>
+            <div className={`bg-[#051020] relative z-10 ${resultsPanelOpen ? 'flex-1 flex flex-col min-h-0 overflow-auto' : 'hidden'}`}>
+              {/* 结果面板顶部栏 — 收起按钮 */}
               <button
-                onClick={() => setResultsPanelOpen(v => !v)}
-                className="w-full h-10 px-4 flex items-center justify-between bg-[#0A2540]/60 hover:bg-[#0A2540] border-b border-[#00F5FF]/15 transition-colors cursor-pointer"
+                onClick={() => setResultsPanelOpen(false)}
+                className="w-full h-9 px-4 flex items-center justify-between bg-[#0A2540]/80 hover:bg-[#0A2540] border-b border-[#FFD700]/20 transition-colors cursor-pointer flex-shrink-0 sticky top-0 z-20"
               >
-                <span className="text-sm font-semibold text-[#00F5FF] flex items-center gap-2">
+                <span className="flex items-center gap-2 text-xs font-semibold text-[#FFD700]">
                   <Database className="w-4 h-4" />
                   实验结果分析
                 </span>
-                <span className="flex items-center gap-2 text-xs text-white/40">
-                  {resultsPanelOpen ? '收起' : '展开'}
-                  {resultsPanelOpen ? (
-                    <ChevronDown className="w-4 h-4 text-[#00F5FF]/60" />
-                  ) : (
-                    <ChevronUp className="w-4 h-4 text-[#00F5FF]/60" />
-                  )}
+                <span className="flex items-center gap-2 text-xs text-white/50 hover:text-white/80">
+                  收起
+                  <ChevronDown className="w-4 h-4 text-[#FFD700]" />
                 </span>
               </button>
               {resultsPanelOpen && (() => {

@@ -1,12 +1,13 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 
-// 实验4阶段定义 (适配 3D 实验视频)
+// 实验5阶段定义 (严格适配 3D 实验视频步骤)
 export type ExperimentStage =
   | 'idle'              // 待机
-  | 'confiningPressure' // 1. 试样变换围压
-  | 'charging'          // 2. 电容充电
-  | 'strikerLaunch'     // 3. 子弹发射
-  | 'dataCollect'       // 4. 数据采集
+  | 'specimenChange'    // 1. 试样变换
+  | 'confiningPressure' // 2. 增加围压
+  | 'charging'          // 3. 电容充电
+  | 'strikerLaunch'     // 4. 子弹发射
+  | 'dataCollect'       // 5. 数据采集
   // 以下旧阶段保留以兼容部分 2D 渲染器判断（新流程不再使用）
   | 'coilAccel'
   | 'wavePropagate'
@@ -19,13 +20,15 @@ export interface StageConfig {
   description: string;
 }
 
-// 默认阶段配置 — 与 3D 实验视频片段对应
-// 总时长 18000ms：给波形绘制与数据采集留足可视化时间
+// 默认阶段配置 — 严格对应 3D 实验视频时间轴
+// 视频时间: 0-9s 试样变换 / 9-13s 增加围压 / 13-18s 电容充电 / 18-24s 子弹发射 / 24s-end 数据采集
+// 由 totalDurationMs 选项按比例缩放至实际视频时长
 export const STAGE_CONFIGS: StageConfig[] = [
-  { stage: 'confiningPressure', label: '试样变换围压', duration: 3000, description: '试样装入并调节围压条件' },
-  { stage: 'charging',          label: '电容充电',     duration: 3500, description: '电容组储能充电，电压递增至目标值' },
-  { stage: 'strikerLaunch',     label: '子弹发射',     duration: 7500, description: '电磁驱动子弹加速并撞击试样，应力波在杆中传播' },
-  { stage: 'dataCollect',       label: '数据采集',     duration: 4000, description: '应变片采集三波信号并实时分析' },
+  { stage: 'specimenChange',    label: '试样变换',  duration: 9000, description: '更换试样并安装到杆系上' },
+  { stage: 'confiningPressure', label: '增加围压',  duration: 4000, description: '液压系统施加围压至目标值' },
+  { stage: 'charging',          label: '电容充电',  duration: 5000, description: '电容组储能充电，电压递增至目标值' },
+  { stage: 'strikerLaunch',     label: '子弹发射',  duration: 6000, description: '电磁驱动子弹加速并撞击试样，应力波在杆中传播' },
+  { stage: 'dataCollect',       label: '数据采集',  duration: 3000, description: '应变片采集三波信号并实时分析' },
 ];
 
 export interface AnimationState {
