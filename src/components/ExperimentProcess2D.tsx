@@ -21,12 +21,14 @@ interface ExperimentProcess2DProps {
 // 阶段颜色
 const STAGE_COLORS: Record<ExperimentStage, string> = {
   idle: '#666',
+  confiningPressure: '#A855F7',
   charging: '#FFD700',
-  coilAccel: '#CD7F32',
   strikerLaunch: '#00F5FF',
+  dataCollect: '#10B981',
+  // 兼容保留
+  coilAccel: '#CD7F32',
   wavePropagate: '#3B82F6',
   deformation: '#EF4444',
-  dataCollect: '#10B981',
 };
 
 export default function ExperimentProcess2D({
@@ -585,7 +587,7 @@ export default function ExperimentProcess2D({
               {isPlaying ? '实验进行中' : isComplete ? '实验完成' : '待机就绪'}
             </text>
             <text x="80" y="46" textAnchor="middle" fill="#fff" fontSize="10">
-              {stageIndex >= 0 ? `阶段 ${stageIndex + 1}/6 · ${STAGE_CONFIGS[stageIndex]?.label}` : '等待开始'}
+              {stageIndex >= 0 ? `阶段 ${stageIndex + 1}/${STAGE_CONFIGS.length} · ${STAGE_CONFIGS[stageIndex]?.label}` : '等待开始'}
             </text>
             {/* 进度条 */}
             <rect x="10" y="54" width="140" height="4" rx="2" fill="#ffffff10" />

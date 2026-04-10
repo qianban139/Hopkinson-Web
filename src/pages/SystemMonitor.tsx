@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Power, AlertTriangle, History, Download, Activity, Zap,
@@ -490,6 +491,7 @@ function OperationLogTimeline({ logs }: { logs: OperationLogEntry[] }) {
 function SafetyChecklist() {
   const { safetyChecklist, setSafetyChecklist, completeSafetyChecklist, resetSafetyChecklist, safetyChecklistCompleted } = useExperimentDataBus();
   const [isRunning, setIsRunning] = useState(false);
+  const navigate = useNavigate();
 
   const runAllChecks = useCallback(async () => {
     setIsRunning(true);
@@ -517,9 +519,19 @@ function SafetyChecklist() {
 
     // 判断是否全部通过
     const allPassed = items.every(it => it.status === 'pass' || it.status === 'warning');
-    if (allPassed) completeSafetyChecklist();
+    if (allPassed) {
+      completeSafetyChecklist();
+      // 安全检查通过后，延迟跳转到3D实验视图
+      setTimeout(() => {
+        navigate('/lab');
+        // 切换到3D视图
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('ai-set-view-mode', { detail: '3d-exp' }));
+        }, 100);
+      }, 800);
+    }
     setIsRunning(false);
-  }, [safetyChecklist, setSafetyChecklist, completeSafetyChecklist]);
+  }, [safetyChecklist, setSafetyChecklist, completeSafetyChecklist, navigate]);
 
   const handleReset = () => {
     resetSafetyChecklist();

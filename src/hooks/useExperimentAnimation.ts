@@ -1,14 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
-// 实验6阶段定义
+// 实验4阶段定义 (适配 3D 实验视频)
 export type ExperimentStage =
-  | 'idle'           // 待机
-  | 'charging'       // 1. 电容充能
-  | 'coilAccel'      // 2. 线圈加速
-  | 'strikerLaunch'  // 3. 子弹发射(单次撞击)
-  | 'wavePropagate'  // 4. 应力波传播
-  | 'deformation'    // 5. 试样变形
-  | 'dataCollect';   // 6. 数据采集
+  | 'idle'              // 待机
+  | 'confiningPressure' // 1. 试样变换围压
+  | 'charging'          // 2. 电容充电
+  | 'strikerLaunch'     // 3. 子弹发射
+  | 'dataCollect'       // 4. 数据采集
+  // 以下旧阶段保留以兼容部分 2D 渲染器判断（新流程不再使用）
+  | 'coilAccel'
+  | 'wavePropagate'
+  | 'deformation';
 
 export interface StageConfig {
   stage: ExperimentStage;
@@ -17,14 +19,12 @@ export interface StageConfig {
   description: string;
 }
 
-// 默认阶段配置
+// 默认阶段配置 — 与 3D 实验视频片段对应，总时长 12000ms 匹配视频长度
 export const STAGE_CONFIGS: StageConfig[] = [
-  { stage: 'charging',      label: '电容充能',   duration: 2000, description: '电容组储能充电，电压递增' },
-  { stage: 'coilAccel',     label: '线圈加速',   duration: 2000, description: '三级电磁线圈依次激活，产生电磁力' },
-  { stage: 'strikerLaunch', label: '子弹发射',   duration: 1500, description: '电磁驱动子弹加速撞击入射杆' },
-  { stage: 'wavePropagate', label: '应力波传播', duration: 3000, description: '入射波→试样→反射波+透射波' },
-  { stage: 'deformation',   label: '试样变形',   duration: 2000, description: '入射杆与透射杆挤压试样产生变形' },
-  { stage: 'dataCollect',   label: '数据采集',   duration: 1500, description: '应变片采集三波信号' },
+  { stage: 'confiningPressure', label: '试样变换围压', duration: 3000, description: '试样装入并调节围压条件' },
+  { stage: 'charging',          label: '电容充电',     duration: 3000, description: '电容组储能充电，电压递增至目标值' },
+  { stage: 'strikerLaunch',     label: '子弹发射',     duration: 4000, description: '电磁驱动子弹加速并撞击试样，应力波传播' },
+  { stage: 'dataCollect',       label: '数据采集',     duration: 2000, description: '应变片采集三波信号并实时分析' },
 ];
 
 export interface AnimationState {

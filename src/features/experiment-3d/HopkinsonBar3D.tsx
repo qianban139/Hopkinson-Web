@@ -229,7 +229,7 @@ function StageHUD({ animState }: { animState: AnimationState }) {
           color="#ffffff40"
           anchorX="center"
         >
-          {`STAGE ${animState.stageIndex + 1}/6 · ${Math.round(animState.stageProgress * 100)}%`}
+          {`STAGE ${animState.stageIndex + 1}/${animState.stages.length} · ${Math.round(animState.stageProgress * 100)}%`}
         </Text>
       )}
     </Float>

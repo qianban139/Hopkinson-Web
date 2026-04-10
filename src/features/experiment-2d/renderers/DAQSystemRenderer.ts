@@ -109,15 +109,15 @@ export function renderDAQSystem({
     const screenCy = screenY + screenH / 2;
     const amp = screenH * 0.3;
 
-    // 入射波(蓝)
+    // 入射波(蓝) — 幅度比例基于实验数据
     drawMiniWave(ctx, screenX + 2, screenCy, screenW - 4, amp,
-      COLORS.incidentWave, time, 0.1, 1);
-    // 反射波(红)
-    drawMiniWave(ctx, screenX + 2, screenCy, screenW - 4, amp * 0.35,
-      COLORS.reflectedWave, time, 0.15, -0.5);
-    // 透射波(绿)
-    drawMiniWave(ctx, screenX + 2, screenCy, screenW - 4, amp * 0.6,
-      COLORS.transmittedWave, time, 0.12, 0.8);
+      COLORS.incidentWave, time, 0.42, 0);
+    // 反射波(红) — 87% of 入射波, 反相
+    drawMiniWave(ctx, screenX + 2, screenCy, screenW - 4, -amp * 0.87,
+      COLORS.reflectedWave, time, 0.42, 0.35);
+    // 透射波(绿) — 78% of 入射波
+    drawMiniWave(ctx, screenX + 2, screenCy, screenW - 4, amp * 0.78,
+      COLORS.transmittedWave, time, 0.42, 0.3);
 
     // "Recording" 标志
     if (isCollecting) {
@@ -180,9 +180,11 @@ export function renderDAQSystem({
     const valY = y + height + 8;
     ctx.font = '7px monospace';
     ctx.textAlign = 'left';
-    const sigmaI = (voltage * 0.8).toFixed(0);
-    const sigmaR = (voltage * 0.24).toFixed(0);
-    const sigmaT = (voltage * 0.56).toFixed(0);
+    // 基于实验数据：峰值应力 ~72MPa @ 3000V，各波比例匹配实测
+    const peakStress = 72 * (voltage / 3000);
+    const sigmaI = peakStress.toFixed(1);
+    const sigmaR = (peakStress * 0.87).toFixed(1);  // 反射波 87%
+    const sigmaT = (peakStress * 0.78).toFixed(1);  // 透射波 78%
 
     ctx.fillStyle = COLORS.incidentWave;
     ctx.fillText(`σᵢ=${sigmaI}MPa`, x, valY);
@@ -195,21 +197,37 @@ export function renderDAQSystem({
   ctx.restore();
 }
 
+/** 迷你波形 — 使用真实 SHPB 钟形脉冲包络 */
 function drawMiniWave(
   ctx: CanvasRenderingContext2D,
   x: number, cy: number, w: number, amp: number,
-  color: string, time: number, freq: number, phaseOffset: number
+  color: string, time: number, peakPos: number, delay: number
 ) {
   ctx.beginPath();
-  ctx.strokeStyle = colorWithAlpha(color, 0.7);
+  ctx.strokeStyle = colorWithAlpha(color, 0.8);
   ctx.lineWidth = 0.8;
 
+  // 时间轴滚动 + 延迟偏移
+  const scroll = (time * 0.0015 + delay) % 2;
+
   for (let px = 0; px < w; px++) {
-    const t = px / w;
-    const envelope = Math.exp(-Math.pow((t - 0.4) / 0.2, 2));
-    const wave = Math.sin((px + time * 0.04 + phaseOffset * 50) * freq) * amp * envelope;
-    if (px === 0) ctx.moveTo(x + px, cy + wave);
-    else ctx.lineTo(x + px, cy + wave);
+    const t = (px / w + scroll) % 2;
+    // 钟形脉冲包络（匹配实验数据 sin² 上升 + cos 下降）
+    let envelope = 0;
+    if (t > 0.15 && t < 0.85) {
+      const pt = (t - 0.15) / 0.7; // 0→1 within pulse
+      if (pt < peakPos) {
+        const r = pt / peakPos;
+        envelope = Math.sin(r * Math.PI / 2);
+        envelope = envelope * envelope;
+      } else {
+        const d = (pt - peakPos) / (1 - peakPos);
+        envelope = Math.max(0, Math.cos(d * Math.PI / 2) * 0.7 + Math.exp(-2.2 * d * d) * 0.3);
+      }
+    }
+    const y = cy - amp * envelope;
+    if (px === 0) ctx.moveTo(x + px, y);
+    else ctx.lineTo(x + px, y);
   }
   ctx.stroke();
 }

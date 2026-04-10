@@ -56,4 +56,21 @@ export const sounds = {
   error: () => {
     playTone(300, 0.25, 'square', 0.04);
   },
+
+  /** 开始录音 - 清脆上升双音 */
+  recordStart: () => {
+    playTone(660, 0.08, 'sine', 0.1);
+    setTimeout(() => playTone(880, 0.1, 'sine', 0.1), 80);
+  },
+
+  /** 结束录音 - 柔和下降音 */
+  recordStop: () => {
+    playTone(880, 0.08, 'sine', 0.08);
+    setTimeout(() => playTone(660, 0.12, 'sine', 0.06), 80);
+  },
+
+  /** 录音取消 - 低沉短促 */
+  recordCancel: () => {
+    playTone(330, 0.15, 'triangle', 0.06);
+  },
 };

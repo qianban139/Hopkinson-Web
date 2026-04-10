@@ -278,7 +278,7 @@ export default function VirtualLab() {
   // 监听AI视图切换事件
   useEffect(() => {
     const handler = (e: Event) => {
-      const mode = (e as CustomEvent).detail as '2d' | '3d';
+      const mode = (e as CustomEvent).detail as '2d' | '3d' | '3d-exp';
       setViewMode(mode);
     };
     window.addEventListener('ai-set-view-mode', handler);
@@ -418,26 +418,23 @@ export default function VirtualLab() {
     }
   }, [animState.isComplete, handleExperimentComplete]);
 
-  // 3D实验视频同步: 播放/暂停/完成
+  // 3D实验视频同步: 播放/暂停（让视频自然播放，不做逐帧 scrub）
   useEffect(() => {
     const video = videoRef.current;
     if (!video || viewMode !== '3d-exp') return;
 
-    if (animState.isPlaying && video.paused) {
-      if (video.ended || animState.globalProgress === 0) {
-        video.currentTime = 0;
+    if (animState.isPlaying) {
+      if (video.paused) {
+        if (video.ended || animState.stageIndex === -1) {
+          video.currentTime = 0;
+        }
+        video.play().catch(() => {});
       }
-      video.play().catch(() => {});
+    } else if (!animState.isComplete) {
+      // 只在用户主动暂停时暂停视频（实验完成不强制暂停，让视频自然播完）
+      if (!video.paused) video.pause();
     }
-
-    if (!animState.isPlaying && !video.paused) {
-      video.pause();
-    }
-
-    if (animState.isComplete && !video.paused) {
-      video.pause();
-    }
-  }, [animState.isPlaying, animState.isComplete, animState.globalProgress, viewMode]);
+  }, [animState.isPlaying, animState.isComplete, animState.stageIndex, viewMode]);
 
   // 3D实验视频同步: 重置检测
   useEffect(() => {
@@ -899,7 +896,7 @@ export default function VirtualLab() {
                     <div className="flex justify-between">
                       <span className="text-white/50">阶段</span>
                       <span className="text-white/70 font-mono">
-                        {animState.isComplete ? '6/6' : animState.stageIndex >= 0 ? `${animState.stageIndex + 1}/6` : '0/6'}
+                        {animState.isComplete ? `${animState.stages.length}/${animState.stages.length}` : animState.stageIndex >= 0 ? `${animState.stageIndex + 1}/${animState.stages.length}` : `0/${animState.stages.length}`}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1210,12 +1207,20 @@ export default function VirtualLab() {
           <div className="h-14 bg-[#051020] border-b border-[#00F5FF]/10 flex items-center justify-between px-4">
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setViewMode('3d-exp')}
+                className={`px-4 py-1.5 rounded-lg text-sm transition-all ${
+                  viewMode === '3d-exp' ? 'bg-[#00F5FF] text-[#0A2540] font-medium' : 'bg-[#0A2540] text-white/70 hover:bg-[#0A2540]/80'
+                }`}
+              >
+                3D实验
+              </button>
+              <button
                 onClick={() => setViewMode('2d')}
                 className={`px-4 py-1.5 rounded-lg text-sm transition-all ${
                   viewMode === '2d' ? 'bg-[#00F5FF] text-[#0A2540] font-medium' : 'bg-[#0A2540] text-white/70 hover:bg-[#0A2540]/80'
                 }`}
               >
-                2D视图
+                2D图示
               </button>
               <button
                 onClick={() => setViewMode('3d')}
@@ -1223,15 +1228,7 @@ export default function VirtualLab() {
                   viewMode === '3d' ? 'bg-[#00F5FF] text-[#0A2540] font-medium' : 'bg-[#0A2540] text-white/70 hover:bg-[#0A2540]/80'
                 }`}
               >
-                3D视图
-              </button>
-              <button
-                onClick={() => setViewMode('3d-exp')}
-                className={`px-4 py-1.5 rounded-lg text-sm transition-all ${
-                  viewMode === '3d-exp' ? 'bg-[#00F5FF] text-[#0A2540] font-medium' : 'bg-[#0A2540] text-white/70 hover:bg-[#0A2540]/80'
-                }`}
-              >
-                3D实验
+                3D图示
               </button>
             </div>
 
@@ -1376,7 +1373,7 @@ export default function VirtualLab() {
                       {/* 右下角帧信息 */}
                       <div className="absolute bottom-3 right-4 z-20 pointer-events-none">
                         <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/10 text-[9px] text-white/30 font-mono backdrop-blur-sm">
-                          {animState.isPlaying ? `STAGE ${animState.stageIndex + 1}/6` : animState.isComplete ? 'DATA CAPTURED' : 'READY'}
+                          {animState.isPlaying ? `STAGE ${animState.stageIndex + 1}/${animState.stages.length}` : animState.isComplete ? 'DATA CAPTURED' : 'READY'}
                         </div>
                       </div>
                     </motion.div>
@@ -1421,7 +1418,7 @@ export default function VirtualLab() {
                       {animState.isPlaying && animState.stageIndex >= 0 && (
                         <div className="absolute bottom-3 left-4 z-20 pointer-events-none">
                           <div className="px-2 py-1 rounded bg-[#0A2540]/80 border border-[#00F5FF]/20 text-[10px] text-[#00F5FF]/60 font-mono backdrop-blur-sm">
-                            STAGE {animState.stageIndex + 1}/6 · {animState.stages[animState.stageIndex]?.label}
+                            STAGE {animState.stageIndex + 1}/{animState.stages.length} · {animState.stages[animState.stageIndex]?.label}
                           </div>
                         </div>
                       )}

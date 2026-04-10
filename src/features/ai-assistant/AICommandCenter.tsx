@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send, Mic, MicOff, X, Minimize2, Maximize2, Trash2,
+  Send, Mic, MicOff, X, Trash2,
   ChevronRight, Zap, Brain, Volume2, VolumeX,
   Shield, Beaker, BarChart3, GripVertical, Settings2, ImagePlus,
   Globe, Users, Radio, BookOpen,
@@ -81,7 +81,6 @@ function getContextualCommands(currentPage: string) {
 export default function AICommandCenter() {
   // ═══ 面板状态（默认关闭） ═══
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
   const [panelOpacity, setPanelOpacity] = useState(1);
 
   // 拖拽/拉伸状态 — 使用 left/top 绝对定位
@@ -107,23 +106,39 @@ export default function AICommandCenter() {
   });
   const panelDragRef = useRef({ startX: 0, startY: 0, left: 0, top: 0 });
   const panelResizeRef = useRef({ startX: 0, startY: 0, w: 420, h: 560 });
-  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
+  const isDraggingPanelRef = useRef(false);
+  const isResizingRef = useRef(false);
+  const panelElRef = useRef<HTMLDivElement>(null);
 
   // 保存面板位置/大小到localStorage
   useEffect(() => {
     localStorage.setItem('ai-panel-layout', JSON.stringify({ ...panelPos, ...panelSize }));
   }, [panelPos, panelSize]);
 
-  // 面板拖拽 — left/top 直接偏移
+  // 面板拖拽 — 拖动中直接操作 DOM，松手同步 state
   const onPanelDragStart = useCallback((e: React.PointerEvent) => {
-    setIsDraggingPanel(true);
+    isDraggingPanelRef.current = true;
     panelDragRef.current = { startX: e.clientX, startY: e.clientY, left: panelPos.left, top: panelPos.top };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }, [panelPos]);
 
   const onPanelDragMove = useCallback((e: React.PointerEvent) => {
-    if (!isDraggingPanel) return;
+    if (!isDraggingPanelRef.current) return;
+    const dx = e.clientX - panelDragRef.current.startX;
+    const dy = e.clientY - panelDragRef.current.startY;
+    const maxLeft = window.innerWidth - 200;
+    const maxTop = window.innerHeight - 100;
+    const newLeft = Math.max(-100, Math.min(maxLeft, panelDragRef.current.left + dx));
+    const newTop = Math.max(0, Math.min(maxTop, panelDragRef.current.top + dy));
+    if (panelElRef.current) {
+      panelElRef.current.style.left = `${newLeft}px`;
+      panelElRef.current.style.top = `${newTop}px`;
+    }
+  }, []);
+
+  const onPanelDragEnd = useCallback((e: React.PointerEvent) => {
+    if (!isDraggingPanelRef.current) return;
+    isDraggingPanelRef.current = false;
     const dx = e.clientX - panelDragRef.current.startX;
     const dy = e.clientY - panelDragRef.current.startY;
     const maxLeft = window.innerWidth - 200;
@@ -132,35 +147,45 @@ export default function AICommandCenter() {
       left: Math.max(-100, Math.min(maxLeft, panelDragRef.current.left + dx)),
       top: Math.max(0, Math.min(maxTop, panelDragRef.current.top + dy)),
     });
-  }, [isDraggingPanel]);
-
-  const onPanelDragEnd = useCallback(() => {
-    setIsDraggingPanel(false);
   }, []);
 
-  // 面板拉伸（左上角拖拽 → 改变宽高 + 同步移动位置）
+  // 面板拉伸（左上角拖拽 → 直接操作 DOM，松手同步 state）
+  const resizePosRef = useRef({ left: 0, top: 0 });
   const onResizeStart = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
-    setIsResizing(true);
+    isResizingRef.current = true;
     panelResizeRef.current = { startX: e.clientX, startY: e.clientY, w: panelSize.w, h: panelSize.h };
+    resizePosRef.current = { left: panelPos.left, top: panelPos.top };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [panelSize]);
+  }, [panelSize, panelPos]);
 
   const onResizeMove = useCallback((e: React.PointerEvent) => {
-    if (!isResizing) return;
+    if (!isResizingRef.current || !panelElRef.current) return;
+    const dw = panelResizeRef.current.startX - e.clientX;
+    const dh = panelResizeRef.current.startY - e.clientY;
+    const newW = Math.max(320, Math.min(600, panelResizeRef.current.w + dw));
+    const newH = Math.max(400, Math.min(800, panelResizeRef.current.h + dh));
+    const newLeft = resizePosRef.current.left - (newW - panelResizeRef.current.w);
+    const newTop = resizePosRef.current.top - (newH - panelResizeRef.current.h);
+    panelElRef.current.style.width = `${newW}px`;
+    panelElRef.current.style.height = `${newH}px`;
+    panelElRef.current.style.left = `${newLeft}px`;
+    panelElRef.current.style.top = `${newTop}px`;
+  }, []);
+
+  const onResizeEnd = useCallback((e: React.PointerEvent) => {
+    if (!isResizingRef.current) return;
+    isResizingRef.current = false;
     const dw = panelResizeRef.current.startX - e.clientX;
     const dh = panelResizeRef.current.startY - e.clientY;
     const newW = Math.max(320, Math.min(600, panelResizeRef.current.w + dw));
     const newH = Math.max(400, Math.min(800, panelResizeRef.current.h + dh));
     setPanelSize({ w: newW, h: newH });
-    // 左上角拉伸时同步移动位置，保持右下角不动
-    setPanelPos(prev => ({
-      left: prev.left - (newW - panelSize.w),
-      top: prev.top - (newH - panelSize.h),
-    }));
-  }, [isResizing, panelSize]);
-
-  const onResizeEnd = useCallback(() => { setIsResizing(false); }, []);
+    setPanelPos({
+      left: resizePosRef.current.left - (newW - panelResizeRef.current.w),
+      top: resizePosRef.current.top - (newH - panelResizeRef.current.h),
+    });
+  }, []);
 
   // Load initial messages from localStorage
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
@@ -444,10 +469,29 @@ export default function AICommandCenter() {
     return () => window.removeEventListener('ai-suggestion-trigger', onSuggestion);
   }, [handleCommand]);
 
+  // ═══ PTT 状态（提前声明，供唤醒词监听器判断是否启用） ═══
+  const [isPushToTalk, setIsPushToTalk] = useState(false);
+  const [pttInterimText, setPttInterimText] = useState('');
+  const [pttFinalText, setPttFinalText] = useState('');
+  const [pttDuration, setPttDuration] = useState(0);
+  // 波形动画时钟（drives sine-based bar animation, only ticks when PTT active）
+  const [pttClock, setPttClock] = useState(0);
+  useEffect(() => {
+    if (!isPushToTalk) return;
+    let raf = 0;
+    const start = performance.now();
+    const tick = () => {
+      setPttClock((performance.now() - start) / 1000);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isPushToTalk]);
+
   // ═══ 后台唤醒词监听（"小爱同学"模式） ═══
-  const { flowState, interimText: wakeInterimText } = useWakeWordListener({
+  const { flowState, interimText: wakeInterimText, micLevel } = useWakeWordListener({
     wakeWord: '小智',
-    enabled: !panelListening && !isProcessing && !isTTSCooldown, // 允许TTS播放时唤醒打断
+    enabled: !panelListening && !isProcessing && !isTTSCooldown && !isPushToTalk, // PTT时释放麦克风
     onCommand: (command: string) => {
       // 检测到唤醒词+命令 → 打断TTS并直接执行（不打开面板）
       if (isSpeaking) cancelSpeech();
@@ -529,42 +573,238 @@ export default function AICommandCenter() {
 
   const quickCommands = getContextualCommands(currentPage);
 
-  // ═══ Push-to-Talk（长按悬浮球录音） ═══
-  const [isPushToTalk, setIsPushToTalk] = useState(false);
+  // ═══ Push-to-Talk（空格键 / 长按悬浮球） ═══
   const pushToTalkRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const pttStartTimeRef = useRef(0);
+  const pttTimerRef = useRef<ReturnType<typeof setInterval>>();
+  const pttFinalTextRef = useRef('');
+  const pttInterimTextRef = useRef('');
+  // PTT 是否用户主动停止（区分松手 vs 浏览器自动断开）
+  const pttUserStoppedRef = useRef(false);
+  // 是否已提交（防止 onend 与 handlePushToTalkEnd 重复提交）
+  const pttSubmittedRef = useRef(false);
+  // PTT 语音活跃度（由识别事件驱动，无需 getUserMedia 避免麦克风冲突）
+  const [pttMicLevel, setPttMicLevel] = useState(0);
+  const pttLevelTargetRef = useRef(0);
+  const pttLevelAnimRef = useRef(0);
 
-  const handlePushToTalkStart = useCallback(() => {
+  // 启动波形动画循环
+  const startPttLevelAnim = useCallback(() => {
+    const update = () => {
+      const target = pttLevelTargetRef.current;
+      setPttMicLevel(prev => {
+        // attack 40%, release 15%
+        const next = target > prev ? prev + (target - prev) * 0.4 : prev + (target - prev) * 0.15;
+        return Math.abs(next) < 0.005 ? 0 : next;
+      });
+      // 目标值自然衰减
+      pttLevelTargetRef.current *= 0.92;
+      pttLevelAnimRef.current = requestAnimationFrame(update);
+    };
+    update();
+  }, []);
+
+  const stopPttLevelAnim = useCallback(() => {
+    if (pttLevelAnimRef.current) cancelAnimationFrame(pttLevelAnimRef.current);
+    pttLevelAnimRef.current = 0;
+    pttLevelTargetRef.current = 0;
+    setPttMicLevel(0);
+  }, []);
+
+  const pttRetryCountRef = useRef(0);
+
+  const launchPttRecognition = useCallback(() => {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) return;
 
-    cancelSpeech();
-    setIsPushToTalk(true);
-    sounds.wakeWordDetected();
+    // 已停止则不再启动
+    if (pttUserStoppedRef.current) return;
 
     const recognition = new SpeechRecognitionAPI();
     recognition.lang = 'zh-CN';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const text = event.results[0]?.[0]?.transcript?.trim();
-      if (text) {
-        handleCommand(text);
+      let interim = '';
+      let final = pttFinalTextRef.current;
+      let newCharCount = 0;
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          final += transcript;
+          pttFinalTextRef.current = final;
+        } else {
+          interim += transcript;
+        }
+        newCharCount += transcript.length;
+      }
+      pttInterimTextRef.current = interim;
+      setPttFinalText(final);
+      setPttInterimText(interim);
+      // 用识别到的字符数量驱动波形目标值
+      pttLevelTargetRef.current = Math.min(1, 0.4 + newCharCount * 0.08);
+    };
+
+    recognition.onspeechstart = () => {
+      pttLevelTargetRef.current = 0.7;
+    };
+    recognition.onspeechend = () => {
+      pttLevelTargetRef.current = 0.1;
+    };
+    recognition.onsoundstart = () => {
+      pttLevelTargetRef.current = Math.max(pttLevelTargetRef.current, 0.5);
+    };
+
+    recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
+      if (e.error === 'audio-capture' || e.error === 'not-allowed') {
+        // 麦克风冲突或权限问题，重试几次
+        console.warn('[PTT] 麦克风冲突，重试中... (第', pttRetryCountRef.current + 1, '次)');
+        pttRetryCountRef.current++;
+      } else if (e.error !== 'aborted' && e.error !== 'no-speech') {
+        console.warn('[PTT] 识别错误:', e.error);
       }
     };
-    recognition.onerror = () => { setIsPushToTalk(false); };
-    recognition.onend = () => { setIsPushToTalk(false); pushToTalkRecognitionRef.current = null; };
+    recognition.onend = () => {
+      // 已经在 handlePushToTalkEnd 中提交过 → 仅清理引用
+      if (pttSubmittedRef.current) {
+        pushToTalkRecognitionRef.current = null;
+        return;
+      }
+      if (!pttUserStoppedRef.current) {
+        // 浏览器自动断开（no-speech 超时 / audio-capture 失败 / continuous 死亡）
+        // 用户还按着空格 → 退避重启
+        pushToTalkRecognitionRef.current = null;
+        const retryDelay = pttRetryCountRef.current > 0
+          ? Math.min(200 * Math.pow(2, pttRetryCountRef.current - 1), 1500)
+          : 50;
+        if (pttRetryCountRef.current >= 8) {
+          console.error('[PTT] 重试次数过多，取消录音');
+          pttUserStoppedRef.current = true;
+          setIsPushToTalk(false);
+          if (pttTimerRef.current) clearInterval(pttTimerRef.current);
+          stopPttLevelAnim();
+          sounds.recordCancel();
+          return;
+        }
+        setTimeout(() => launchPttRecognition(), retryDelay);
+        return;
+      }
+      // 用户已松手但 handlePushToTalkEnd 尚未提交（极少数情况）→ 兜底提交
+      pushToTalkRecognitionRef.current = null;
+    };
 
     pushToTalkRecognitionRef.current = recognition;
-    try { recognition.start(); } catch { setIsPushToTalk(false); }
-  }, [cancelSpeech, handleCommand]);
+    try {
+      recognition.start();
+    } catch (err) {
+      console.warn('[PTT] start 抛出异常:', err);
+      // 触发 onend 重试逻辑
+      if (!pttUserStoppedRef.current) {
+        pttRetryCountRef.current++;
+        setTimeout(() => launchPttRecognition(), 300);
+      }
+    }
+  }, [handleCommand, stopPttLevelAnim]);
+
+  const handlePushToTalkStart = useCallback(() => {
+    cancelSpeech();
+    pttUserStoppedRef.current = false;
+    pttSubmittedRef.current = false;
+    pttRetryCountRef.current = 0;
+    setIsPushToTalk(true);
+    setPttInterimText('');
+    setPttFinalText('');
+    pttFinalTextRef.current = '';
+    pttInterimTextRef.current = '';
+    sounds.recordStart();
+
+    pttStartTimeRef.current = Date.now();
+    setPttDuration(0);
+    pttTimerRef.current = setInterval(() => {
+      setPttDuration(Math.floor((Date.now() - pttStartTimeRef.current) / 1000));
+    }, 200);
+
+    // 启动波形动画 + 语音识别（延迟等唤醒词监听器释放麦克风）
+    startPttLevelAnim();
+    // 400ms 给唤醒词监听器和浏览器音频系统充分的释放时间
+    setTimeout(() => {
+      launchPttRecognition();
+    }, 400);
+  }, [cancelSpeech, launchPttRecognition, startPttLevelAnim]);
 
   const handlePushToTalkEnd = useCallback(() => {
+    pttUserStoppedRef.current = true;
+    // 立即提交当前已识别文本（final + interim），无需等待 onend，降低延迟
+    if (!pttSubmittedRef.current) {
+      const text = (pttFinalTextRef.current + pttInterimTextRef.current).trim();
+      pttSubmittedRef.current = true;
+      if (text) {
+        sounds.recordStop();
+        handleCommand(text);
+      } else {
+        sounds.recordCancel();
+      }
+    }
+    // 关闭 UI 状态
+    setIsPushToTalk(false);
+    setPttInterimText('');
+    setPttFinalText('');
+    setPttDuration(0);
+    if (pttTimerRef.current) { clearInterval(pttTimerRef.current); pttTimerRef.current = undefined; }
+    stopPttLevelAnim();
+    // 异步停止识别（不阻塞 UI 关闭）
     if (pushToTalkRecognitionRef.current) {
       try { pushToTalkRecognitionRef.current.stop(); } catch { /* ignore */ }
     }
-  }, []);
+  }, [handleCommand, stopPttLevelAnim]);
+
+  // ═══ 空格键 Push-to-Talk ═══
+  const spaceHeldRef = useRef(false);
+  // 用 ref 保存最新回调，避免 stale closure 导致 keyup 调用旧 handlePushToTalkEnd
+  const handlePttStartRef = useRef(handlePushToTalkStart);
+  handlePttStartRef.current = handlePushToTalkStart;
+  const handlePttEndRef = useRef(handlePushToTalkEnd);
+  handlePttEndRef.current = handlePushToTalkEnd;
+
+  useEffect(() => {
+    const isTyping = () => {
+      const active = document.activeElement;
+      if (!active) return false;
+      const tag = active.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || (active as HTMLElement).isContentEditable;
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      if (isTyping()) return;
+      // 始终阻止空格默认行为（页面滚动），无论是否启动录音
+      e.preventDefault();
+      if (e.repeat) return;
+      if (isProcessing || panelListening) return;
+      if (!spaceHeldRef.current) {
+        spaceHeldRef.current = true;
+        handlePttStartRef.current();
+      }
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      if (isTyping()) return;
+      e.preventDefault();
+      if (!spaceHeldRef.current) return;
+      spaceHeldRef.current = false;
+      handlePttEndRef.current();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [isProcessing, panelListening]);
 
   return (
     <>
@@ -580,6 +820,202 @@ export default function AICommandCenter() {
         onPushToTalkEnd={handlePushToTalkEnd}
         isPushToTalk={isPushToTalk}
       />
+
+      {/* ═══ 空格提示（悬浮球旁，非录音时显示） ═══ */}
+      {!isPanelOpen && !isPushToTalk && (
+        <div className="fixed right-[72px] bottom-8 z-[9986]">
+          <span className="text-[10px] text-white/30 select-none">按住空格说话 · 或说"小智"唤醒</span>
+        </div>
+      )}
+
+      {/* ═══ 底部居中波形指示器（毛玻璃 + 现代化收音条动画 + 底部氛围光） ═══ */}
+      <AnimatePresence>
+        {isPushToTalk && (
+          <>
+            {/* 底部氛围光（参考小艺/Celia，全屏宽度发光） */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+              className="fixed left-0 right-0 bottom-0 pointer-events-none z-[9994]"
+              style={{ height: 280 }}
+            >
+              {/* 主光晕：从底部向上扩散的椭圆径向光 */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: `radial-gradient(ellipse 65% 100% at 50% 110%, rgba(140,220,255,${0.32 + pttMicLevel * 0.38}) 0%, rgba(100,170,255,${0.20 + pttMicLevel * 0.28}) 25%, rgba(120,140,255,${0.10 + pttMicLevel * 0.16}) 50%, transparent 78%)`,
+                  filter: 'blur(18px)',
+                }}
+              />
+              {/* 次级光晕：更宽更淡，制造柔和边缘 */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: `radial-gradient(ellipse 100% 80% at 50% 120%, rgba(180,230,255,${0.12 + pttMicLevel * 0.2}) 0%, rgba(140,180,255,${0.06 + pttMicLevel * 0.1}) 40%, transparent 75%)`,
+                  filter: 'blur(30px)',
+                }}
+              />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[9995] pointer-events-none select-none"
+            >
+              <div className="relative flex flex-col items-center gap-3">
+                {/* 转录文字浮层 */}
+                <AnimatePresence>
+                  {(pttFinalText || pttInterimText) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                      className="px-4 py-2 rounded-2xl backdrop-blur-2xl"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(15,20,35,0.38), rgba(8,12,25,0.42))',
+                        border: '0.5px solid rgba(255,255,255,0.12)',
+                        boxShadow: '0 12px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',
+                        maxWidth: '560px',
+                      }}
+                    >
+                      <p className="text-[13px] leading-snug text-white/90 truncate">
+                        <span>{pttFinalText}</span>
+                        {pttInterimText && <span className="text-white/45">{pttInterimText}</span>}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* 主体药丸（高透明毛玻璃，拉宽至 640px） */}
+                <div
+                  className="relative flex items-center gap-5 h-[68px] px-8 rounded-full backdrop-blur-2xl overflow-hidden"
+                  style={{
+                    width: '640px',
+                    maxWidth: 'calc(100vw - 48px)',
+                    background: 'linear-gradient(135deg, rgba(18,24,40,0.32), rgba(10,14,28,0.38))',
+                    border: '0.5px solid rgba(255,255,255,0.14)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.2)',
+                  }}
+                >
+                {/* 顶部高光线 */}
+                <div
+                  className="absolute top-0 left-8 right-8 h-px pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent)',
+                  }}
+                />
+
+                {/* 流动光带（背景动画） */}
+                <motion.div
+                  className="absolute inset-0 pointer-events-none opacity-40"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(0,245,255,0.10) 30%, rgba(139,92,246,0.10) 60%, transparent 100%)',
+                    backgroundSize: '200% 100%',
+                  }}
+                  animate={{ backgroundPositionX: ['200%', '-200%'] }}
+                  transition={{ duration: 4.5, repeat: Infinity, ease: 'linear' }}
+                />
+
+                {/* 左：麦克风图标（动态光晕） */}
+                <div className="relative flex items-center justify-center w-10 h-10 flex-shrink-0">
+                  <motion.div
+                    className="absolute inset-[-4px] rounded-full"
+                    style={{
+                      background: 'radial-gradient(circle, rgba(139,92,246,0.45), rgba(139,92,246,0) 70%)',
+                    }}
+                    animate={{
+                      scale: [1, 1.18, 1],
+                      opacity: [0.5, 0.85, 0.5],
+                    }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                  <div
+                    className="relative w-9 h-9 rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(139,92,246,0.28), rgba(99,102,241,0.18))',
+                      border: '0.5px solid rgba(139,92,246,0.45)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 4px 12px rgba(139,92,246,0.25)',
+                    }}
+                  >
+                    <Mic className="w-[18px] h-[18px]" style={{ color: '#D8CCFC' }} />
+                  </div>
+                </div>
+
+                {/* 中：波形条区域，flex-1 自适应填满剩余空间 */}
+                <div className="relative flex-1 flex items-center justify-center gap-[3px] h-9">
+                  {Array.from({ length: 45 }).map((_, i) => {
+                    const BAR_COUNT = 45;
+                    const center = (BAR_COUNT - 1) / 2;
+                    const distFromCenter = Math.abs(i - center) / center;
+                    // 钟形权重（中间高、两边低）
+                    const bell = Math.cos(distFromCenter * Math.PI / 2);
+                    // 双正弦波叠加，每条带相位偏移 → 平滑波纹
+                    const phase = pttClock * 5.5 + i * 0.32;
+                    const wave1 = (Math.sin(phase) + 1) / 2;
+                    const wave2 = (Math.sin(phase * 1.7 + 1.3) + 1) / 2;
+                    const wave = (wave1 + wave2) / 2;
+
+                    const idle = pttMicLevel < 0.04;
+                    let h: number;
+                    let opacity: number;
+                    if (idle) {
+                      // 静默：扫描线效果（高光从左到右流动）
+                      const scanPos = ((pttClock * 0.7) % 1.6) * (BAR_COUNT + 8) - 4;
+                      const distFromScan = Math.abs(i - scanPos);
+                      const scan = Math.max(0, 1 - distFromScan / 5);
+                      h = 2 + scan * 5;
+                      opacity = 0.18 + scan * 0.55;
+                    } else {
+                      const amp = bell * (0.25 + wave * 0.75) * pttMicLevel;
+                      h = Math.max(2, 2 + amp * 32);
+                      opacity = 0.55 + amp * 0.45;
+                    }
+
+                    return (
+                      <div
+                        key={i}
+                        className="rounded-full"
+                        style={{
+                          width: '2.5px',
+                          height: `${h}px`,
+                          background: idle
+                            ? `rgba(200,220,255,${opacity})`
+                            : `linear-gradient(180deg, rgba(0,245,255,${opacity}), rgba(139,92,246,${opacity}))`,
+                          boxShadow: idle ? 'none' : `0 0 6px rgba(139,92,246,${opacity * 0.5})`,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* 右：分隔 + 时长 + 提示 */}
+                <div className="relative flex items-center gap-3 pl-4 border-l border-white/[0.08] flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <motion.div
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: '#F87171', boxShadow: '0 0 8px rgba(248,113,113,0.6)' }}
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                    <span className="text-[12px] font-mono tabular-nums text-white/60 tracking-wider">
+                      {Math.floor(pttDuration / 60)}:{(pttDuration % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-white/35">
+                    <kbd className="px-1.5 py-px rounded-md bg-white/[0.08] font-mono leading-none border border-white/[0.06]">␣</kbd>
+                    <span>松开发送</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ═══ 语音反馈Toast（悬浮球附近，面板无关） ═══ */}
       <AnimatePresence>
@@ -633,36 +1069,16 @@ export default function AICommandCenter() {
         )}
       </AnimatePresence>
 
-      {/* ═══ 最小化药丸 ═══ */}
-      <AnimatePresence>
-        {isPanelOpen && isMinimized && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            onClick={() => setIsMinimized(false)}
-            className="fixed z-[9989] cursor-pointer"
-            style={{ left: panelPos.left, top: panelPos.top }}
-          >
-            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-[#051020]/95 border border-[#00F5FF]/20 backdrop-blur-md hover:border-[#00F5FF]/40 transition-colors">
-              <div className="w-2 h-2 rounded-full bg-[#00F5FF] animate-pulse" />
-              <span className="text-xs text-white/70 max-w-[120px] truncate">
-                {messages[messages.length - 1]?.text.slice(0, 20) || '小智'}
-              </span>
-              <Maximize2 className="w-3 h-3 text-white/40" />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* ═══ 聊天面板（可拖拽/可拉伸） ═══ */}
       <AnimatePresence>
-        {isPanelOpen && !isMinimized && (
+        {isPanelOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: panelOpacity, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            ref={panelElRef}
+            layoutId="ai-shell"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: panelOpacity }}
+            exit={{ opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 28 }}
             className="fixed z-[9989] flex flex-col rounded-2xl overflow-hidden"
             style={{
               left: panelPos.left,
@@ -767,13 +1183,6 @@ export default function AICommandCenter() {
                   title="清空对话"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => setIsMinimized(true)}
-                  className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
-                  title="最小化"
-                >
-                  <Minimize2 className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => setIsPanelOpen(false)}

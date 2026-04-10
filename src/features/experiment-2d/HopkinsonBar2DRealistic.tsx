@@ -17,8 +17,8 @@ import type { ExperimentStage } from '@/hooks/useExperimentAnimation';
 // 设计参数
 // ═══════════════════════════════════════════════
 
-const DESIGN_W = 1100;
-const DESIGN_H = 420;
+const DESIGN_W = 1200;
+const DESIGN_H = 480;
 
 // 设备布局(X坐标和尺寸) — 垂直居中于DESIGN_H
 const LAYOUT = {
@@ -103,20 +103,29 @@ export default function HopkinsonBar2DRealistic({
   const render = useCallback((ctx: CanvasRenderingContext2D, time: number, _dt: number, w: number, h: number) => {
     const { cy, incX, incLen, specCx, transX, transLen, daqX, sgPositions } = positions;
 
-    // 背景
-    ctx.fillStyle = COLORS.bg;
+    // 背景（深色渐变，顶部略亮）
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, '#0D2D4D');
+    bgGrad.addColorStop(0.4, COLORS.bg);
+    bgGrad.addColorStop(1, '#051020');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
     drawGridBackground(ctx, w, h, 30);
 
-    // 底座基准线
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    // 底座基准线（带渐变）
+    const baseGrad = ctx.createLinearGradient(30, 0, w - 30, 0);
+    baseGrad.addColorStop(0, 'rgba(255,255,255,0)');
+    baseGrad.addColorStop(0.1, 'rgba(255,255,255,0.08)');
+    baseGrad.addColorStop(0.9, 'rgba(255,255,255,0.08)');
+    baseGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.strokeStyle = baseGrad;
     ctx.lineWidth = 0.5;
     ctx.beginPath();
-    ctx.moveTo(0, LAYOUT.baseY);
-    ctx.lineTo(w, LAYOUT.baseY);
+    ctx.moveTo(30, LAYOUT.baseY);
+    ctx.lineTo(w - 30, LAYOUT.baseY);
     ctx.stroke();
 
-    // 中心线(虚线)
+    // 中心线(虚线，带渐隐)
     ctx.strokeStyle = 'rgba(255,255,255,0.04)';
     ctx.setLineDash([4, 8]);
     ctx.beginPath();
@@ -263,15 +272,29 @@ export default function HopkinsonBar2DRealistic({
     // ═══ 数字孪生 - 阶段信息面板 ═══
     renderStageInfoPanel(ctx, currentStage, stageIndex, stageProgress, globalProgress, isPlaying, isComplete, time);
 
-    // ═══ 标题 ═══
-    ctx.font = 'bold 10px sans-serif';
+    // ═══ 标题栏（底部，工程图纸风格） ═══
+    // 分隔线
+    const titleBarY = h - 22;
+    const titleGrad = ctx.createLinearGradient(30, 0, w - 30, 0);
+    titleGrad.addColorStop(0, 'rgba(0,245,255,0)');
+    titleGrad.addColorStop(0.15, 'rgba(0,245,255,0.1)');
+    titleGrad.addColorStop(0.85, 'rgba(0,245,255,0.1)');
+    titleGrad.addColorStop(1, 'rgba(0,245,255,0)');
+    ctx.strokeStyle = titleGrad;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(30, titleBarY);
+    ctx.lineTo(w - 30, titleBarY);
+    ctx.stroke();
+
+    ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.fillText('电磁驱动分离式霍普金森压杆系统 (EM-SHPB) · 数字孪生', 20, h - 10);
+    ctx.fillStyle = 'rgba(0,245,255,0.3)';
+    ctx.fillText('电磁驱动分离式霍普金森压杆系统 (EM-SHPB)', 30, h - 8);
     ctx.textAlign = 'right';
-    ctx.font = '8px monospace';
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillText('Digital Twin · Electromagnetic Split Hopkinson Pressure Bar', w - 20, h - 10);
+    ctx.font = '7px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillText('DIGITAL TWIN · Electromagnetic Split Hopkinson Pressure Bar', w - 30, h - 8);
 
   }, [currentStage, stageIndex, stageProgress, globalProgress, isPlaying, isComplete,
       voltage, current, materialName, materialColor, materialCategory, stiffnessK, dampingC, positions]);
@@ -359,77 +382,101 @@ function renderBottomWaveformPreview(
 ) {
   if (stage !== 'wavePropagate' && stage !== 'deformation' && stage !== 'dataCollect') return;
 
-  const previewY = 260; // 波形预览区域起始Y (固定位置)
-  const previewH = 60;
+  const previewY = 280; // 波形预览区域起始Y
+  const previewH = 80;
   const previewCY = previewY + previewH / 2;
-  const totalStartX = incX;
-  const totalEndX = transX + transLen;
-  const amplitude = 20 + (voltage / 4000) * 10;
+  const totalStartX = incX - 20;
+  const totalEndX = transX + transLen + 20;
+  const amplitude = 24 + (voltage / 4000) * 12;
 
   ctx.save();
 
-  // 背景区域
-  ctx.fillStyle = 'rgba(5,16,32,0.6)';
-  ctx.fillRect(totalStartX - 10, previewY - 5, totalEndX - totalStartX + 20, previewH + 15);
-  ctx.strokeStyle = 'rgba(0,245,255,0.1)';
+  // 背景区域（圆角 + 毛玻璃效果）
+  roundRect(ctx, totalStartX - 5, previewY - 18, totalEndX - totalStartX + 10, previewH + 38, 6);
+  ctx.fillStyle = 'rgba(5,12,28,0.75)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,245,255,0.12)';
   ctx.lineWidth = 0.5;
-  ctx.strokeRect(totalStartX - 10, previewY - 5, totalEndX - totalStartX + 20, previewH + 15);
+  ctx.stroke();
 
-  // 零线
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  // 细网格（示波器风格）
+  ctx.strokeStyle = 'rgba(0,245,255,0.04)';
+  ctx.lineWidth = 0.3;
+  const gridStep = 10;
+  for (let gx = totalStartX; gx < totalEndX; gx += gridStep) {
+    ctx.beginPath();
+    ctx.moveTo(gx, previewY - 2);
+    ctx.lineTo(gx, previewY + previewH + 2);
+    ctx.stroke();
+  }
+  for (let gy = previewY; gy <= previewY + previewH; gy += gridStep) {
+    ctx.beginPath();
+    ctx.moveTo(totalStartX, gy);
+    ctx.lineTo(totalEndX, gy);
+    ctx.stroke();
+  }
+
+  // 零线（加强）
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
   ctx.lineWidth = 0.5;
   ctx.setLineDash([3, 3]);
   ctx.beginPath();
-  ctx.moveTo(totalStartX - 5, previewCY);
-  ctx.lineTo(totalEndX + 5, previewCY);
+  ctx.moveTo(totalStartX, previewCY);
+  ctx.lineTo(totalEndX, previewCY);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // 试样位置标记
+  // 试样位置标记（垂直高亮带）
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  ctx.fillRect(specCx - 4, previewY - 2, 8, previewH + 4);
   ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 0.8;
   ctx.setLineDash([2, 2]);
   ctx.beginPath();
   ctx.moveTo(specCx, previewY - 3);
   ctx.lineTo(specCx, previewY + previewH + 8);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.font = '6px sans-serif';
+  ctx.font = 'bold 6px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.fillText('试样', specCx, previewY + previewH + 14);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText('Specimen', specCx, previewY + previewH + 16);
 
   // 标题
-  ctx.font = '7px sans-serif';
+  ctx.font = 'bold 8px monospace';
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.fillText('应力分布预览 σ(x)', totalStartX - 5, previewY - 8);
+  ctx.fillStyle = '#00F5FF';
+  ctx.fillText('STRESS DISTRIBUTION σ(x)', totalStartX + 5, previewY - 8);
+  ctx.font = '6px monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillText('One-dimensional wave propagation', totalStartX + 180, previewY - 8);
 
   const waveProg = stage === 'dataCollect' ? 1 : progress;
-  const pulseWidth = incLen * 0.25;
+  // 脉冲宽度（匹配实验数据：脉冲长约 80% 杆长）
+  const pulseWidth = incLen * 0.35;
 
-  // 入射波 — 入射杆上从左向右
-  const incProgress = Math.min(1, waveProg * 1.6);
+  // 入射波 — 入射杆上从左向右（钟形半正弦脉冲）
+  const incProgress = Math.min(1, waveProg * 1.5);
   if (incProgress > 0) {
     const headX = incX + incLen * incProgress;
     const tailX = Math.max(incX, headX - pulseWidth);
     drawPreviewPulse(ctx, tailX, headX, previewCY, amplitude, COLORS.incidentWave, time);
   }
 
-  // 反射波 — 入射杆上从右向左
-  if (waveProg > 0.5) {
-    const refProg = (waveProg - 0.5) / 0.5;
+  // 反射波 — 入射杆上从右向左（幅度 ~87% of 入射波）
+  if (waveProg > 0.45) {
+    const refProg = (waveProg - 0.45) / 0.55;
     const headX = incX + incLen - incLen * refProg;
-    const tailX = Math.min(incX + incLen, headX + pulseWidth * 0.7);
-    drawPreviewPulse(ctx, headX, tailX, previewCY, -amplitude * 0.35, COLORS.reflectedWave, time);
+    const tailX = Math.min(incX + incLen, headX + pulseWidth * 0.8);
+    drawPreviewPulse(ctx, headX, tailX, previewCY, -amplitude * 0.87, COLORS.reflectedWave, time);
   }
 
-  // 透射波 — 透射杆上从左向右
-  if (waveProg > 0.5) {
-    const transProg = (waveProg - 0.5) / 0.5;
+  // 透射波 — 透射杆上从左向右（幅度 ~78% of 入射波）
+  if (waveProg > 0.45) {
+    const transProg = (waveProg - 0.45) / 0.55;
     const headX = transX + transLen * Math.min(1, transProg * 1.3);
-    const tailX = Math.max(transX, headX - pulseWidth * 0.6);
-    drawPreviewPulse(ctx, tailX, headX, previewCY, amplitude * 0.65, COLORS.transmittedWave, time);
+    const tailX = Math.max(transX, headX - pulseWidth * 0.7);
+    drawPreviewPulse(ctx, tailX, headX, previewCY, amplitude * 0.78, COLORS.transmittedWave, time);
   }
 
   // 图例
@@ -457,7 +504,7 @@ function renderBottomWaveformPreview(
   ctx.restore();
 }
 
-/** 在预览区域绘制一个脉冲 */
+/** 在预览区域绘制真实 SHPB 钟形脉冲（匹配实验数据半正弦形状） */
 function drawPreviewPulse(
   ctx: CanvasRenderingContext2D,
   startX: number, endX: number, cy: number,
@@ -465,33 +512,53 @@ function drawPreviewPulse(
 ) {
   if (endX - startX < 2) return;
   const pts: { x: number; y: number }[] = [];
-  const step = 1.5;
+  const step = 1.2;
   const len = endX - startX;
+  const riseEnd = 0.42;
 
   for (let px = startX; px <= endX; px += step) {
     const t = (px - startX) / len;
     let env: number;
-    if (t < 0.25) env = Math.pow(t / 0.25, 2);
-    else if (t < 0.45) env = 1.0;
-    else env = Math.exp(-3 * Math.pow((t - 0.45) / 0.55, 2));
-    const ripple = 1 + 0.03 * Math.sin(px * 0.4 + time * 0.003);
+    if (t < riseEnd) {
+      const r = t / riseEnd;
+      env = Math.sin(r * Math.PI / 2);
+      env = env * env * (1 + 0.08 * r * r);
+    } else {
+      const d = (t - riseEnd) / (1 - riseEnd);
+      const cosDecay = Math.cos(d * Math.PI / 2);
+      const expTail = Math.exp(-2.2 * d * d);
+      env = Math.max(0, cosDecay * 0.7 + expTail * 0.3);
+    }
+    const ripple = 1 + 0.02 * Math.sin(px * 0.6 + time * 0.002);
     pts.push({ x: px, y: cy - amplitude * env * ripple });
   }
 
-  // Fill
+  if (pts.length < 2) return;
+
+  // 渐变填充
+  const dir = amplitude > 0 ? -1 : 1;
+  const grad = ctx.createLinearGradient(0, cy, 0, cy + dir * Math.abs(amplitude));
+  grad.addColorStop(0, colorWithAlpha(color, 0));
+  grad.addColorStop(1, colorWithAlpha(color, 0.12));
   ctx.beginPath();
   ctx.moveTo(pts[0].x, cy);
   for (const p of pts) ctx.lineTo(p.x, p.y);
   ctx.lineTo(pts[pts.length - 1].x, cy);
   ctx.closePath();
-  ctx.fillStyle = colorWithAlpha(color, 0.08);
+  ctx.fillStyle = grad;
   ctx.fill();
 
-  // Stroke
+  // 双层描边
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.strokeStyle = colorWithAlpha(color, 0.7);
+  ctx.strokeStyle = colorWithAlpha(color, 0.3);
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.strokeStyle = colorWithAlpha(color, 0.8);
   ctx.lineWidth = 1.2;
   ctx.stroke();
 }
@@ -647,27 +714,30 @@ function computeHUDData(
       ];
     }
     case 'wavePropagate': {
-      const stress = voltage * 0.025 * Math.min(1, progress * 2);
-      const strainRate = 1500 + progress * 2000;
+      // 基于实验数据：峰值应力 ~72MPa，应变率 ~5856/s，波速 5170m/s
+      const peakStress = 72 * (voltage / 3000);
+      const stress = peakStress * Math.min(1, progress * 2);
+      const strainRate = 3200 + progress * 2656;  // → peak ~5856/s
       return [
         { label: '入射应力', value: stress.toFixed(1), unit: 'MPa', color: '#3B82F6', bar: progress },
         { label: '应变率', value: Math.round(strainRate).toString(), unit: '/s', color: '#FF9F43' },
         { label: '波速', value: '5170', unit: 'm/s', color: '#00F5FF' },
-        { label: '反射系数', value: progress > 0.5 ? (0.15 + stiffnessK / 1000).toFixed(3) : '---', unit: '', color: '#EF4444' },
-        { label: '透射系数', value: progress > 0.5 ? (0.85 - stiffnessK / 2000).toFixed(3) : '---', unit: '', color: '#10B981' },
+        { label: '反射系数', value: progress > 0.45 ? '0.874' : '---', unit: '', color: '#EF4444' },
+        { label: '透射系数', value: progress > 0.45 ? '0.782' : '---', unit: '', color: '#10B981' },
         { label: '波程', value: (progress * 1500).toFixed(0), unit: 'mm', color: '#8B5CF6', bar: progress },
       ];
     }
     case 'deformation': {
-      const peakStress = voltage * 0.025;
-      const strain = progress * 0.08;
+      // 基于实验数据：最终应变 ~0.86%，峰值应力 ~72MPa
+      const peakStress = 72 * (voltage / 3000);
+      const strain = progress * 0.0086;  // 最终应变 0.86%
       return [
         { label: '峰值应力', value: peakStress.toFixed(1), unit: 'MPa', color: '#EF4444' },
-        { label: '工程应变', value: (strain * 100).toFixed(2), unit: '%', color: '#FFD700', bar: strain / 0.08 },
+        { label: '工程应变', value: (strain * 100).toFixed(3), unit: '%', color: '#FFD700', bar: progress },
         { label: '真应力', value: (peakStress * (1 + strain)).toFixed(1), unit: 'MPa', color: '#FF9F43' },
-        { label: '真应变', value: Math.log(1 + strain).toFixed(4), unit: '', color: '#8B5CF6' },
-        { label: '温升', value: (progress * 15).toFixed(1), unit: '°C', color: '#EF4444', bar: progress },
-        { label: '吸收能', value: (voltage * 0.025 * strain * 0.5).toFixed(2), unit: 'MJ/m³', color: '#1DD1A1' },
+        { label: '真应变', value: Math.log(1 + strain).toFixed(5), unit: '', color: '#8B5CF6' },
+        { label: '温升', value: (progress * 8.5).toFixed(1), unit: '°C', color: '#EF4444', bar: progress },
+        { label: '吸收能', value: (peakStress * strain * 0.5).toFixed(3), unit: 'MJ/m³', color: '#1DD1A1' },
       ];
     }
     case 'dataCollect': {
@@ -697,41 +767,53 @@ function renderStrainGaugeReadouts(
   if (stage !== 'wavePropagate' && stage !== 'deformation' && stage !== 'dataCollect') return;
 
   ctx.save();
-  const peakStress = voltage * 0.025;
+  // 基于实验数据：入射波峰值 ~697mV，反射 ~610mV，透射 ~545mV
+  const peakIncidentMv = 697 * (voltage / 3000);
+  const peakReflectedMv = 610 * (voltage / 3000);
+  const peakTransmittedMv = 545 * (voltage / 3000);
 
-  // 各应变片的信号值（基于波传播位置）
+  // 各应变片的信号值（基于波传播位置和实验数据电压幅度）
   const sgValues = sgPositions.map((sg, i) => {
     const isIncident = i < 2;
     const relPos = isIncident ? (i === 0 ? 0.3 : 0.6) : (i === 2 ? 0.4 : 0.7);
 
     let signalMv = 0;
     if (stage === 'dataCollect') {
-      // 数据采集阶段显示最终值
+      // 数据采集阶段显示最终值（带微小波动模拟真实读数）
       signalMv = isIncident
-        ? peakStress * 0.4 * (1 - relPos * 0.3) + Math.sin(time * 0.005 + i) * 0.5
-        : peakStress * 0.3 * (1 - relPos * 0.2) + Math.sin(time * 0.005 + i + 2) * 0.3;
+        ? peakIncidentMv * 0.8 * (1 - relPos * 0.15) + Math.sin(time * 0.005 + i) * 2
+        : peakTransmittedMv * 0.75 * (1 - relPos * 0.1) + Math.sin(time * 0.005 + i + 2) * 1.5;
     } else {
-      // 波传播阶段：根据波前位置计算
-      const waveFront = progress * 1.6; // 入射波前归一化位置
+      // 波传播阶段：钟形脉冲经过各应变片位置
+      const waveFront = progress * 1.5;
       if (isIncident) {
+        // 入射波经过
         if (waveFront > relPos) {
-          const localProg = Math.min(1, (waveFront - relPos) / 0.3);
-          signalMv = peakStress * 0.4 * localProg * Math.exp(-0.5 * localProg);
+          const localProg = Math.min(1, (waveFront - relPos) / 0.35);
+          // 钟形包络（sin²上升 + cos下降）
+          const env = localProg < 0.42
+            ? Math.pow(Math.sin(localProg / 0.42 * Math.PI / 2), 2)
+            : Math.max(0, Math.cos((localProg - 0.42) / 0.58 * Math.PI / 2));
+          signalMv = peakIncidentMv * env;
         }
         // 反射波叠加
-        if (progress > 0.5) {
-          const refFront = 1 - (progress - 0.5) * 2;
+        if (progress > 0.45) {
+          const refFront = 1 - (progress - 0.45) / 0.55;
           if (refFront < relPos) {
-            signalMv -= peakStress * 0.15 * Math.min(1, (relPos - refFront) / 0.2);
+            const localProg = Math.min(1, (relPos - refFront) / 0.3);
+            signalMv += peakReflectedMv * localProg * Math.exp(-0.5 * localProg) * 0.6;
           }
         }
       } else {
         // 透射杆
-        if (progress > 0.5) {
-          const transFront = (progress - 0.5) * 2.6;
+        if (progress > 0.45) {
+          const transFront = (progress - 0.45) / 0.55 * 1.3;
           if (transFront > relPos) {
-            const localProg = Math.min(1, (transFront - relPos) / 0.3);
-            signalMv = peakStress * 0.3 * localProg * Math.exp(-0.3 * localProg);
+            const localProg = Math.min(1, (transFront - relPos) / 0.35);
+            const env = localProg < 0.42
+              ? Math.pow(Math.sin(localProg / 0.42 * Math.PI / 2), 2)
+              : Math.max(0, Math.cos((localProg - 0.42) / 0.58 * Math.PI / 2));
+            signalMv = peakTransmittedMv * env;
           }
         }
       }
@@ -766,11 +848,14 @@ function renderStrainGaugeReadouts(
     ctx.closePath();
     ctx.fill();
 
-    // 数值
+    // 数值（实验电压量级 mV，保留整数）
     ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'center';
     ctx.fillStyle = sg.value > 0 ? '#00F5FF' : '#EF4444';
-    ctx.fillText(`${sg.value.toFixed(1)}mV`, sg.x, by + 11);
+    const displayMv = Math.abs(sg.value) >= 100
+      ? `${(sg.value / 1000).toFixed(2)}V`
+      : `${sg.value.toFixed(0)}mV`;
+    ctx.fillText(displayMv, sg.x, by + 11);
   });
 
   ctx.restore();
@@ -876,9 +961,9 @@ function renderStageInfoPanel(
   ctx.save();
 
   const px = 15;
-  const py = DESIGN_H - 80;
-  const pw = 170;
-  const ph = 62;
+  const py = DESIGN_H - 90;
+  const pw = 185;
+  const ph = 72;
 
   // 背景
   roundRect(ctx, px, py, pw, ph, 4);
