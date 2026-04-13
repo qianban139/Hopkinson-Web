@@ -14,6 +14,50 @@ interface QuickIntent {
 }
 
 const QUICK_INTENTS: QuickIntent[] = [
+  // --- 自主实验（优先级最高，避免与 lab.pauseExperiment 等冲突）---
+  // 触发自主实验规划
+  {
+    patterns: [
+      /(?:帮我|请|AI)?(?:自主|自动)(?:研究|做|进行|执行|实验).*/i,
+      /(?:启动|开始|做一次?)\s*(?:AI)?自主实验/i,
+      /(?:帮我|请)?(?:研究|探究|调查).*(?:应变率|温度|对比|参数|优化|扫描)(?:效应|影响|特性|规律)?/i,
+      /(?:帮我|请)?(?:比较|对比).*(?:和|与|跟).*(?:哪个|哪种)?(?:强|好|高|优)/i,
+      /找到?.*(?:最佳|最优|最好).*(?:参数|条件)/i,
+    ],
+    actionId: 'autonomous.plan',
+    extractParams: (_, input) => ({ goal: input }),
+  },
+  // 自主实验控制
+  {
+    patterns: [/(?:暂停|停一下)自主实验/i, /pause\s*autonomous/i],
+    actionId: 'autonomous.pause',
+    extractParams: () => ({}),
+  },
+  {
+    patterns: [/(?:继续|恢复)自主实验/i, /resume\s*autonomous/i],
+    actionId: 'autonomous.resume',
+    extractParams: () => ({}),
+  },
+  {
+    patterns: [/(?:终止|停止|取消)自主实验/i, /abort\s*autonomous/i],
+    actionId: 'autonomous.abort',
+    extractParams: () => ({}),
+  },
+  {
+    patterns: [
+      /(?:批准|同意|确认)(?:自主)?(?:实验)?计划/i,
+      /^(?:开始|启动)执行(?:实验|计划|吧)?$/i,
+      /^(?:批准|同意)(?:执行|了|吧)?$/i,
+    ],
+    actionId: 'autonomous.approve',
+    extractParams: () => ({}),
+  },
+  {
+    patterns: [/(?:拒绝|否决|驳回)(?:自主)?(?:实验)?计划/i],
+    actionId: 'autonomous.reject',
+    extractParams: () => ({}),
+  },
+
   // 导航
   {
     patterns: [/(?:去|打开|进入|跳转到?)(?:虚拟)?实验室/i, /go\s*(?:to\s*)?lab/i],

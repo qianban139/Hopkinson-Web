@@ -34,6 +34,7 @@
 | [AI 对话助手](ai-system/ai-assistant.md) | 意图解析、动作注册、对话管理 |
 | [语音交互管线](ai-system/voice-interaction.md) | 唤醒词、语音识别、TTS 合成 |
 | [安全检查系统](ai-system/safety-guardian.md) | 安全阈值、分级预警、紧急停止 |
+| [AI 自主实验](ai-system/autonomous-experiment.md) | 全流程自主规划、执行、分析、报告 |
 
 ### 数据可视化
 

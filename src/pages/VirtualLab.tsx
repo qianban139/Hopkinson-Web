@@ -8,7 +8,7 @@ import {
   Search, ChevronRight, ChevronDown, ArrowRight,
   Play, Pause, RotateCcw, PanelLeftClose, PanelLeftOpen, AlertTriangle,
   Thermometer, Radio, Brain, CheckCircle2, X,
-  Wifi, WifiOff, Loader2,
+  Wifi, WifiOff, Loader2, Bot,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,6 +31,9 @@ import { useBackendConnection } from '@/hooks/useBackendConnection';
 import { useExperimentAnimation } from '@/hooks/useExperimentAnimation';
 import { runSHPBSimulation } from '@/services/shpbPhysicsEngine';
 import type { Material } from '@/types';
+import { AutonomousSidebar } from '@/features/autonomous-experiment';
+import { useAutonomousExperimentStore } from '@/store/useAutonomousExperimentStore';
+import { planExperiments } from '@/features/ai-assistant/services/autonomousExperimentService';
 
 // 波形类型
 const waveformTypes = [
@@ -218,6 +221,11 @@ export default function VirtualLab() {
   // 参数状态: 本地管理 + 响应AI store变更
   const storeParams = useAppStore(s => s.experimentParams);
   const setStoreParams = useAppStore(s => s.setExperimentParams);
+  const autoSidebarOpen = useAutonomousExperimentStore(s => s.sidebarOpen);
+  const setAutoSidebarOpen = useAutonomousExperimentStore(s => s.setSidebarOpen);
+  const autoStatus = useAutonomousExperimentStore(s => s.status);
+  const [autoGoalInput, setAutoGoalInput] = useState('');
+  const [showAutoGoalDialog, setShowAutoGoalDialog] = useState(false);
   const [voltage, setVoltageLocal] = useState(storeParams.voltage);
   const [current, setCurrentLocal] = useState(storeParams.current);
   const [pulseWidth, setPulseWidthLocal] = useState(storeParams.pulseWidth);
@@ -374,11 +382,27 @@ export default function VirtualLab() {
     }, 80);
   }, [voltage, current, pulseWidth]);
 
-  // AI事件监听: 启动/暂停/重置/预设
+  // 侧栏折叠状态
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // AI启动确认弹窗
+  const [showAIConfirm, setShowAIConfirm] = useState(false);
+  // 波形显示 tab
+  const [waveformTab, setWaveformTab] = useState('all');
+  // 波形面板默认关闭，用户可手动展开
+  const [waveformPanelOpen, setWaveformPanelOpen] = useState(false);
+  const [resultsPanelOpen, setResultsPanelOpen] = useState(true);
+
+  // 保持动画方法和参数设置函数的最新引用，避免事件监听器频繁重注册
+  const animRef = useRef(animState);
+  useEffect(() => { animRef.current = animState; });
+  const settersRef = useRef({ setVoltage, setCurrent, setPulseWidth, setEnableConfining, setConfiningPressure, setShowAIConfirm, setSidebarCollapsed, setViewMode, setResultsPanelOpen });
+  useEffect(() => { settersRef.current = { setVoltage, setCurrent, setPulseWidth, setEnableConfining, setConfiningPressure, setShowAIConfirm, setSidebarCollapsed, setViewMode, setResultsPanelOpen }; });
+
+  // AI事件监听: 启动/暂停/重置/预设（仅注册一次）
   useEffect(() => {
-    const handleStart = () => { setShowAIConfirm(true); };
-    const handlePause = () => { animState.pause(); };
-    const handleReset = () => { animState.reset(); };
+    const handleStart = () => { settersRef.current.setShowAIConfirm(true); };
+    const handlePause = () => { animRef.current.pause(); };
+    const handleReset = () => { animRef.current.reset(); };
     const handlePreset = (e: Event) => {
       const presetId = (e as CustomEvent).detail as string;
       const presetMap: Record<string, typeof PARAM_PRESETS[0]> = {
@@ -388,19 +412,19 @@ export default function VirtualLab() {
         lowSpeed: PARAM_PRESETS[3],
       };
       const p = presetMap[presetId];
-      if (p) { setVoltage(p.voltage); setCurrent(p.current); setPulseWidth(p.pulseWidth); }
+      if (p) { settersRef.current.setVoltage(p.voltage); settersRef.current.setCurrent(p.current); settersRef.current.setPulseWidth(p.pulseWidth); }
     };
     const handleSetConfining = (e: Event) => {
       const detail = (e as CustomEvent).detail as { x?: number; y?: number; z?: number };
-      if (!enableConfining) setEnableConfining(true);
-      setConfiningPressure(prev => ({
+      settersRef.current.setEnableConfining(true);
+      settersRef.current.setConfiningPressure(prev => ({
         x: detail.x ?? prev.x,
         y: detail.y ?? prev.y,
         z: detail.z ?? prev.z,
       }));
     };
     const handleToggleConfining = (e: Event) => {
-      setEnableConfining(!!(e as CustomEvent).detail);
+      settersRef.current.setEnableConfining(!!(e as CustomEvent).detail);
     };
     const handleJumpStage = (e: Event) => {
       const stageName = (e as CustomEvent).detail as string;
@@ -409,11 +433,15 @@ export default function VirtualLab() {
         wavePropagate: 3, deformation: 4, dataCollect: 5,
       };
       const idx = stageMap[stageName];
-      if (idx !== undefined) animState.jumpToStage(idx);
+      if (idx !== undefined) animRef.current.jumpToStage(idx);
     };
     // AI侧边栏控制：参数设置时打开，实验运行时关闭
-    const handleSidebarOpen = () => setSidebarCollapsed(false);
-    const handleSidebarClose = () => setSidebarCollapsed(true);
+    const handleSidebarOpen = () => settersRef.current.setSidebarCollapsed(false);
+    const handleSidebarClose = () => settersRef.current.setSidebarCollapsed(true);
+    // 自主实验：跳过安全检查弹窗直接播放动画
+    const handleAutoPlay = () => { animRef.current.reset(); setTimeout(() => animRef.current.play(), 100); };
+    // 自主实验：实验完成后展示结果图表
+    const handleShowResultCharts = () => { settersRef.current.setViewMode('2d'); settersRef.current.setResultsPanelOpen(true); };
 
     window.addEventListener('ai-start-experiment', handleStart);
     window.addEventListener('ai-pause-experiment', handlePause);
@@ -424,6 +452,8 @@ export default function VirtualLab() {
     window.addEventListener('ai-jump-stage', handleJumpStage);
     window.addEventListener('ai-sidebar-open', handleSidebarOpen);
     window.addEventListener('ai-sidebar-close', handleSidebarClose);
+    window.addEventListener('ai-auto-play-experiment', handleAutoPlay);
+    window.addEventListener('ai-show-result-charts', handleShowResultCharts);
     return () => {
       window.removeEventListener('ai-start-experiment', handleStart);
       window.removeEventListener('ai-pause-experiment', handlePause);
@@ -434,13 +464,20 @@ export default function VirtualLab() {
       window.removeEventListener('ai-jump-stage', handleJumpStage);
       window.removeEventListener('ai-sidebar-open', handleSidebarOpen);
       window.removeEventListener('ai-sidebar-close', handleSidebarClose);
+      window.removeEventListener('ai-auto-play-experiment', handleAutoPlay);
+      window.removeEventListener('ai-show-result-charts', handleShowResultCharts);
     };
-  }, [animState, setVoltage, setCurrent, setPulseWidth, enableConfining]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 实验动画完成时自动发布数据
+  // 实验动画完成时自动发布数据 + 通知自主实验服务
   useEffect(() => {
     if (animState.isComplete) {
-      handleExperimentComplete();
+      // 自主实验运行期间由 service 负责发布数据，避免重复
+      const autoStatus = useAutonomousExperimentStore.getState().status;
+      if (autoStatus !== 'running' && autoStatus !== 'analyzing') {
+        handleExperimentComplete();
+      }
+      window.dispatchEvent(new CustomEvent('ai-experiment-animation-complete'));
     }
   }, [animState.isComplete, handleExperimentComplete]);
 
@@ -475,16 +512,6 @@ export default function VirtualLab() {
     }
   }, [animState.isPlaying, animState.isComplete, animState.stageIndex, animState.globalProgress, viewMode]);
 
-  // 侧栏折叠状态
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  // AI启动确认弹窗
-  const [showAIConfirm, setShowAIConfirm] = useState(false);
-  // 波形显示 tab
-  const [waveformTab, setWaveformTab] = useState('all');
-  // 波形面板默认关闭，用户可手动展开
-  const [waveformPanelOpen, setWaveformPanelOpen] = useState(false);
-  const [resultsPanelOpen, setResultsPanelOpen] = useState(true);
-
   // 筛选材料
   const filteredMaterials = searchQuery
     ? materials.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -494,7 +521,7 @@ export default function VirtualLab() {
     : materials.filter(m => m.subCategory === selectedCategory);
 
   return (
-    <div className="min-h-screen pt-24">
+    <div className={`min-h-screen pt-24 transition-[padding] duration-300 ${autoSidebarOpen ? 'pr-80' : ''}`}>
       {/* 模块连接指示 + 双模式切换 */}
       <div className="h-10 bg-[#051020] border-b border-[#00F5FF]/10 flex items-center justify-between px-4">
         <ModuleConnectionBadge
@@ -537,6 +564,21 @@ export default function VirtualLab() {
               连接模式
             </button>
           </div>
+
+          {/* AI 自主实验入口 */}
+          <button
+            onClick={() => {
+              if (autoStatus !== 'idle') {
+                setAutoSidebarOpen(true);
+              } else {
+                setShowAutoGoalDialog(true);
+              }
+            }}
+            className="px-3 py-1.5 flex items-center gap-1 text-xs rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-colors"
+            title="AI 全流程自主实验"
+          >
+            <Bot className="w-3 h-3" />AI 自主实验
+          </button>
 
           {/* 连接状态指示 */}
           {labMode === 'connected' && (
@@ -1515,6 +1557,8 @@ export default function VirtualLab() {
                           if (v && isFinite(v.duration) && v.duration > 0 && !videoDurationMs) {
                             setVideoDurationMs(v.duration * 1000);
                           }
+                          // 通知自主实验服务视频已就绪
+                          window.dispatchEvent(new CustomEvent('ai-video-ready'));
                         }}
                         className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                         style={{ outline: 'none' }}
@@ -1675,6 +1719,75 @@ export default function VirtualLab() {
               })()}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* AI 自主实验 — 目标输入弹窗 */}
+      <AnimatePresence>
+        {showAutoGoalDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowAutoGoalDialog(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-[520px] bg-slate-900 border border-purple-500/30 rounded-xl p-5 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Bot className="w-5 h-5 text-purple-400" />
+                <h3 className="text-base font-medium text-white">AI 自主实验</h3>
+              </div>
+              <p className="text-xs text-slate-400 mb-2">描述您的研究目标，AI 将自动规划并执行完整实验流程。</p>
+              <textarea
+                value={autoGoalInput}
+                onChange={e => setAutoGoalInput(e.target.value)}
+                placeholder={`例如：\n• 研究 Q235 钢在不同应变率下的力学响应\n• 对比铝合金和钛合金的冲击性能\n• 找到 5A06 铝合金的最佳冲击参数`}
+                className="w-full h-28 px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 mt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowAutoGoalDialog(false);
+                    setAutoGoalInput('');
+                  }}
+                >
+                  取消
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-500"
+                  disabled={!autoGoalInput.trim()}
+                  onClick={async () => {
+                    const goal = autoGoalInput.trim();
+                    if (!goal) return;
+                    setShowAutoGoalDialog(false);
+                    setAutoGoalInput('');
+                    setAutoSidebarOpen(true);
+                    await planExperiments(goal);
+                  }}
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1" />
+                  开始规划
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI 自主实验 — 右侧侧边栏（top-24 避开导航，bottom-7 避开底部监控条） */}
+      <div className="fixed right-0 top-24 bottom-7 z-30 pointer-events-none">
+        <div className="h-full pointer-events-auto">
+          <AutonomousSidebar />
         </div>
       </div>
     </div>

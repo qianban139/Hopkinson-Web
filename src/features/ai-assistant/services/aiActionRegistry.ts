@@ -2,6 +2,8 @@
 // AI动作注册表 - 注册网站中所有可执行操作
 import { useAppStore } from '@/store/useAppStore';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
+import { useAutonomousExperimentStore } from '@/store/useAutonomousExperimentStore';
+import { planExperiments } from './autonomousExperimentService';
 import type { AIAction, AIActionResult, LLMToolDefinition } from '../types';
 
 // ═══════════════════════════════════════════════
@@ -1022,6 +1024,131 @@ registerAction({
     window.dispatchEvent(new CustomEvent('ai-zoom-chart', { detail: params.action }));
     const labels: Record<string, string> = { in: '已放大', out: '已缩小', reset: '已重置' };
     return { success: true, message: `图表${labels[params.action as string] || '已操作'}` };
+  },
+});
+
+// ═══════════════════════════════════════════════
+// 自主实验（AI 全流程自动化）
+// ═══════════════════════════════════════════════
+
+// --- 生成实验计划 ---
+registerAction({
+  id: 'autonomous.plan',
+  category: 'autonomous',
+  name: '生成自主实验计划',
+  description: '根据用户研究目标，由 AI 自动规划一组实验序列（应变率扫描 / 温度扫描 / 材料对比 / 参数优化）。规划完成后侧边栏弹出等待用户审批。',
+  targetPage: '/lab',
+  parameters: [
+    { name: 'goal', type: 'string', description: '研究目标描述，例如"研究 Q235 钢在不同应变率下的力学响应"', required: true },
+  ],
+  execute: async (params) => {
+    const goal = String(params.goal || '').trim();
+    if (!goal) {
+      return { success: false, message: '研究目标不能为空' };
+    }
+    useAppStore.getState().setNavigateTo('/lab');
+    useAutonomousExperimentStore.getState().setSidebarOpen(true);
+    const ok = await planExperiments(goal);
+    if (!ok) {
+      const err = useAutonomousExperimentStore.getState().lastError;
+      return { success: false, message: err || '无法解析研究目标，请尝试更具体的描述' };
+    }
+    const plan = useAutonomousExperimentStore.getState().plan;
+    return {
+      success: true,
+      message: `已生成 ${plan?.experiments.length ?? 0} 个实验的计划，等待审批`,
+    };
+  },
+});
+
+// --- 批准并启动 ---
+registerAction({
+  id: 'autonomous.approve',
+  category: 'autonomous',
+  name: '批准自主实验计划',
+  description: '批准当前等待审批的自主实验计划，开始自动执行',
+  targetPage: '/lab',
+  parameters: [],
+  execute: async () => {
+    const store = useAutonomousExperimentStore.getState();
+    if (!store.plan || store.status !== 'ready') {
+      return { success: false, message: '当前没有待批准的实验计划' };
+    }
+    store.approvePlan();
+    return { success: true, message: '实验计划已批准，开始自动执行' };
+  },
+});
+
+// --- 拒绝计划 ---
+registerAction({
+  id: 'autonomous.reject',
+  category: 'autonomous',
+  name: '拒绝自主实验计划',
+  description: '拒绝当前等待审批的自主实验计划',
+  targetPage: '/lab',
+  parameters: [],
+  execute: async () => {
+    const store = useAutonomousExperimentStore.getState();
+    if (!store.plan) {
+      return { success: false, message: '当前没有可拒绝的实验计划' };
+    }
+    store.rejectPlan();
+    return { success: true, message: '实验计划已拒绝' };
+  },
+});
+
+// --- 暂停 ---
+registerAction({
+  id: 'autonomous.pause',
+  category: 'autonomous',
+  name: '暂停自主实验',
+  description: '暂停正在执行的自主实验',
+  targetPage: '/lab',
+  parameters: [],
+  execute: async () => {
+    const store = useAutonomousExperimentStore.getState();
+    if (store.status !== 'running') {
+      return { success: false, message: '当前没有正在执行的实验' };
+    }
+    store.pause();
+    return { success: true, message: '实验已暂停' };
+  },
+});
+
+// --- 恢复 ---
+registerAction({
+  id: 'autonomous.resume',
+  category: 'autonomous',
+  name: '恢复自主实验',
+  description: '恢复已暂停的自主实验',
+  targetPage: '/lab',
+  parameters: [],
+  execute: async () => {
+    const store = useAutonomousExperimentStore.getState();
+    if (store.status !== 'paused') {
+      return { success: false, message: '当前没有已暂停的实验' };
+    }
+    store.resume();
+    return { success: true, message: '实验已恢复' };
+  },
+});
+
+// --- 终止 ---
+registerAction({
+  id: 'autonomous.abort',
+  category: 'autonomous',
+  name: '终止自主实验',
+  description: '终止正在执行或暂停的自主实验，并基于已完成部分生成报告',
+  targetPage: '/lab',
+  parameters: [],
+  execute: async () => {
+    const store = useAutonomousExperimentStore.getState();
+    const canAbort = store.status === 'running' || store.status === 'paused' || store.status === 'analyzing';
+    if (!canAbort) {
+      return { success: false, message: '当前没有可终止的实验' };
+    }
+    store.abort();
+    return { success: true, message: '实验已终止，正在生成部分报告' };
   },
 });
 

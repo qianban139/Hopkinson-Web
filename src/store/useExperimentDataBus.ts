@@ -62,6 +62,15 @@ interface ExperimentDataBusState {
   clearAll: () => void;
 }
 
+// 安全检查通过状态持久化到 sessionStorage（关闭标签页重置，刷新保留）
+const SAFETY_SESSION_KEY = 'hopkinson_safety_passed';
+function getSessionSafetyPassed(): boolean {
+  try { return sessionStorage.getItem(SAFETY_SESSION_KEY) === '1'; } catch { return false; }
+}
+function setSessionSafetyPassed(v: boolean) {
+  try { if (v) sessionStorage.setItem(SAFETY_SESSION_KEY, '1'); else sessionStorage.removeItem(SAFETY_SESSION_KEY); } catch { /* */ }
+}
+
 const defaultSafetyChecklist: SafetyChecklistItem[] = [
   { id: 'capacitor', name: '电容组状态', description: '检查电容组充放电状态和漏电流', status: 'pending', unit: 'kJ' },
   { id: 'cooling', name: '冷却系统', description: '验证冷却液流量和基线温度', status: 'pending', unit: '°C' },
@@ -77,7 +86,7 @@ export const useExperimentDataBus = create<ExperimentDataBusState>((set, get) =>
   lastMultiFieldExperiment: null,
   dataFlowLog: [],
   safetyChecklist: defaultSafetyChecklist.map(i => ({ ...i })),
-  safetyChecklistCompleted: false,
+  safetyChecklistCompleted: getSessionSafetyPassed(),
   safetyChecklistTimestamp: 0,
   aiOptimizedParams: null,
   aiOptimizationHistory: [],
@@ -158,14 +167,17 @@ export const useExperimentDataBus = create<ExperimentDataBusState>((set, get) =>
   setSafetyChecklist: (items) => {
     const allChecked = items.every(i => i.status !== 'pending' && i.status !== 'checking');
     const allPassed = items.every(i => i.status === 'pass' || i.status === 'warning');
+    const completed = allChecked && allPassed;
+    setSessionSafetyPassed(completed);
     set({
       safetyChecklist: items,
-      safetyChecklistCompleted: allChecked && allPassed,
-      safetyChecklistTimestamp: allChecked && allPassed ? Date.now() : 0,
+      safetyChecklistCompleted: completed,
+      safetyChecklistTimestamp: completed ? Date.now() : 0,
     });
   },
 
   completeSafetyChecklist: () => {
+    setSessionSafetyPassed(true);
     set((state) => ({
       safetyChecklistCompleted: true,
       safetyChecklistTimestamp: Date.now(),
@@ -181,6 +193,7 @@ export const useExperimentDataBus = create<ExperimentDataBusState>((set, get) =>
   },
 
   resetSafetyChecklist: () => {
+    setSessionSafetyPassed(false);
     set({
       safetyChecklist: defaultSafetyChecklist.map(i => ({ ...i })),
       safetyChecklistCompleted: false,

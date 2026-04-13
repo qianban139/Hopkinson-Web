@@ -166,3 +166,81 @@ export interface AIAction {
 // AI助手模式
 export type AIAssistantMode = 'popup' | 'fullscreen';
 export type AIAssistantStatus = 'idle' | 'listening' | 'processing' | 'speaking' | 'executing';
+
+// ═══════════════════════════════════════════════
+// 自主实验系统类型
+// ═══════════════════════════════════════════════
+
+import type { SHPBSimulationResult } from '@/services/shpbPhysicsEngine';
+
+/** 实验计划策略类型 */
+export type PlanStrategy =
+  | 'strain_rate_sweep'       // 应变率扫描
+  | 'temperature_sweep'       // 温度扫描
+  | 'material_comparison'     // 材料对比
+  | 'parameter_optimization'  // 参数优化
+  | 'custom';                 // LLM自定义
+
+/** 自主实验全局状态 */
+export type AutoExperimentStatus =
+  | 'idle'
+  | 'planning'           // AI 正在生成计划
+  | 'ready'              // 计划已生成，等待用户审批
+  | 'running'            // 实验执行中
+  | 'paused'             // 用户暂停
+  | 'analyzing'          // AI 中间分析
+  | 'adjusting'          // AI 调整计划（追加实验）
+  | 'generating_report'  // 生成报告
+  | 'complete'           // 全部完成
+  | 'error'
+  | 'aborted';
+
+/** 单个计划实验 */
+export interface PlannedExperiment {
+  id: string;
+  index: number;
+  materialId: string;
+  materialName: string;
+  voltage: number;              // V
+  current: number;              // A
+  pulseWidth: number;           // μs
+  temperature: number;          // °C
+  confinementPressure: number;  // MPa
+  rationale: string;            // AI 解释为什么做这个实验
+  status: 'pending' | 'running' | 'complete' | 'skipped' | 'failed';
+  result: SHPBSimulationResult | null;
+  safetyStatus: 'unchecked' | 'pass' | 'warning' | 'danger';
+  failReason?: string;
+  startedAt: number | null;
+  completedAt: number | null;
+}
+
+/** 实验计划 */
+export interface ExperimentPlan {
+  id: string;
+  goal: string;                 // 用户原始研究目标
+  strategy: PlanStrategy;
+  rationale: string;            // 为什么选择这个策略
+  experiments: PlannedExperiment[];
+  createdAt: number;
+}
+
+/** AI 中间分析结果 */
+export interface IntermediateAnalysis {
+  afterExperimentIndex: number;
+  observation: string;          // AI 观察到的现象
+  decision: 'continue' | 'add_experiments' | 'abort';
+  addedExperiments?: PlannedExperiment[];
+  reasoning: string;
+}
+
+/** 自主实验最终报告 */
+export interface AutoExperimentReport {
+  plan: ExperimentPlan;
+  completedExperiments: PlannedExperiment[];
+  analyses: IntermediateAnalysis[];
+  summary: string;              // 研究摘要
+  findings: string[];           // 关键发现
+  recommendations: string[];    // 后续建议
+  generatedAt: number;
+}

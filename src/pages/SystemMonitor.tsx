@@ -493,17 +493,14 @@ function SafetyChecklist() {
   const [isRunning, setIsRunning] = useState(false);
   const navigate = useNavigate();
 
-  const runAllChecks = useCallback(async () => {
+  const runAllChecks = useCallback(async (autoMode = false) => {
     setIsRunning(true);
     const items = [...safetyChecklist];
 
     for (let i = 0; i < items.length; i++) {
-      // 设为检查中
       items[i] = { ...items[i], status: 'checking' };
       setSafetyChecklist([...items]);
-      // 模拟检查延迟
       await new Promise(r => setTimeout(r, 600 + Math.random() * 400));
-      // 模拟检查结果（大部分通过）
       const rand = Math.random();
       const simValues: Record<string, number> = {
         capacitor: 23.5, cooling: 42, 'emi-shield': 38, specimen: 1,
@@ -517,21 +514,27 @@ function SafetyChecklist() {
       setSafetyChecklist([...items]);
     }
 
-    // 判断是否全部通过
     const allPassed = items.every(it => it.status === 'pass' || it.status === 'warning');
     if (allPassed) {
       completeSafetyChecklist();
-      // 安全检查通过后，延迟跳转到3D实验视图
-      setTimeout(() => {
-        navigate('/lab');
-        // 切换到3D视图
+      if (!autoMode) {
         setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('ai-set-view-mode', { detail: '3d-exp' }));
-        }, 100);
-      }, 800);
+          navigate('/lab');
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('ai-set-view-mode', { detail: '3d-exp' }));
+          }, 100);
+        }, 800);
+      }
     }
     setIsRunning(false);
   }, [safetyChecklist, setSafetyChecklist, completeSafetyChecklist, navigate]);
+
+  // 自主实验自动触发安全检查
+  useEffect(() => {
+    const handler = () => { runAllChecks(true); };
+    window.addEventListener('ai-auto-safety-check', handler);
+    return () => window.removeEventListener('ai-auto-safety-check', handler);
+  }, [runAllChecks]);
 
   const handleReset = () => {
     resetSafetyChecklist();

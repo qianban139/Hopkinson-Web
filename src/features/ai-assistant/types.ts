@@ -1,7 +1,7 @@
 // src/features/ai-assistant/types.ts
 // AI中央控制系统类型定义
 
-export type AIActionCategory = 'navigation' | 'parameter' | 'experiment' | 'analysis' | 'monitor' | 'multifield' | 'ai' | 'general';
+export type AIActionCategory = 'navigation' | 'parameter' | 'experiment' | 'analysis' | 'monitor' | 'multifield' | 'ai' | 'autonomous' | 'general';
 
 export interface AIActionResult {
   success: boolean;
