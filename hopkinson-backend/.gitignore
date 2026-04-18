@@ -1,0 +1,34 @@
+# 环境变量(含密钥,禁止提交)
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# ML 模型权重(过大,通过 Release 或脚本下载)
+ml/checkpoints/*.pt
+ml/checkpoints/*.onnx
+ml/data/*.npy
+
+# 日志
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/

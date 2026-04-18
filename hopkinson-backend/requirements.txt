@@ -1,4 +1,22 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 pydantic>=2.9.0
+email-validator>=2.2          # 启用 pydantic EmailStr 字段校验
 python-multipart>=0.0.12
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29.0
+aiosqlite>=0.20.0
+alembic>=1.13
+sqladmin>=0.17
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7
+python-dotenv>=1.0
+# ML — CPU-only torch；安装时建议指定 PyPI cpu 源
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch
+torch>=2.2,<3.0
+numpy>=1.26
+
+# 测试套件(B2:25 个单元测试)
+pytest>=8.0
+pytest-asyncio>=0.23
+httpx>=0.27
