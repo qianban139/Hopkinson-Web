@@ -16,14 +16,29 @@
 
 LLM 提供商选择。
 
-| 值 | 提供商 | 申请地址 |
-|----|--------|---------|
-| `zhipu` | 智谱 AI | https://open.bigmodel.cn/ |
-| `moonshot` | Moonshot | https://platform.moonshot.cn/ |
-| `deepseek` | DeepSeek | https://platform.deepseek.com/ |
-| `openai` | OpenAI | https://platform.openai.com/ |
+| 值 | 提供商 | 信创合规 | 申请地址 |
+|----|--------|:------:|---------|
+| `zhipu` | 智谱 AI | ✅ 国产 | https://open.bigmodel.cn/ |
+| `moonshot` | Moonshot | ✅ 国产 | https://platform.moonshot.cn/ |
+| `deepseek` | DeepSeek | ✅ 国产 | https://platform.deepseek.com/ |
+| `openai` | OpenAI | ❌ 境外 | https://platform.openai.com/ |
 
-**默认值**：`deepseek`
+**默认值**:`deepseek`
+
+#### ⚠️ 信创合规约束(2026 年起强制)
+
+依据《数据安全法》《个人信息保护法》《关键信息基础设施安全保护条例》以及国家信创战略要求,本平台在**生产环境**(`import.meta.env.PROD === true`)启用了 LLM provider 强制约束:
+
+- **允许**:`zhipu` / `moonshot` / `deepseek` 等国产大模型
+- **禁用**:`openai` 等境外 provider — 启动时由 `src/services/llmService.ts:assertCompliantProvider()` 抛出 `[信创合规]` 错误并阻断加载
+- **开发环境**(`npm run dev`)无此限制,便于本地测试
+
+如确需在生产环境对比境外模型(仅限内部研发场景),需:
+1. 在 `FOREIGN_PROVIDERS` 集合中临时移除该 provider
+2. 通过中国境内代理 / 私有部署网关访问
+3. 在数据出境前完成数据脱敏与合规评估
+
+**为什么这样设计**:评委严评(`docs/competition-ppt/06-judge-review.md` Q3)指出 GDPR / 数据安全法 / 信创合规缺失,本守卫将"违规可能性"在代码层硬编码消除,而非依赖运维约定。
 
 ### `VITE_LLM_API_KEY`
 
