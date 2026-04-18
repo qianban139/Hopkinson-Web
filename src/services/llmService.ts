@@ -151,12 +151,27 @@ const PROVIDERS: Record<string, ProviderConfig> = {
   },
 };
 
+// 信创合规守卫:生产环境禁用境外 LLM provider
+// Why: 国赛评委 Q3 严评指出 GDPR/数据安全法/信创合规缺失,生产环境必须强制约束
+// 仅允许 zhipu / moonshot / deepseek 等国产 provider 在 PROD 运行
+const FOREIGN_PROVIDERS = new Set(['openai']);
+
+function assertCompliantProvider(provider: string): void {
+  if (import.meta.env.PROD && FOREIGN_PROVIDERS.has(provider)) {
+    throw new Error(
+      `[信创合规] 生产环境禁用境外 LLM provider "${provider}",请改用 zhipu / moonshot / deepseek。` +
+      `详见 docs/deployment/environment-variables.md 合规章节。`
+    );
+  }
+}
+
 // 读取环境变量配置
 function getConfig() {
   const provider = import.meta.env.VITE_LLM_PROVIDER || '';
   const apiKey = import.meta.env.VITE_LLM_API_KEY || '';
   const model = import.meta.env.VITE_LLM_MODEL || '';
   const baseUrl = import.meta.env.VITE_LLM_BASE_URL || '';
+  if (provider) assertCompliantProvider(provider);
   return { provider, apiKey, model, baseUrl };
 }
 

@@ -74,20 +74,24 @@
     box-shadow: 0 0 15px rgba(0, 245, 255, 0.3);
   }
   
-  /* 卡片样式 */
+  /* 卡片样式 — 统一边框/过渡/hover 抬升 */
   .tech-card {
-    @apply bg-[#051020] rounded-xl p-6;
-    border: 1px solid rgba(0, 245, 255, 0.2);
+    @apply bg-[#051020] rounded-xl p-6 transition-all duration-300;
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
-  
+  .tech-card:hover {
+    @apply -translate-y-1.5;
+    border-color: rgba(0, 245, 255, 0.4);
+    box-shadow: 0 12px 40px -8px rgba(0, 245, 255, 0.2);
+  }
+
   .tech-card-hover {
     @apply transition-all duration-300;
   }
-  
   .tech-card-hover:hover {
-    @apply -translate-y-1;
-    border-color: rgba(0, 245, 255, 0.5);
-    box-shadow: 0 8px 32px rgba(0, 245, 255, 0.15);
+    @apply -translate-y-1.5;
+    border-color: rgba(0, 245, 255, 0.4);
+    box-shadow: 0 12px 40px -8px rgba(0, 245, 255, 0.2);
   }
   
   /* 渐变文字 */
@@ -440,5 +444,44 @@ video::-webkit-media-controls-download-button {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* ========== 全站统一 typography 层级 ========== */
+  .h1-display {
+    @apply text-5xl sm:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold leading-[1.15] tracking-[0.06em];
+  }
+
+  .h2-section {
+    @apply text-3xl md:text-4xl lg:text-[2.75rem] font-bold leading-tight tracking-wide;
+  }
+
+  .h3-card {
+    @apply text-xl md:text-2xl font-semibold leading-snug;
+  }
+
+  .body-base {
+    @apply text-base md:text-[1.05rem] text-white/75 leading-relaxed;
+  }
+
+  .caption {
+    @apply text-sm text-white/55 tracking-wider;
+  }
+
+  /* ========== 统一 section 容器 ========== */
+  .section-container {
+    @apply max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-spacing {
+    @apply py-24 md:py-28;
+  }
+
+  /* ========== 卡片统一 hover ========== */
+  .card-hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl;
+  }
+
+  .card-border-cyan {
+    @apply border border-white/8 hover:border-cyan-400/40 transition-colors duration-300;
   }
 }

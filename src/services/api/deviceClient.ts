@@ -1,22 +1,10 @@
 // src/services/api/deviceClient.ts
-// 设备管理 REST API 客户端
+// 设备管理 REST API 客户端 — 统一走 httpClient
 
-import { getBaseUrl } from './config';
+import { request } from './httpClient';
 import type { DeviceInfo } from './types';
 
 const API_PREFIX = '/api/devices';
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${getBaseUrl()}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API ${res.status}: ${text}`);
-  }
-  return res.json();
-}
 
 /** 获取所有设备列表 */
 export async function listDevices(): Promise<DeviceInfo[]> {

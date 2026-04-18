@@ -1,22 +1,10 @@
 // src/services/api/experimentClient.ts
-// 实验管理 REST API 客户端
+// 实验管理 REST API 客户端 — 统一走 httpClient,自动携带 Bearer token
 
-import { getBaseUrl } from './config';
+import { request } from './httpClient';
 import type { CreateExperimentBody, ExperimentDetail, ExperimentResult } from './types';
 
 const API_PREFIX = '/api/experiments';
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${getBaseUrl()}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API ${res.status}: ${text}`);
-  }
-  return res.json();
-}
 
 /** 创建新实验 */
 export async function createExperiment(body: CreateExperimentBody): Promise<{ experimentId: string }> {

@@ -8,6 +8,7 @@
 //   ws.disconnect();
 
 import { getWsUrl } from './config';
+import { getAuthToken } from './httpClient';
 import type { MonitorMessage } from './types';
 
 export interface MonitorWSOptions {
@@ -40,7 +41,9 @@ export function createMonitorWS(options: MonitorWSOptions): MonitorWSHandle {
 
   function connect() {
     intentionalClose = false;
-    const url = `${getWsUrl()}/ws/monitor`;
+    const token = getAuthToken();
+    const qs = token ? `?token=${encodeURIComponent(token)}` : '';
+    const url = `${getWsUrl()}/ws/monitor${qs}`;
     ws = new WebSocket(url);
 
     ws.onopen = () => {

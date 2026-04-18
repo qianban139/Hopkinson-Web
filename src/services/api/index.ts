@@ -3,6 +3,16 @@
 
 export { getBaseUrl, getWsUrl } from './config';
 
+// 统一 HTTP 客户端
+export {
+  request,
+  getAuthToken,
+  ApiError,
+  AUTH_TOKEN_KEY,
+  AUTH_UNAUTHORIZED_EVENT,
+} from './httpClient';
+export type { RequestOptions } from './httpClient';
+
 // REST
 export { listDevices, getDevice, healthCheckDevice } from './deviceClient';
 export {

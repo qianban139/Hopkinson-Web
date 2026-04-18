@@ -2,6 +2,7 @@
 // 实验执行 WebSocket 客户端
 
 import { getWsUrl } from './config';
+import { getAuthToken } from './httpClient';
 import type { ExperimentWSMessage } from './types';
 
 export interface ExperimentWSOptions {
@@ -25,7 +26,10 @@ export function createExperimentWS(options: ExperimentWSOptions): ExperimentWSHa
   let ws: WebSocket | null = null;
 
   function connect() {
-    const url = `${getWsUrl()}/ws/experiment/${options.experimentId}`;
+    const token = getAuthToken();
+    // WebSocket 不支持自定义 header,token 只能走 query string
+    const qs = token ? `?token=${encodeURIComponent(token)}` : '';
+    const url = `${getWsUrl()}/ws/experiment/${options.experimentId}${qs}`;
     ws = new WebSocket(url);
 
     ws.onopen = () => options.onConnect?.();
