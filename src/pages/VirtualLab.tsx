@@ -34,6 +34,7 @@ import type { Material } from '@/types';
 import { AutonomousSidebar } from '@/features/autonomous-experiment';
 import { useAutonomousExperimentStore } from '@/store/useAutonomousExperimentStore';
 import { planExperiments } from '@/features/ai-assistant/services/autonomousExperimentService';
+import PIDServoPanel from '@/features/confining-pressure/PIDServoPanel';
 
 // 波形类型
 const waveformTypes = [
@@ -1112,6 +1113,7 @@ export default function VirtualLab() {
                           {(['x', 'y', 'z'] as const).map((axis) => (
                             <SliderInputCombo key={axis} value={confiningPressure[axis]} onChange={(v) => setConfiningPressure(prev => ({ ...prev, [axis]: v }))} min={0} max={200} step={5} disabled={isAnimationPlaying} label={`${axis.toUpperCase()}轴`} unit="MPa" color="#00F5FF" />
                           ))}
+                          <PIDServoPanel target={confiningPressure.x} />
                         </div>
                       )}
                     </div>
@@ -1135,6 +1137,7 @@ export default function VirtualLab() {
                       {(['x', 'y', 'z'] as const).map((axis) => (
                         <SliderInputCombo key={axis} value={confiningPressure[axis]} onChange={(v) => setConfiningPressure(prev => ({ ...prev, [axis]: v }))} min={0} max={200} step={5} disabled={isAnimationPlaying} label={`${axis.toUpperCase()}轴`} unit="MPa" color="#00F5FF" />
                       ))}
+                      <PIDServoPanel target={confiningPressure.x} />
                     </div>
                   )}
                 </div>
@@ -1616,7 +1619,7 @@ export default function VirtualLab() {
                   <div className="h-full flex flex-col bg-[#051020]">
                     {/* 波形 Tabs */}
                     <div className="flex items-center border-b border-[#00F5FF]/10 px-2 flex-shrink-0">
-                      {['all', 'incident', 'reflected', 'transmitted'].map(tab => (
+                      {['all', 'incident-bar', 'transmitted-bar'].map(tab => (
                         <button
                           key={tab}
                           onClick={() => setWaveformTab(tab)}
@@ -1624,7 +1627,7 @@ export default function VirtualLab() {
                             waveformTab === tab ? 'text-[#00F5FF]' : 'text-white/40 hover:text-white/60'
                           }`}
                         >
-                          {{ all: '全部波形', incident: '入射波', reflected: '反射波', transmitted: '透射波' }[tab]}
+                          {{ 'all': '全部波形', 'incident-bar': '入射杆', 'transmitted-bar': '透射杆' }[tab]}
                           {waveformTab === tab && (
                             <motion.div layoutId="waveform-tab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00F5FF]" />
                           )}

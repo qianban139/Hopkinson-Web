@@ -3,14 +3,12 @@
 // 设计目标:打开页面后评委必须停留 ≥30s 才能滚动过去
 import { useRef, useState, useLayoutEffect } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Cpu, Box, BrainCircuit, BarChart3, Zap, Layers, Brain } from 'lucide-react';
+import { Cpu, Box, BrainCircuit, BarChart3, Zap, Layers, Brain } from 'lucide-react';
 import CountUp from 'react-countup';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -213,7 +211,7 @@ export default function ProjectOverviewSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative overflow-hidden bg-[#051020]/40 py-24 md:py-28">
+    <section ref={sectionRef} className="relative overflow-hidden bg-[#051020]/40 py-14 md:py-16">
       {/* 背景装饰 — 视差网格 + 渐变光 */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-cyan-500/10 blur-[120px]" />
@@ -236,7 +234,7 @@ export default function ProjectOverviewSection() {
           <p ref={subtitleRef} className="mx-auto max-w-3xl text-base leading-relaxed text-white/65 md:text-lg">
             通过 <span className="text-cyan-300">电磁驱动</span> · <span className="text-amber-300">数字孪生</span> · <span className="text-emerald-300">人工智能</span> 三大技术深度融合,
             实现 <strong className="text-white">热-力-电多场耦合动态加载</strong>、<strong className="text-white">智能波形闭环调控</strong>、
-            <strong className="text-white">全链路数据融合分析</strong>,为极端环境材料性能评估提供全流程数智化测试平台。
+            <strong className="text-white">数据融合分析</strong>,为极端环境材料性能评估提供全流程数智化测试平台。
           </p>
         </div>
 
@@ -364,37 +362,6 @@ export default function ProjectOverviewSection() {
             ))}
           </Tabs>
         </div>
-
-        {/* CTA 按钮 — pulse 光晕 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center"
-        >
-          <motion.div
-            animate={{
-              boxShadow: [
-                '0 0 20px rgba(0, 245, 255, 0.3)',
-                '0 0 40px rgba(0, 245, 255, 0.6)',
-                '0 0 20px rgba(0, 245, 255, 0.3)',
-              ],
-            }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="inline-block rounded-full"
-          >
-            <Link to="/lab">
-              <Button
-                size="lg"
-                className="rounded-full bg-gradient-to-r from-cyan-400 to-cyan-300 px-10 py-6 text-base font-semibold text-[#0A2540] hover:from-cyan-300 hover:to-cyan-200"
-              >
-                进入虚拟实验室
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-          </motion.div>
-        </motion.div>
       </div>
     </section>
   );

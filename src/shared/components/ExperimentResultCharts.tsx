@@ -72,26 +72,24 @@ function generateResultData(voltage: number, peakStress: number, strainRate: num
   const riseStretch = isHyper ? 0.48 : isBrittle ? 0.35 : 0.42;
 
   // 1. 时间-应力 (σ(t)): 以 peakStress 为幅值的钟形脉冲
+  // 抹平: 移除高频弥散噪声 → 仅保留物理钟形包络
   const stress = time.map((_, i) => {
     const tn = i / (N - 1);
-    const env = shpbBellPulse(tn, riseStretch);
-    const noise = dispersionNoise(tn, 1);
-    return peakStress * (env + noise * 0.12);
+    return peakStress * shpbBellPulse(tn, riseStretch);
   });
 
-  // 2. 时间-应变率 (ε̇(t)): 前沿最快, 类似矩形窗 + 顶部振荡
+  // 2. 时间-应变率 (ε̇(t)): 前沿最快, 中期维持平台, 尾部缓降
+  // 抹平: 移除平台 12 周期震荡 + 移除高频弥散噪声 → 干净矩形窗
   const strainRateData = time.map((_, i) => {
     const tn = i / (N - 1);
-    // 应变率在脉冲进入试样时快速跳升, 中期维持, 尾部缓降
     let env = 0;
     if (tn > 0.12 && tn < 0.82) {
       const pt = (tn - 0.12) / 0.7;
       if (pt < 0.12) env = Math.pow(pt / 0.12, 1.5);        // 快速上升
-      else if (pt < 0.75) env = 1 - 0.15 * Math.sin(pt * 12); // 平台震荡
+      else if (pt < 0.75) env = 1.0;                        // 平台 (无震荡)
       else env = Math.max(0, Math.cos((pt - 0.75) * Math.PI / 0.5));
     }
-    const noise = dispersionNoise(tn, 2);
-    return strainRate * (env + noise * 0.10);
+    return strainRate * env;
   });
 
   // 3. 时间-应变 ε(t): 积分应变率
@@ -178,8 +176,9 @@ function generateResultData(voltage: number, peakStress: number, strainRate: num
   const incPlusRef = time.map((_, i) => incidentWave[i] + reflectedWave[i]);
 
   // 应力-应变曲线对 stress 平滑后重组,避免峰值附近的双重凸点
-  const stressSmoothed = movingAverage(stress, 5);
-  const strainRateSmoothed = movingAverage(strainRateData, 7);
+  // 加大窗口让图1/图2/图3 完全光滑无犄角
+  const stressSmoothed = movingAverage(stress, 9);
+  const strainRateSmoothed = movingAverage(strainRateData, 13);
   const stressStrainSmoothed: [number, number][] = [];
   for (let i = 0; i < N; i++) {
     if (strainScaled[i] > 1e-5) {
