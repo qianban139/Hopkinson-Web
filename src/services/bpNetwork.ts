@@ -57,7 +57,7 @@ interface NetworkState {
 function tansig(x: number): number { return Math.tanh(x); }
 function tansigDeriv(y: number): number { return 1 - y * y; }
 
-function seededRandom(seed: number): () => number {
+export function seededRandom(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (s * 1664525 + 1013904223) >>> 0;
@@ -95,12 +95,17 @@ export function fitNorm(matrix: number[][]): NormParams {
 export function applyNorm(row: number[], norm: NormParams): number[] {
   return row.map((v, i) => {
     const range = norm.max[i] - norm.min[i];
-    return range > 0 ? (v - norm.min[i]) / range : 0;
+    // Audit BP-6: 常数维度返回 0.5 而非 0, 保留中心信息便于反归一化
+    return range > 0 ? (v - norm.min[i]) / range : 0.5;
   });
 }
 
 export function denorm(row: number[], norm: NormParams): number[] {
-  return row.map((v, i) => v * (norm.max[i] - norm.min[i]) + norm.min[i]);
+  return row.map((v, i) => {
+    const range = norm.max[i] - norm.min[i];
+    // Audit BP-7: 常数维度反归一化保留原 min, 与 applyNorm 退化一致
+    return range > 0 ? v * range + norm.min[i] : norm.min[i];
+  });
 }
 
 /**

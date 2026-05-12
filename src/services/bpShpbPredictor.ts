@@ -10,7 +10,7 @@
  *   - 预测: 生成任意应变率/温度下的平滑应力-应变曲线,与传统本构拟合对比
  */
 
-import { BPNetwork, type BPConfig, type TrainHistory } from './bpNetwork';
+import { BPNetwork, seededRandom, type BPConfig, type TrainHistory } from './bpNetwork';
 import type { Material } from '@/types';
 
 export interface BPPredictConfig extends Partial<BPConfig> {
@@ -40,6 +40,7 @@ function buildTrainingSet(
   augmentFactor: number,
   rateJitter: number,
   tempJitter: number,
+  seed: number,
 ): { X: number[][]; Y: number[][] } {
   const X: number[][] = [];
   const Y: number[][] = [];
@@ -48,6 +49,8 @@ function buildTrainingSet(
   const baseCurve = material.stressStrainSample;
   const Troom = 25;
   const epsilonDot0 = 1;
+  // Audit BP-3: 用 seeded random 替代 Math.random,augment 可复现
+  const rand = seededRandom(seed);
 
   // 原始曲线作为基准样本
   for (const p of baseCurve) {
@@ -59,11 +62,13 @@ function buildTrainingSet(
   if (jc) {
     const { A, B, n, C, m, Tm } = jc;
     for (let k = 0; k < augmentFactor; k++) {
-      const jitterRate = baseStrainRate * Math.pow(rateJitter, (Math.random() * 2 - 1));
-      const jitterTemp = baseTemperature + (Math.random() * 2 - 1) * tempJitter;
+      const jitterRate = baseStrainRate * Math.pow(rateJitter, rand() * 2 - 1);
+      const jitterTemp = baseTemperature + (rand() * 2 - 1) * tempJitter;
       for (const p of baseCurve) {
         const quasi = A + B * Math.pow(Math.max(p.strain, 1e-6), n);
-        const rateTerm = 1 + C * Math.log(Math.max(jitterRate / epsilonDot0, 1));
+        // Audit BP-1 (P0): 不再 clip rate<1 时的对数, 严格遵循 J-C 标准式
+        // σ = (A + Bε^n)(1 + C·ln(ε̇/ε̇₀))(1 - T*^m)
+        const rateTerm = 1 + C * Math.log(jitterRate / epsilonDot0);
         const tstar = Math.max(0, Math.min(1, (jitterTemp - Troom) / (Tm - Troom)));
         const tempTerm = 1 - Math.pow(tstar, m);
         const sigma = quasi * rateTerm * tempTerm;
@@ -97,9 +102,10 @@ export async function trainBPForMaterial(
   const augmentFactor = cfg.augmentFactor ?? 3;
   const rateJitter = cfg.rateJitter ?? 2.5;
   const tempJitter = cfg.tempJitter ?? 50;
+  const seed = cfg.seed ?? DEFAULTS.seed;
 
   const { X, Y } = buildTrainingSet(
-    material, strainRate, temperature, augmentFactor, rateJitter, tempJitter,
+    material, strainRate, temperature, augmentFactor, rateJitter, tempJitter, seed,
   );
 
   const net = new BPNetwork({

@@ -42,9 +42,12 @@ const sigma: number = net.predict([strain, strainRate, temperature])[0];
 
 ## 局限（必读）
 
-1. **训练数据本质源自 J-C 合成**：BP 在拟合 J-C，泛化上限即 J-C 模型本身的物理表达力。**不能**声称比传统本构"更准"，只能说"可外推到未显式拟合的应变率/温度工况"。
-2. **浏览器主线程训练**：超过 200 epoch 会有 UI 卡顿（已用 `await setTimeout(0)` 每 5 epoch 让出，但仍是单线程）。
+1. **本实现是 J-C 的可微近似器，不是独立本构**：训练样本（除原始实验点外）全部由 J-C 公式合成，BP 学到的本质就是 J-C 的非线性映射。因此泛化上限即 J-C 模型本身的物理表达力。**严禁**声称比传统本构"更准"——它的真实价值在于：
+   - 提供 J-C 在任意 (ε, ε̇, T) 输入下的可微近似（梯度可向后端 ML pipeline 传播）；
+   - 演示"传统本构 → 数据驱动"的方法学过渡。
+2. **浏览器主线程训练**：超过 200 epoch 会有 UI 卡顿（已用 `await setTimeout(0)` 每 5 epoch 让出，但仍是单线程）。长期方向应迁移到 Web Worker。
 3. **无验证集**：当前是过拟合训练集的 R²，不是 hold-out 性能。
+4. **augment 已 seeded**（audit BP-3 修复后）：相同 `seed` 下 `buildTrainingSet` 输出可复现。
 
 ## 参考
 
