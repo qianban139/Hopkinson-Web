@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as echarts from 'echarts';
-import { Sparkles, Activity, Target, BarChart3 } from 'lucide-react';
+import { Sparkles, Activity, Target, BarChart3, BrainCircuit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import GlowCard from '@/shared/components/GlowCard';
 import {
@@ -27,7 +27,11 @@ import {
   type FitResult,
   type DataPoint,
 } from '@/services/constitutiveFitting';
+import BPPredictionPanel from './BPPredictionPanel';
 import type { Material } from '@/types';
+
+/** 选项:传统本构模型 ID 或 BP-ANN 预测 */
+type ModeId = ConstitutiveModelId | 'bp-ann';
 
 /* ============================================================
  * 主组件
@@ -40,7 +44,7 @@ export default function ConstitutiveFittingPanel({
   strainRate: number;
   temperature: number;
 }) {
-  const [selectedModel, setSelectedModel] = useState<ConstitutiveModelId>('johnson-cook');
+  const [selectedModel, setSelectedModel] = useState<ModeId>('johnson-cook');
   const [fitResult, setFitResult] = useState<FitResult<unknown> | null>(null);
   const [isFitting, setIsFitting] = useState(false);
 
@@ -61,7 +65,7 @@ export default function ConstitutiveFittingPanel({
   }, [material.id, selectedModel]);
 
   const handleFit = () => {
-    if (dataPoints.length < 3) return;
+    if (dataPoints.length < 3 || selectedModel === 'bp-ann') return;
     setIsFitting(true);
     setTimeout(() => {
       const result = fitConstitutiveModel(selectedModel, dataPoints, {
@@ -74,7 +78,21 @@ export default function ConstitutiveFittingPanel({
     }, 500);
   };
 
-  const modelInfo = MODEL_REGISTRY.find((m) => m.id === selectedModel)!;
+  const isBPMode = selectedModel === 'bp-ann';
+  const modelInfo = !isBPMode ? MODEL_REGISTRY.find((m) => m.id === selectedModel)! : null;
+
+  if (isBPMode) {
+    return (
+      <div className="space-y-4">
+        <ModelSelectorTabs selected={selectedModel} onSelect={setSelectedModel} />
+        <BPPredictionPanel
+          material={material}
+          strainRate={strainRate}
+          temperature={temperature}
+        />
+      </div>
+    );
+  }
 
   return (
     <GlowCard glowColor="#00F5FF" hoverable={false} className="p-5">
@@ -85,29 +103,14 @@ export default function ConstitutiveFittingPanel({
       </div>
 
       {/* 模型选择卡片 */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
-        {MODEL_REGISTRY.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => setSelectedModel(m.id)}
-            className={`text-left p-2.5 rounded-lg border transition-all ${
-              selectedModel === m.id
-                ? 'bg-[#00F5FF]/10 border-[#00F5FF]/50 ring-1 ring-[#00F5FF]/30'
-                : 'bg-[#051020] border-white/10 hover:border-white/30'
-            }`}
-          >
-            <div className="text-[11px] font-semibold text-white">{m.name}</div>
-            <div className="text-[9px] text-white/40 mt-0.5">{m.paramCount} 个参数</div>
-          </button>
-        ))}
-      </div>
+      <ModelSelectorTabs selected={selectedModel} onSelect={setSelectedModel} />
 
       {/* 模型详情 */}
-      <div className="bg-[#051020] rounded-lg p-3 border border-white/10 mb-4">
+      <div className="bg-[#051020] rounded-lg p-3 border border-white/10 mb-4 mt-4">
         <div className="text-[11px] text-white/40 mb-1">本构方程</div>
-        <div className="text-xs font-mono text-[#00F5FF] mb-2">{modelInfo.formula}</div>
-        <div className="text-[11px] text-white/60">{modelInfo.description}</div>
-        <div className="text-[10px] text-white/30 mt-1">适用范围：{modelInfo.applicableRange}</div>
+        <div className="text-xs font-mono text-[#00F5FF] mb-2">{modelInfo!.formula}</div>
+        <div className="text-[11px] text-white/60">{modelInfo!.description}</div>
+        <div className="text-[10px] text-white/30 mt-1">适用范围:{modelInfo!.applicableRange}</div>
       </div>
 
       {/* 操作按钮 */}
@@ -191,7 +194,50 @@ export default function ConstitutiveFittingPanel({
 }
 
 /* ============================================================
- * 子组件：指标卡片
+ * 子组件:模型选择标签(含 BP-ANN)
+ * ============================================================ */
+
+function ModelSelectorTabs({
+  selected, onSelect,
+}: {
+  selected: ModeId;
+  onSelect: (id: ModeId) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+      {MODEL_REGISTRY.map((m) => (
+        <button
+          key={m.id}
+          onClick={() => onSelect(m.id)}
+          className={`text-left p-2.5 rounded-lg border transition-all ${
+            selected === m.id
+              ? 'bg-[#00F5FF]/10 border-[#00F5FF]/50 ring-1 ring-[#00F5FF]/30'
+              : 'bg-[#051020] border-white/10 hover:border-white/30'
+          }`}
+        >
+          <div className="text-[11px] font-semibold text-white">{m.name}</div>
+          <div className="text-[9px] text-white/40 mt-0.5">{m.paramCount} 个参数</div>
+        </button>
+      ))}
+      <button
+        onClick={() => onSelect('bp-ann')}
+        className={`text-left p-2.5 rounded-lg border transition-all ${
+          selected === 'bp-ann'
+            ? 'bg-[#F472B6]/10 border-[#F472B6]/50 ring-1 ring-[#F472B6]/30'
+            : 'bg-[#051020] border-white/10 hover:border-white/30'
+        }`}
+      >
+        <div className="text-[11px] font-semibold text-white flex items-center gap-1">
+          <BrainCircuit className="w-3 h-3 text-[#F472B6]" /> BP-ANN
+        </div>
+        <div className="text-[9px] text-white/40 mt-0.5">神经网络预测</div>
+      </button>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 子组件:指标卡片
  * ============================================================ */
 
 function MetricCard({ label, value, color }: { label: string; value: string; color: string }) {
