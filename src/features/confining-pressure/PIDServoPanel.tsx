@@ -29,16 +29,19 @@ import {
 
 interface Gains { kp: number; ki: number; kd: number; }
 
+// Audit PID-3: 重新整定后的预设. PID 输出现在直接是归一化伺服开度 [0,1],
+// 增益相对旧版 (单位 MPa) 缩小约 1/K = 1/200 倍.
+// 物理含义: Kp=0.015 表示误差 50 MPa 时 P 项贡献 0.75 开度 (75%).
 const PRESETS: { label: string; gains: Gains; color: string; desc: string }[] = [
-  { label: '保守 (Conservative)', gains: { kp: 0.15, ki: 0.18, kd: 0.008 }, color: '#10B981', desc: '无超调,响应慢' },
-  { label: '经典 ZN (Classic)',   gains: { kp: 0.42, ki: 0.70, kd: 0.025 }, color: '#00F5FF', desc: '响应快,轻微超调' },
-  { label: '激进 (Aggressive)',   gains: { kp: 0.85, ki: 1.20, kd: 0.040 }, color: '#F472B6', desc: '极快,明显超调震荡' },
+  { label: '保守 (Conservative)', gains: { kp: 0.005, ki: 0.008, kd: 0.0003 }, color: '#10B981', desc: '无超调,响应慢' },
+  { label: '经典 ZN (Classic)',   gains: { kp: 0.015, ki: 0.025, kd: 0.0008 }, color: '#00F5FF', desc: '响应快,轻微超调' },
+  { label: '激进 (Aggressive)',   gains: { kp: 0.030, ki: 0.050, kd: 0.0015 }, color: '#F472B6', desc: '极快,明显超调震荡' },
 ];
 
 export default function PIDServoPanel({ target = 50 }: { target?: number }) {
-  const [kp, setKp] = useState(0.42);
-  const [ki, setKi] = useState(0.70);
-  const [kd, setKd] = useState(0.025);
+  const [kp, setKp] = useState(0.015);
+  const [ki, setKi] = useState(0.025);
+  const [kd, setKd] = useState(0.0008);
   const [duration] = useState(6);           // 仿真时长 6s
   const [dt] = useState(0.01);              // 10ms 采样
   const [withDisturb, setWithDisturb] = useState(true);
@@ -49,11 +52,11 @@ export default function PIDServoPanel({ target = 50 }: { target?: number }) {
     [duration, dt, target, withDisturb],
   );
 
-  // 双仿真: 开环 + 闭环
+  // 双仿真: 开环 + 闭环 (PID 输出为归一化开度 [0,1], 不再用 MPa 量纲)
   const { closed, open, closedMetrics, openMetrics } = useMemo(() => {
     const closedT = simulateClosedLoop(profile, dt, {
       kp, ki, kd,
-      outMin: 0, outMax: DEFAULT_PLANT.K,
+      outMin: 0, outMax: 1,
     });
     const openT = simulateOpenLoop(profile, dt);
     return {
@@ -83,7 +86,7 @@ export default function PIDServoPanel({ target = 50 }: { target?: number }) {
           variant="ghost"
           size="sm"
           className="h-6 w-6 p-0"
-          onClick={() => applyPreset({ kp: 0.42, ki: 0.70, kd: 0.025 })}
+          onClick={() => applyPreset({ kp: 0.015, ki: 0.025, kd: 0.0008 })}
         >
           <RotateCcw className="w-3 h-3 text-white/50" />
         </Button>
@@ -105,19 +108,19 @@ export default function PIDServoPanel({ target = 50 }: { target?: number }) {
           ))}
         </div>
 
-        {/* PID 滑块 */}
+        {/* PID 滑块 (归一化输出: 误差 MPa → 开度 0-1) */}
         <div className="space-y-1.5">
           <SliderInputCombo
             label="Kp (比例)" unit="" value={kp} onChange={setKp}
-            min={0} max={2} step={0.01} color="#F472B6"
+            min={0} max={0.05} step={0.0005} color="#F472B6"
           />
           <SliderInputCombo
             label="Ki (积分)" unit="/s" value={ki} onChange={setKi}
-            min={0} max={3} step={0.01} color="#F472B6"
+            min={0} max={0.1} step={0.001} color="#F472B6"
           />
           <SliderInputCombo
             label="Kd (微分)" unit="s" value={kd} onChange={setKd}
-            min={0} max={0.2} step={0.001} color="#F472B6"
+            min={0} max={0.005} step={0.0001} color="#F472B6"
           />
         </div>
 
@@ -154,13 +157,13 @@ export default function PIDServoPanel({ target = 50 }: { target?: number }) {
 
         {/* 控制律公式 */}
         <div className="rounded bg-[#051020]/60 border border-white/5 p-2">
-          <div className="text-[9px] text-white/30 mb-0.5">控制律</div>
+          <div className="text-[9px] text-white/30 mb-0.5">控制律 (u ∈ [0,1] 伺服开度)</div>
           <div className="text-[10px] font-mono text-[#F472B6]">
-            u(t) = {kp.toFixed(2)}·e(t) + {ki.toFixed(2)}·∫e(τ)dτ + {kd.toFixed(3)}·de(t)/dt
+            u(t) = {kp.toFixed(4)}·e(t) + {ki.toFixed(4)}·∫e(τ)dτ + {kd.toFixed(5)}·de(t)/dt
           </div>
           <div className="text-[9px] text-white/40 mt-1 flex items-center gap-1">
             <Zap className="w-2.5 h-2.5 text-[#F472B6]" />
-            e(t) = 目标围压 − 当前围压 · 被控对象: K={DEFAULT_PLANT.K} MPa, τ={DEFAULT_PLANT.tau}s, ζ={DEFAULT_PLANT.zeta}
+            e(t) = 目标围压 − 当前围压 (MPa) · 被控对象: K={DEFAULT_PLANT.K} MPa, τ={DEFAULT_PLANT.tau}s, ζ={DEFAULT_PLANT.zeta}
           </div>
         </div>
       </div>

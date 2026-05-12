@@ -94,24 +94,29 @@ export class PIDController {
     this.prevMeasurement = measurement;
 
     // I 项(先尝试累积,若饱和则按方向夹紧)
-    let iTrial = this.integral + ki * error * dt;
+    const iIncrement = ki * error * dt;
+    let iTrial = this.integral + iIncrement;
     let iTerm = iTrial;
 
     const unsaturated = pTerm + iTerm + dTerm;
     let output = unsaturated;
-    let saturated = false;
+    /** 饱和方向: +1 = 上界饱和, -1 = 下界饱和, 0 = 未饱和 */
+    let satDir = 0;
 
     if (output > outMax) {
       output = outMax;
-      saturated = true;
+      satDir = 1;
     } else if (output < outMin) {
       output = outMin;
-      saturated = true;
+      satDir = -1;
     }
 
-    // 抗积分饱和: 饱和且积分方向与偏差同向时,不累加积分
-    if (saturated && Math.sign(error) === Math.sign(ki * error)) {
-      iTrial = this.integral; // 回退
+    // Audit PID-1: 抗积分饱和 — 仅当本步积分增量与饱和方向同向时回退,
+    // 否则允许积分回退(避免无界增长但又不阻止恢复).
+    // 旧代码用 sign(error)===sign(ki*error) 在 ki>0 时恒为 true,
+    // 实际上 "任何饱和都冻结积分", 阻止饱和退出.
+    if (satDir !== 0 && Math.sign(iIncrement) === satDir) {
+      iTrial = this.integral; // 仅当继续向饱和方向积累时回退
       iTerm = iTrial;
     }
     this.integral = iTrial;

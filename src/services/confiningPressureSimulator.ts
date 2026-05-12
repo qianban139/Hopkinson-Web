@@ -74,8 +74,10 @@ export function simulateClosedLoop(
   let pDot = 0;
 
   // 时滞缓冲
+  // Audit PID-4: deadTime=0 时不使用缓冲, 真正退化为无时滞.
+  // 旧代码 length=1 的 buffer 仍引入 1 步固定时滞.
   const delaySteps = Math.max(0, Math.round(plant.deadTime / dt));
-  const uBuffer: number[] = new Array(delaySteps + 1).fill(0);
+  const uBuffer: number[] = delaySteps > 0 ? new Array(delaySteps).fill(0) : [];
 
   const { K, tau, zeta, noiseStd = 0 } = plant;
 
@@ -84,16 +86,22 @@ export function simulateClosedLoop(
     // 测量值加噪声
     const meas = p + (noiseStd > 0 ? randn() * noiseStd : 0);
 
-    // PID 计算(输出单位 MPa,下方再归一化到伺服阀开度 0~1)
+    // Audit PID-2: PID 直接输出归一化伺服开度 [0,1], 不再做 MPa↔开度 转换.
+    // 公式上 u_open = Kp·e + Ki·∫e + Kd·de/dt, e 单位 MPa, u_open 0-1.
+    // PIDConfig.outMin/outMax 调用方应传 0/1 (见 PIDServoPanel).
     const step = pid.update(setpoint[i], meas, dt);
     error[i] = step.error;
-    // 将 PID 输出映射到伺服阀开度 [0,1]
-    const uCmd = clamp(step.output / K, 0, 1);
-    output[i] = uCmd * K; // 回显为等效 MPa
+    const uCmd = clamp(step.output, 0, 1);
+    output[i] = uCmd * K; // 回显为等效 MPa, 方便对比开环曲线
 
-    // 时滞队列
-    uBuffer.push(uCmd);
-    const uDelayed = uBuffer.shift()!;
+    // 时滞队列 (delaySteps=0 时直接用当前 uCmd, 无延迟)
+    let uDelayed: number;
+    if (delaySteps > 0) {
+      uBuffer.push(uCmd);
+      uDelayed = uBuffer.shift()!;
+    } else {
+      uDelayed = uCmd;
+    }
 
     // 二阶系统: τ²p̈ + 2ζτṗ + p = K·u
     const pDdot = (K * uDelayed - 2 * zeta * tau * pDot - p) / (tau * tau);
@@ -125,7 +133,7 @@ export function simulateOpenLoop(
   let p = 0;
   let pDot = 0;
   const delaySteps = Math.max(0, Math.round(plant.deadTime / dt));
-  const uBuffer: number[] = new Array(delaySteps + 1).fill(0);
+  const uBuffer: number[] = delaySteps > 0 ? new Array(delaySteps).fill(0) : [];
   const { K, tau, zeta, noiseStd = 0 } = plant;
 
   // 开环增益标定偏差 + 缓慢漂移(模拟油温/密封变化)
@@ -137,8 +145,13 @@ export function simulateOpenLoop(
     const uCmd = clamp(setpoint[i] / (K * gainBias), 0, 1);
     output[i] = uCmd * K;
 
-    uBuffer.push(uCmd);
-    const uDelayed = uBuffer.shift()!;
+    let uDelayed: number;
+    if (delaySteps > 0) {
+      uBuffer.push(uCmd);
+      uDelayed = uBuffer.shift()!;
+    } else {
+      uDelayed = uCmd;
+    }
 
     const pDdot = (K * uDelayed - 2 * zeta * tau * pDot - p) / (tau * tau);
     pDot += pDdot * dt;
@@ -203,6 +216,9 @@ export function evalResponse(trace: SimTrace, target: number): {
   const steadyError = tailMean - target;
 
   // 2% 调节时间(从最后一次越过 ±2% 带的时刻算)
+  // Audit PID-5: 若 measured 始终在 ±2% 带内, 循环不会触发 break,
+  // settleIdx 保持 0 → settlingTime = t[0] = 0, 语义为"从未离开 = 立刻稳定".
+  // 调用方应注意区分"未达稳态(N-1 仍在带外)"与"始终稳态(0)"两种边界.
   const band = target * 0.02;
   let settleIdx = 0;
   for (let i = N - 1; i >= 0; i--) {
