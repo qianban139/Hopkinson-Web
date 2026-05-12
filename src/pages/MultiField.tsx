@@ -14,6 +14,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';
 import GlowCard from '@/shared/components/GlowCard';
 import ModuleConnectionBadge from '@/shared/components/ModuleConnectionBadge';
+import PIDServoPanel from '@/features/confining-pressure/PIDServoPanel';
 import type { MultiFieldExperimentResult, StressStrainPoint } from '@/types';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -605,6 +606,16 @@ export default function MultiField() {
               );
             })}
           </div>
+        </motion.div>
+
+        {/* ── PID 围压闭环伺服 — 机电耦合子展示 ──────────── */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-[#F472B6]" />
+            <h2 className="text-base font-semibold bg-gradient-to-r from-pink-300 to-fuchsia-400 bg-clip-text text-transparent">PID 闭环伺服调控 (围压)</h2>
+            <span className="text-[10px] text-white/40">机电耦合示例 · 目标 50 MPa</span>
+          </div>
+          <PIDServoPanel target={50} />
         </motion.div>
 
         {/* ── Three Field Parameter Controls ──────────── */}
