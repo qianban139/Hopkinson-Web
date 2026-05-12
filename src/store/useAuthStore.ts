@@ -161,9 +161,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 // ─── 初始化: 挂监听 + 执行 hydrate ─────────────────
 // 仅在浏览器环境下运行(SSR 安全)
 if (typeof window !== 'undefined') {
-  window.addEventListener(AUTH_UNAUTHORIZED_EVENT, () => {
-    useAuthStore.getState().logout();
-  });
-  // hydrate 异步进行,ProtectedRoute 读 hydrating 显示 Skeleton
-  useAuthStore.getState().hydrate();
+  // 备案期间短路: 跳过 hydrate 与 /api/auth/me, 避免空跑后端
+  if (import.meta.env.VITE_AUTH_DISABLED === 'true') {
+    useAuthStore.setState({ hydrating: false });
+  } else {
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, () => {
+      useAuthStore.getState().logout();
+    });
+    // hydrate 异步进行,ProtectedRoute 读 hydrating 显示 Skeleton
+    useAuthStore.getState().hydrate();
+  }
 }
