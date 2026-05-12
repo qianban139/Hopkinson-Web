@@ -574,6 +574,168 @@ $$R(t) = \\frac{|\\sigma_1(t) - \\sigma_2(t)|}{\\max(\\sigma_1(t), \\sigma_2(t))
     connections: ['shpb-principle', 'ai-control'],
     estimatedMinutes: 12,
   },
+
+  // ─── 前沿研究论文 & 工程理论 ───
+  {
+    id: 'ann-shpb-concrete',
+    title: 'ANN 驱动的混凝土 SHPB 本构预测',
+    subtitle: 'BP Neural Network for Concrete SHPB Prediction (龙旭 2021)',
+    category: 'advanced',
+    level: 3,
+    content: `## 论文背景
+
+龙旭等（2021，南京航空航天大学学报）针对混凝土类脆性材料在高应变率下的本构行为，提出 **ABAQUS 仿真 + BP 神经网络** 的 SHPB 压缩性能预测方法，取代传统的重复有限元建模。
+
+### 核心流程
+
+1. **ABAQUS 显式动力学仿真** 建立 SHPB 模型
+   - 入射杆 2.0 m / 透射杆 1.5 m / 试件 21.5 mm
+   - 本构模型: Drucker-Prager (摩擦角 40°、膨胀角 40°、K=1)
+   - 4 种入射应力波（峰值 60 / 100 / 130 / 160 MPa）
+2. **20 组训练样本** 覆盖应变率 500 ~ 1400/s
+3. **BP 网络结构**
+   - 输入层: 入射波时序信号
+   - 隐层: tansig 激活函数
+   - 输出层: purelin,反射波 + 透射波
+4. **应变率外推**: 可预测训练样本未覆盖的更高/更低应变率
+
+### 关键公式
+
+试件应变率（三波法）:
+$$\\dot{\\varepsilon}_s = \\frac{C_0}{L_s}(\\varepsilon_i - \\varepsilon_r - \\varepsilon_t)$$
+
+试件应力:
+$$\\sigma_s = \\frac{A_b}{2A_s}\\,E_b\\,(\\varepsilon_i + \\varepsilon_r + \\varepsilon_t)$$
+
+### 工程意义
+
+- **效率**: 一次训练替代无数次有限元建模、分析、后处理
+- **精度**: 能够精确捕捉混凝土的应变率敏感性（DIF 2 ~ 5）
+- **外推**: 突破数据边界,对高应变率区域做可靠预测
+- **推广**: 方法对其他脆性材料（岩石、陶瓷）同样适用`,
+    keyFormulas: [
+      'ε̇_s = C₀/L_s · (ε_i − ε_r − ε_t)',
+      'σ_s = A_b/(2A_s) · E_b · (ε_i + ε_r + ε_t)',
+    ],
+    connections: ['shpb-principle', 'three-wave', 'johnson-cook'],
+    estimatedMinutes: 18,
+  },
+  {
+    id: 'deep-learning-coal-ct',
+    title: '深度学习煤岩 Micro-CT 裂隙智能提取',
+    subtitle: 'MCSN: U-Net + VGG16 + DCAC (王登科 2024)',
+    category: 'advanced',
+    level: 3,
+    content: `## 论文背景
+
+王登科等（2024，煤炭学报）针对煤岩 CT 扫描图像中 **矸石干扰、多尺度裂隙识别** 的难题，提出 **MCSN (Multi-scale Coal-rock fissure Segmentation Network)**。
+
+### 网络架构
+
+1. **U-Net 编解码 + 跳跃连接** —— 多尺度结构信息跨层传递
+2. **VGG16 迁移学习** —— 用 ImageNet 预训练权重初始化 U-Net 编码器,减少训练数据需求
+3. **DCAC 模块** —— 深度可分离空洞卷积
+   - 膨胀率 1 / 2 / 4
+   - 等效感受野 3×3 → 7×7 → 15×15
+   - 显著降低参数量与计算量
+4. **残差模块** —— 缓解梯度消失,激活函数 GeLU
+
+### 数据集
+
+- **扫描仪**: Phoenix v|tomelx s 工业 CT
+- **试样**: 25 mm × 50 mm 煤块
+- **原始图像**: 600 张,人工标注(裂隙 RGB 255-255-255,背景 0-0-0)
+- **数据增广**: 旋转(±10°/±30°)+ 翻转 → 6000 张
+- **划分**: 训练 4200 / 验证 1800
+
+### 评价指标
+
+$$\\text{MPA} = \\frac{1}{k+1}\\sum_{i=0}^{k}\\frac{p_{ii}}{\\sum_{j=0}^{k}p_{ij}}$$
+
+Recall、Precision、MPA、MIoU 四项指标全面优于:
+- 阈值分割 (Otsu / BiDoseResp / Bi-PTI)
+- 经典 CNN (FCN / YOLOv5 / U-Net 原版)
+
+### 工程应用
+
+- **巷道围岩钻孔窥视**: 视频 + 平面展开图双源交叉验证
+- **裂隙空间分布重建**: 为瓦斯抽采钻孔注封封堵提供定量依据
+- **提高煤层气抽采体积分数**: 优化封堵段选择`,
+    keyFormulas: [
+      'MPA = (1/(k+1)) · Σ p_ii/Σ p_ij',
+      'Recall = p_ii / (p_ii + p_ij)',
+    ],
+    connections: ['stress-wave', 'material-behavior'],
+    estimatedMinutes: 22,
+  },
+  {
+    id: 'pid-servo-confining',
+    title: 'PID 闭环精准伺服调控（围压应用）',
+    subtitle: 'PID Servo Control for Confining Pressure',
+    category: 'advanced',
+    level: 2,
+    content: `## 大白话拆开理解
+
+### 1. 伺服
+油缸 / 电机 **精准跟着指令动** —— 你要多少压力,它就给多少。
+
+### 2. PID 算法
+**自动纠错算法**,由三部分组成:
+- **比例 P**: 当前偏差越大,调节力度越大
+- **积分 I**: 如果持续偏离目标,累积偏差会逐步加大修正力度
+- **微分 D**: 如果偏差变化太快,提前减弱调节,避免过冲
+
+### 3. 闭环
+**实时检测实际围压 → 对比设定值 → 自动加压/减压 → 一直修正。**
+
+---
+
+## 放到霍普金森压力机里
+
+设定围压 **50 MPa**:
+
+| 方式 | 行为 | 结果 |
+|---|---|---|
+| 开环 | 只管加压、不准回头看 | 压力忽高忽低,不可靠 |
+| PID 闭环伺服 | 实时测真实压力 → 低了补、高了泄 | 稳稳卡在设定值、不漂移、不超调、精度极高 |
+
+---
+
+## 控制律公式
+
+$$u(t) = K_p\\,e(t) + K_i\\int_0^t e(\\tau)\\,d\\tau + K_d\\,\\frac{de(t)}{dt}$$
+
+其中 $e(t) = P_{target} - P_{measured}$ (围压偏差)。
+
+### 参数调优经验
+
+| 参数 | 调大的效果 | 过大的副作用 |
+|---|---|---|
+| $K_p$ | 响应更快 | 振荡 (hunting) |
+| $K_i$ | 消除稳态误差 | 积分饱和、响应滞后 |
+| $K_d$ | 抑制超调 | 放大传感器噪声 |
+
+### 典型围压参数
+
+\`\`\`
+目标围压 : 50 MPa
+采样周期 : 1 ms
+Kp = 0.15   (快速跟踪)
+Ki = 0.008  (小值防积分饱和)
+Kd = 0.25   (中等阻尼,平顺)
+\`\`\`
+
+2 ~ 3 秒内稳定在目标值 ±2%。
+
+---
+
+## 一句话专业总结
+
+> **"基于 PID 算法的闭环伺服控制"** —— 实时测量 + 自动纠错,实现围压的高精度稳定加载。`,
+    keyFormulas: ['u(t) = Kp·e(t) + Ki·∫e(τ)dτ + Kd·de(t)/dt'],
+    connections: ['em-drive', 'safety', 'multi-field'],
+    estimatedMinutes: 12,
+  },
 ];
 
 // ═══════════════════════════════════════════════
