@@ -30,13 +30,26 @@ interface AuthState {
   /** 登录/注册/刷新中 */
   loading: boolean;
   error: string | null;
+  /** 是否为离线游客模式(后端不可达时降级) */
+  isGuest: boolean;
 
   login: (body: LoginBody) => Promise<void>;
   register: (body: RegisterBody) => Promise<void>;
+  /** 进入游客演示模式(无后端时使用,数据仅存于 localStorage) */
+  loginAsGuest: () => void;
   logout: () => void;
   hydrate: () => Promise<void>;
   clearError: () => void;
 }
+
+/** 后端不可达的网络错误判定:fetch 抛 TypeError 或 ApiError(无 status) */
+function isBackendUnreachable(err: unknown): boolean {
+  if (err instanceof TypeError) return true; // fetch 网络错误
+  if (err instanceof ApiError && (err.status === 0 || err.status >= 500)) return true;
+  return false;
+}
+
+const GUEST_TOKEN_PREFIX = 'guest_demo_';
 
 function persistToken(token: string | null): void {
   if (typeof window === 'undefined') return;
@@ -47,21 +60,27 @@ function persistToken(token: string | null): void {
   }
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   hydrating: true,
   loading: false,
   error: null,
+  isGuest: false,
 
   async login(body) {
     set({ loading: true, error: null });
     try {
       const res = await apiLogin(body);
       persistToken(res.access_token);
-      set({ user: res.user, token: res.access_token, loading: false });
+      set({ user: res.user, token: res.access_token, loading: false, isGuest: false });
     } catch (e) {
       const msg = e instanceof ApiError ? e.body || e.message : (e as Error).message;
+      // 后端不可达时:若开启 VITE_DEMO_MODE 自动降级为游客,否则抛错
+      if (import.meta.env.VITE_DEMO_MODE === 'true' && isBackendUnreachable(e)) {
+        get().loginAsGuest();
+        return;
+      }
       set({ loading: false, error: msg });
       throw e;
     }
@@ -72,7 +91,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res = await apiRegister(body);
       persistToken(res.access_token);
-      set({ user: res.user, token: res.access_token, loading: false });
+      set({ user: res.user, token: res.access_token, loading: false, isGuest: false });
     } catch (e) {
       const msg = e instanceof ApiError ? e.body || e.message : (e as Error).message;
       set({ loading: false, error: msg });
@@ -80,9 +99,30 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  loginAsGuest() {
+    // 离线演示模式:不联后端,所有数据仅存于 localStorage
+    const guestToken = `${GUEST_TOKEN_PREFIX}${Date.now()}`;
+    const guestUser: UserInfo = {
+      id: 'guest',
+      username: 'visitor',
+      email: null,
+      display_name: '演示访客',
+      is_admin: false,
+      created_at: new Date().toISOString(),
+    } as UserInfo;
+    persistToken(guestToken);
+    set({
+      user: guestUser,
+      token: guestToken,
+      loading: false,
+      error: null,
+      isGuest: true,
+    });
+  },
+
   logout() {
     persistToken(null);
-    set({ user: null, token: null, error: null });
+    set({ user: null, token: null, error: null, isGuest: false });
   },
 
   async hydrate() {
@@ -92,6 +132,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
     if (!token) {
+      set({ hydrating: false });
+      return;
+    }
+    // 游客 token 不需要走后端 /me 校验
+    if (token.startsWith(GUEST_TOKEN_PREFIX)) {
+      get().loginAsGuest();
       set({ hydrating: false });
       return;
     }

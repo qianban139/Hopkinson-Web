@@ -23,8 +23,12 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from core.settings import get_admin_password
 from db.engine import init_db, get_session, close_db
-from db.models import Material, Device, User
+from db.models import Material, Device, User, Experiment
 from passlib.hash import bcrypt as pwd_hash
+
+
+# 评委演示账号统一密码（演示用，非生产敏感数据）
+JUDGE_PASSWORD = "Judge@2026"
 
 
 def hash_password(pw: str) -> str:
@@ -148,6 +152,88 @@ async def seed_admin(session):
     return True
 
 
+async def seed_judges(session):
+    """
+    创建 3 个评委演示账号 + 预置实验数据
+
+    用途:演示日评委可一键登录,看到完整的实验工作流而无需自助注册。
+    密码统一为 JUDGE_PASSWORD,登录页提供快捷填充按钮。
+    """
+    from sqlalchemy import select
+    from datetime import timezone
+
+    judges_data = [
+        {
+            "username": "judge1",
+            "display_name": "评委一号",
+            "experiments": [
+                {"material_id": "metal-01", "mode": "simulation", "phase": "completed",
+                 "params": {"voltage": 2400, "current": 18000, "waveform": "rect", "duration_us": 200}},
+                {"material_id": "metal-02", "mode": "simulation", "phase": "completed",
+                 "params": {"voltage": 3000, "current": 25000, "waveform": "tri", "duration_us": 180}},
+                {"material_id": "metal-01", "mode": "real", "phase": "completed",
+                 "params": {"voltage": 2800, "current": 22000, "waveform": "rect", "duration_us": 200}},
+            ],
+        },
+        {
+            "username": "judge2",
+            "display_name": "评委二号",
+            "experiments": [
+                {"material_id": "metal-03", "mode": "simulation", "phase": "completed",
+                 "params": {"voltage": 3200, "current": 28000, "waveform": "rect", "duration_us": 220}},
+                {"material_id": "metal-04", "mode": "simulation", "phase": "completed",
+                 "params": {"voltage": 2600, "current": 20000, "waveform": "tri", "duration_us": 200}},
+            ],
+        },
+        {
+            # 第三个账号空白,供评委自己跑全流程
+            "username": "judge3",
+            "display_name": "评委三号",
+            "experiments": [],
+        },
+    ]
+
+    user_count = 0
+    exp_count = 0
+
+    for jd in judges_data:
+        existing = await session.execute(select(User).where(User.username == jd["username"]))
+        user = existing.scalar_one_or_none()
+        if user is None:
+            user = User(
+                username=jd["username"],
+                email=f"{jd['username']}@hopkinson.demo",
+                password_hash=hash_password(JUDGE_PASSWORD),
+                is_admin=False,
+                display_name=jd["display_name"],
+            )
+            session.add(user)
+            await session.flush()  # 拿 user.id
+            user_count += 1
+
+        # 预置实验记录
+        for idx, exp_data in enumerate(jd["experiments"], start=1):
+            # 用 username + 序号生成稳定 id,重复 seed 不会冲突
+            exp_id = f"exp-demo-{jd['username']}-{idx:03d}"
+            existing_exp = await session.execute(select(Experiment).where(Experiment.id == exp_id))
+            if existing_exp.scalar_one_or_none():
+                continue
+            exp = Experiment(
+                id=exp_id,
+                user_id=user.id,
+                material_id=exp_data["material_id"],
+                mode=exp_data["mode"],
+                phase=exp_data["phase"],
+                progress=100 if exp_data["phase"] == "completed" else 0,
+                params=exp_data["params"],
+            )
+            session.add(exp)
+            exp_count += 1
+
+    await session.commit()
+    return user_count, exp_count
+
+
 async def main():
     print("=" * 50)
     print("  Hopkinson Backend — 数据库种子脚本")
@@ -168,6 +254,11 @@ async def main():
         admin_created = await seed_admin(session)
         if admin_created:
             print("[用户] 管理员用户已创建(密码见 .env 的 ADMIN_PASSWORD)")
+
+        # 4. 创建评委演示账号 + 预置实验
+        judge_users, judge_exps = await seed_judges(session)
+        print(f"[评委] 新建 {judge_users} 个评委账号、{judge_exps} 条预置实验")
+        print(f"       密码统一: {JUDGE_PASSWORD}  | 用户名: judge1 / judge2 / judge3")
 
     await close_db()
     print("\n种子数据导入完成！")
