@@ -2,9 +2,9 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Thermometer, Zap, Activity, Mountain, Rocket, Atom, Battery,
+  Thermometer, Zap, Activity, Battery,
   ArrowRight, Send, Play, RotateCcw, AlertTriangle,
-  Anchor, Train, Shield, Pickaxe, Snowflake, Flame,
+  Anchor, Train, Pickaxe, Snowflake, Truck,
 } from 'lucide-react';
 import * as echarts from 'echarts';
 import { Button } from '@/components/ui/button';
@@ -33,49 +33,29 @@ interface ScenarioPreset {
 
 const SCENARIOS: ScenarioPreset[] = [
   {
-    id: 'mine',
-    title: '深部矿井',
-    tagline: 'T=800°C, σ=200MPa',
-    icon: <Mountain className="w-5 h-5" />,
-    color: '#FF9F43',
-    temperature: 800,
-    stress: 200,
-    emField: 35,
-  },
-  {
-    id: 'aerospace',
-    title: '航空航天',
-    tagline: 'T=-60~300°C, v=900m/s',
-    icon: <Rocket className="w-5 h-5" />,
-    color: '#00F5FF',
-    temperature: 300,
-    stress: 1200,
+    id: 'polar',
+    title: '极地工程',
+    tagline: 'T=-40°C, 冰载荷',
+    icon: <Snowflake className="w-5 h-5" />,
+    color: '#67E8F9',
+    temperature: -40,
+    stress: 600,
     emField: 15,
   },
   {
-    id: 'nuclear',
-    title: '核反应堆',
-    tagline: 'T=1000°C, γ射线',
-    icon: <Atom className="w-5 h-5" />,
-    color: '#8B5CF6',
-    temperature: 1000,
-    stress: 680,
-    emField: 55,
-  },
-  {
-    id: 'ev-crash',
-    title: 'EV碰撞',
-    tagline: 'v=30m/s, B=5T',
-    icon: <Battery className="w-5 h-5" />,
-    color: '#1DD1A1',
-    temperature: 180,
-    stress: 350,
-    emField: 80,
+    id: 'cold-chain',
+    title: '冷链运输',
+    tagline: 'T=-25°C, σ=250MPa',
+    icon: <Truck className="w-5 h-5" />,
+    color: '#A5F3FC',
+    temperature: -25,
+    stress: 250,
+    emField: 5,
   },
   {
     id: 'deep-sub',
     title: '海洋深潜器',
-    tagline: 'P=110MPa, T=2°C',
+    tagline: 'T=2°C, P=110MPa',
     icon: <Anchor className="w-5 h-5" />,
     color: '#0EA5E9',
     temperature: 2,
@@ -83,9 +63,19 @@ const SCENARIOS: ScenarioPreset[] = [
     emField: 20,
   },
   {
+    id: 'room-temp',
+    title: '常温动测基准',
+    tagline: 'T=25°C, σ=200MPa',
+    icon: <Thermometer className="w-5 h-5" />,
+    color: '#94A3B8',
+    temperature: 25,
+    stress: 200,
+    emField: 10,
+  },
+  {
     id: 'rail',
     title: '高铁轨道',
-    tagline: 'v=350km/h, T=60°C',
+    tagline: 'T=60°C, v=350km/h',
     icon: <Train className="w-5 h-5" />,
     color: '#F97316',
     temperature: 60,
@@ -93,14 +83,14 @@ const SCENARIOS: ScenarioPreset[] = [
     emField: 65,
   },
   {
-    id: 'ballistic',
-    title: '弹道防护',
-    tagline: 'v=1200m/s, T=500°C',
-    icon: <Shield className="w-5 h-5" />,
-    color: '#EF4444',
-    temperature: 500,
-    stress: 1800,
-    emField: 10,
+    id: 'ev-crash',
+    title: 'EV 电池热失控',
+    tagline: 'T=150°C, σ=350MPa',
+    icon: <Battery className="w-5 h-5" />,
+    color: '#1DD1A1',
+    temperature: 150,
+    stress: 350,
+    emField: 80,
   },
   {
     id: 'oil-drill',
@@ -111,26 +101,6 @@ const SCENARIOS: ScenarioPreset[] = [
     temperature: 200,
     stress: 1400,
     emField: 30,
-  },
-  {
-    id: 'polar',
-    title: '极地工程',
-    tagline: 'T=-50°C, 冰载荷',
-    icon: <Snowflake className="w-5 h-5" />,
-    color: '#67E8F9',
-    temperature: -50,
-    stress: 600,
-    emField: 15,
-  },
-  {
-    id: 'weld-haz',
-    title: '焊接热影响区',
-    tagline: 'T=1500°C, 急冷',
-    icon: <Flame className="w-5 h-5" />,
-    color: '#FB923C',
-    temperature: 1500,
-    stress: 300,
-    emField: 45,
   },
 ];
 
@@ -150,7 +120,7 @@ function StressStrainChart({
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
-  const tNorm = temperature / 1000;
+  const tNorm = (temperature + 40) / 240;
   const eNorm = emField / 100;
 
   // Generate data
@@ -364,7 +334,7 @@ export default function MultiField() {
   const { publishMultiFieldExperiment, logDataFlow, lastLabExperiment } = useExperimentDataBus();
 
   // Field parameters
-  const [temperature, setTemperature] = useState(300);
+  const [temperature, setTemperature] = useState(25);
   const [stress, setStress] = useState(500);
   const [emField, setEmField] = useState(40);
 
@@ -389,7 +359,7 @@ export default function MultiField() {
 
   // Coupling degree
   const couplingPct = useMemo(() => {
-    const t = temperature / 1000;
+    const t = (temperature + 40) / 240;
     const m = stress / 2000;
     const e = emField / 100;
     return Math.round(((t + m + e) / 3) * 100);
@@ -397,7 +367,7 @@ export default function MultiField() {
 
   // Deviation calculations
   const deviations = useMemo(() => {
-    const tDev = thermalSoftening ? (temperature / 1000) * 18 : 0;
+    const tDev = thermalSoftening ? ((temperature + 40) / 240) * 18 : 0;
     const eDev = eddyCurrentLoss ? (emField / 100) * 12 : 0;
     const total = Math.min(tDev + eDev + (adiabaticHeating ? 3 : 0), 45);
     return {
@@ -409,7 +379,7 @@ export default function MultiField() {
 
   // Generate result data
   const generateResultData = useCallback((): MultiFieldExperimentResult => {
-    const tNorm = temperature / 1000;
+    const tNorm = (temperature + 40) / 240;
     const eNorm = emField / 100;
     const coupledStressStrain: StressStrainPoint[] = [];
     for (let i = 0; i <= 50; i++) {
@@ -446,7 +416,7 @@ export default function MultiField() {
 
   // Reset
   const handleReset = useCallback(() => {
-    setTemperature(300);
+    setTemperature(25);
     setStress(500);
     setEmField(40);
     setActiveScenario(null);
@@ -639,8 +609,8 @@ export default function MultiField() {
               <Slider
                 value={[temperature]}
                 onValueChange={(v) => setTemperature(v[0])}
-                min={20}
-                max={1000}
+                min={-40}
+                max={200}
                 step={5}
                 className="mb-4"
               />
@@ -824,14 +794,14 @@ export default function MultiField() {
               <div>
                 <div className="flex items-center justify-between text-[10px] mb-1">
                   <span className="text-[#FF9F43] font-mono font-semibold">T–σ</span>
-                  <span className="text-white/50">{Math.round((temperature / 1000 + stress / 2000) / 2 * 100)}%</span>
+                  <span className="text-white/50">{Math.round(((temperature + 40) / 240 + stress / 2000) / 2 * 100)}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: 'linear-gradient(90deg, #FF9F43, #1DD1A1)' }}
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.round((temperature / 1000 + stress / 2000) / 2 * 100)}%` }}
+                    animate={{ width: `${Math.round(((temperature + 40) / 240 + stress / 2000) / 2 * 100)}%` }}
                     transition={{ duration: 0.8 }}
                   />
                 </div>
@@ -856,14 +826,14 @@ export default function MultiField() {
               <div>
                 <div className="flex items-center justify-between text-[10px] mb-1">
                   <span className="text-[#8B5CF6] font-mono font-semibold">B–T</span>
-                  <span className="text-white/50">{Math.round((emField / 100 + temperature / 1000) / 2 * 100)}%</span>
+                  <span className="text-white/50">{Math.round((emField / 100 + (temperature + 40) / 240) / 2 * 100)}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: 'linear-gradient(90deg, #8B5CF6, #FF9F43)' }}
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.round((emField / 100 + temperature / 1000) / 2 * 100)}%` }}
+                    animate={{ width: `${Math.round((emField / 100 + (temperature + 40) / 240) / 2 * 100)}%` }}
                     transition={{ duration: 0.8, delay: 0.2 }}
                   />
                 </div>

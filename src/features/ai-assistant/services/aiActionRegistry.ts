@@ -326,10 +326,10 @@ registerAction({
   id: 'multifield.setFields',
   category: 'multifield',
   name: '设置多场耦合参数',
-  description: '设置多场耦合实验的三场参数（温度、应力、电磁场）。温度范围20-1000°C，应力范围0-2000MPa，电磁场范围0-100T',
+  description: '设置多场耦合实验的三场参数（温度、应力、电磁场）。温度范围-40~200°C，应力范围0-2000MPa，电磁场范围0-100T',
   targetPage: '/lab',
   parameters: [
-    { name: 'temperature', type: 'number', description: '温度(°C)', required: false, range: [20, 1000] },
+    { name: 'temperature', type: 'number', description: '温度(°C)', required: false, range: [-40, 200] },
     { name: 'stress', type: 'number', description: '应力(MPa)', required: false, range: [0, 2000] },
     { name: 'emField', type: 'number', description: '电磁场强度(T)', required: false, range: [0, 100] },
   ],
