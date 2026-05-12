@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Thermometer, Zap, Activity, Battery,
+  Thermometer, Battery,
   ArrowRight, Send, Play, RotateCcw, AlertTriangle,
   Anchor, Train, Pickaxe, Snowflake, Truck,
 } from 'lucide-react';
@@ -19,6 +19,16 @@ import type { MultiFieldExperimentResult, StressStrainPoint } from '@/types';
 /* ═══════════════════════════════════════════════════════════════
    Constants
    ═══════════════════════════════════════════════════════════════ */
+
+/** 多场耦合温度规格 (°C) — 与预算表 / aiActionRegistry range 同源 */
+const TEMP_MIN = -40;
+const TEMP_MAX = 200;
+const TEMP_RANGE = TEMP_MAX - TEMP_MIN; // 240
+
+/** 归一化温度到 [0, 1] */
+function normalizeTemperature(t: number): number {
+  return (t - TEMP_MIN) / TEMP_RANGE;
+}
 
 interface ScenarioPreset {
   id: string;
@@ -120,7 +130,7 @@ function StressStrainChart({
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
-  const tNorm = (temperature + 40) / 240;
+  const tNorm = normalizeTemperature(temperature);
   const eNorm = emField / 100;
 
   // Generate data
@@ -250,32 +260,27 @@ function StressStrainChart({
 
 function getSceneSVG(id: string, color: string): React.ReactNode {
   switch (id) {
-    case 'mine':
+    case 'polar':
       return <>
-        <rect x="40" y="30" width="80" height="26" rx="2" fill={`${color}30`} stroke={color} strokeWidth="0.8" />
-        <line x1="60" y1="0" x2="60" y2="30" stroke={color} strokeWidth="0.8" strokeDasharray="3 2" />
-        <line x1="100" y1="0" x2="100" y2="30" stroke={color} strokeWidth="0.8" strokeDasharray="3 2" />
-        <circle cx="80" cy="42" r="6" fill={`${color}40`} />
+        <polygon points="80,8 90,22 86,22 96,36 60,36 70,22 66,22" fill={`${color}20`} stroke={color} strokeWidth="0.6" />
+        <line x1="20" y1="44" x2="140" y2="44" stroke={`${color}40`} strokeWidth="1" />
+        <circle cx="45" cy="20" r="3" fill="none" stroke={color} strokeWidth="0.5" />
+        <circle cx="120" cy="16" r="4" fill="none" stroke={color} strokeWidth="0.5" />
       </>;
-    case 'aerospace':
+    case 'cold-chain':
       return <>
-        <polygon points="80,4 95,44 65,44" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
-        <line x1="80" y1="44" x2="80" y2="56" stroke={color} strokeWidth="1.5" />
-        <circle cx="80" cy="20" r="3" fill={color} opacity="0.6" />
-      </>;
-    case 'nuclear':
-      return <>
-        <circle cx="80" cy="28" r="18" fill="none" stroke={color} strokeWidth="0.8" />
-        <circle cx="80" cy="28" r="5" fill={`${color}40`} />
-        <ellipse cx="80" cy="28" rx="18" ry="8" fill="none" stroke={`${color}60`} strokeWidth="0.6" transform="rotate(60,80,28)" />
-        <ellipse cx="80" cy="28" rx="18" ry="8" fill="none" stroke={`${color}60`} strokeWidth="0.6" transform="rotate(-60,80,28)" />
-      </>;
-    case 'ev-crash':
-      return <>
-        <rect x="30" y="22" width="40" height="18" rx="4" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
-        <rect x="90" y="22" width="40" height="18" rx="4" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
-        <path d="M70,31 L90,31" stroke={color} strokeWidth="1.5" strokeDasharray="4 2" />
-        <polygon points="85,27 90,31 85,35" fill={color} opacity="0.6" />
+        {/* 卡车厢体 + 冷链雪花 */}
+        <rect x="40" y="22" width="55" height="20" rx="2" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
+        <rect x="95" y="28" width="20" height="14" rx="1" fill={`${color}20`} stroke={color} strokeWidth="0.6" />
+        <circle cx="55" cy="46" r="3" fill="none" stroke={color} strokeWidth="0.8" />
+        <circle cx="105" cy="46" r="3" fill="none" stroke={color} strokeWidth="0.8" />
+        {/* 厢体内雪花标识 */}
+        <g transform="translate(67,32)" stroke={color} strokeWidth="0.6">
+          <line x1="-4" y1="0" x2="4" y2="0" />
+          <line x1="0" y1="-4" x2="0" y2="4" />
+          <line x1="-3" y1="-3" x2="3" y2="3" />
+          <line x1="-3" y1="3" x2="3" y2="-3" />
+        </g>
       </>;
     case 'deep-sub':
       return <>
@@ -284,6 +289,16 @@ function getSceneSVG(id: string, color: string): React.ReactNode {
         <line x1="55" y1="28" x2="60" y2="28" stroke={color} strokeWidth="0.8" />
         {[10, 20, 30, 40].map(y => <line key={y} x1="20" y1={y} x2="140" y2={y} stroke={`${color}15`} strokeWidth="0.5" />)}
       </>;
+    case 'room-temp':
+      return <>
+        {/* 温度计 + 基准刻度 */}
+        <rect x="74" y="8" width="12" height="32" rx="6" fill={`${color}15`} stroke={color} strokeWidth="0.8" />
+        <circle cx="80" cy="44" r="8" fill={`${color}30`} stroke={color} strokeWidth="0.8" />
+        <line x1="80" y1="14" x2="80" y2="40" stroke={color} strokeWidth="1.5" />
+        {[14, 22, 30, 38].map(y => <line key={y} x1="68" y1={y} x2="72" y2={y} stroke={color} strokeWidth="0.6" />)}
+        {/* 基准线 */}
+        <line x1="20" y1="50" x2="140" y2="50" stroke={`${color}50`} strokeWidth="0.6" strokeDasharray="3 2" />
+      </>;
     case 'rail':
       return <>
         <line x1="20" y1="36" x2="140" y2="36" stroke={color} strokeWidth="1.5" />
@@ -291,12 +306,12 @@ function getSceneSVG(id: string, color: string): React.ReactNode {
         {[30, 50, 70, 90, 110].map(x => <rect key={x} x={x-2} y="36" width="4" height="4" fill={`${color}40`} />)}
         <rect x="60" y="18" width="40" height="18" rx="3" fill={`${color}20`} stroke={color} strokeWidth="0.8" />
       </>;
-    case 'ballistic':
+    case 'ev-crash':
       return <>
-        <rect x="95" y="8" width="12" height="40" rx="1" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
-        <circle cx="50" cy="28" r="5" fill={color} opacity="0.6" />
-        <line x1="55" y1="28" x2="95" y2="28" stroke={color} strokeWidth="1" strokeDasharray="4 3" />
-        <polygon points="88,24 95,28 88,32" fill={color} opacity="0.4" />
+        <rect x="30" y="22" width="40" height="18" rx="4" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
+        <rect x="90" y="22" width="40" height="18" rx="4" fill={`${color}25`} stroke={color} strokeWidth="0.8" />
+        <path d="M70,31 L90,31" stroke={color} strokeWidth="1.5" strokeDasharray="4 2" />
+        <polygon points="85,27 90,31 85,35" fill={color} opacity="0.6" />
       </>;
     case 'oil-drill':
       return <>
@@ -304,20 +319,6 @@ function getSceneSVG(id: string, color: string): React.ReactNode {
         <polygon points="74,50 86,50 80,56" fill={color} opacity="0.5" />
         <rect x="70" y="4" width="20" height="8" fill={`${color}25`} stroke={color} strokeWidth="0.6" />
         {[20, 30, 40].map(y => <circle key={y} cx="80" cy={y} r="2" fill={`${color}30`} />)}
-      </>;
-    case 'polar':
-      return <>
-        <polygon points="80,8 90,22 86,22 96,36 60,36 70,22 66,22" fill={`${color}20`} stroke={color} strokeWidth="0.6" />
-        <line x1="20" y1="44" x2="140" y2="44" stroke={`${color}40`} strokeWidth="1" />
-        <circle cx="45" cy="20" r="3" fill="none" stroke={color} strokeWidth="0.5" />
-        <circle cx="120" cy="16" r="4" fill="none" stroke={color} strokeWidth="0.5" />
-      </>;
-    case 'weld-haz':
-      return <>
-        <rect x="30" y="18" width="45" height="24" rx="1" fill={`${color}15`} stroke={color} strokeWidth="0.6" />
-        <rect x="85" y="18" width="45" height="24" rx="1" fill={`${color}15`} stroke={color} strokeWidth="0.6" />
-        <line x1="75" y1="14" x2="75" y2="46" stroke={color} strokeWidth="2" />
-        <circle cx="75" cy="30" r="8" fill={`${color}30`} />
       </>;
     default:
       return <circle cx="80" cy="28" r="15" fill={`${color}20`} stroke={color} strokeWidth="0.8" />;
@@ -359,15 +360,29 @@ export default function MultiField() {
 
   // Coupling degree
   const couplingPct = useMemo(() => {
-    const t = (temperature + 40) / 240;
+    const t = normalizeTemperature(temperature);
     const m = stress / 2000;
     const e = emField / 100;
     return Math.round(((t + m + e) / 3) * 100);
   }, [temperature, stress, emField]);
 
+  // 两两耦合强度百分比 — UI 文本与进度条共用
+  const tSigmaPct = useMemo(
+    () => Math.round(((normalizeTemperature(temperature) + stress / 2000) / 2) * 100),
+    [temperature, stress],
+  );
+  const emFieldTPct = useMemo(
+    () => Math.round(((emField / 100 + normalizeTemperature(temperature)) / 2) * 100),
+    [emField, temperature],
+  );
+  const sigmaBPct = useMemo(
+    () => Math.round(((stress / 2000 + emField / 100) / 2) * 100),
+    [stress, emField],
+  );
+
   // Deviation calculations
   const deviations = useMemo(() => {
-    const tDev = thermalSoftening ? ((temperature + 40) / 240) * 18 : 0;
+    const tDev = thermalSoftening ? normalizeTemperature(temperature) * 18 : 0;
     const eDev = eddyCurrentLoss ? (emField / 100) * 12 : 0;
     const total = Math.min(tDev + eDev + (adiabaticHeating ? 3 : 0), 45);
     return {
@@ -379,7 +394,7 @@ export default function MultiField() {
 
   // Generate result data
   const generateResultData = useCallback((): MultiFieldExperimentResult => {
-    const tNorm = (temperature + 40) / 240;
+    const tNorm = normalizeTemperature(temperature);
     const eNorm = emField / 100;
     const coupledStressStrain: StressStrainPoint[] = [];
     for (let i = 0; i <= 50; i++) {
@@ -446,10 +461,12 @@ export default function MultiField() {
         'submarine': 'deep-sub',
         'ocean': 'deep-sub',
         'train': 'rail',
-        'armor': 'ballistic',
         'drilling': 'oil-drill',
         'arctic': 'polar',
-        'welding': 'weld-haz',
+        'cold': 'cold-chain',
+        'refrigeration': 'cold-chain',
+        'baseline': 'room-temp',
+        'ambient': 'room-temp',
       };
       const id = aliasMap[rawId] || rawId;
       const s = SCENARIOS.find((sc) => sc.id === id);
@@ -794,14 +811,14 @@ export default function MultiField() {
               <div>
                 <div className="flex items-center justify-between text-[10px] mb-1">
                   <span className="text-[#FF9F43] font-mono font-semibold">T–σ</span>
-                  <span className="text-white/50">{Math.round(((temperature + 40) / 240 + stress / 2000) / 2 * 100)}%</span>
+                  <span className="text-white/50">{tSigmaPct}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: 'linear-gradient(90deg, #FF9F43, #1DD1A1)' }}
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.round(((temperature + 40) / 240 + stress / 2000) / 2 * 100)}%` }}
+                    animate={{ width: `${tSigmaPct}%` }}
                     transition={{ duration: 0.8 }}
                   />
                 </div>
@@ -810,14 +827,14 @@ export default function MultiField() {
               <div>
                 <div className="flex items-center justify-between text-[10px] mb-1">
                   <span className="text-[#1DD1A1] font-mono font-semibold">σ–B</span>
-                  <span className="text-white/50">{Math.round((stress / 2000 + emField / 100) / 2 * 100)}%</span>
+                  <span className="text-white/50">{sigmaBPct}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: 'linear-gradient(90deg, #1DD1A1, #8B5CF6)' }}
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.round((stress / 2000 + emField / 100) / 2 * 100)}%` }}
+                    animate={{ width: `${sigmaBPct}%` }}
                     transition={{ duration: 0.8, delay: 0.1 }}
                   />
                 </div>
@@ -826,14 +843,14 @@ export default function MultiField() {
               <div>
                 <div className="flex items-center justify-between text-[10px] mb-1">
                   <span className="text-[#8B5CF6] font-mono font-semibold">B–T</span>
-                  <span className="text-white/50">{Math.round((emField / 100 + (temperature + 40) / 240) / 2 * 100)}%</span>
+                  <span className="text-white/50">{emFieldTPct}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: 'linear-gradient(90deg, #8B5CF6, #FF9F43)' }}
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.round((emField / 100 + (temperature + 40) / 240) / 2 * 100)}%` }}
+                    animate={{ width: `${emFieldTPct}%` }}
                     transition={{ duration: 0.8, delay: 0.2 }}
                   />
                 </div>

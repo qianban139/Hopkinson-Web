@@ -306,14 +306,20 @@ registerAction({
   id: 'multifield.selectScenario',
   category: 'multifield',
   name: '选择多场耦合场景',
-  description: '选择极端环境模拟场景预设。可选: mine(深部矿井), aerospace(航空航天), nuclear(核反应堆), ev-battery(电动汽车电池碰撞)',
+  description: '选择工程环境模拟场景预设(-40~200°C 范围)。可选: polar(极地工程), cold-chain(冷链运输), deep-sub(海洋深潜器), room-temp(常温动测基准), rail(高铁轨道), ev-crash(EV 电池热失控), oil-drill(石油钻井)',
   targetPage: '/lab',
   parameters: [
-    { name: 'scenario', type: 'select', description: '场景ID', required: true, options: ['mine', 'aerospace', 'nuclear', 'ev-battery'] },
+    { name: 'scenario', type: 'select', description: '场景ID', required: true, options: ['polar', 'cold-chain', 'deep-sub', 'room-temp', 'rail', 'ev-crash', 'oil-drill'] },
   ],
   execute: async (params) => {
     const labels: Record<string, string> = {
-      mine: '深部矿井', aerospace: '航空航天', nuclear: '核反应堆', 'ev-battery': '电动汽车电池碰撞',
+      'polar': '极地工程',
+      'cold-chain': '冷链运输',
+      'deep-sub': '海洋深潜器',
+      'room-temp': '常温动测基准',
+      'rail': '高铁轨道',
+      'ev-crash': 'EV 电池热失控',
+      'oil-drill': '石油钻井',
     };
     useAppStore.getState().setNavigateTo('/lab');
     window.dispatchEvent(new CustomEvent('ai-select-scenario', { detail: params.scenario }));

@@ -143,26 +143,41 @@ const QUICK_INTENTS: QuickIntent[] = [
     extractParams: () => ({}),
   },
 
-  // 多场耦合场景选择
+  // 多场耦合场景选择(-40~200°C)
   {
-    patterns: [/(?:选择|切换|模拟)\s*(?:深部)?矿井(?:场景)?/i],
+    patterns: [/(?:选择|切换|模拟)\s*极地(?:工程)?(?:场景)?/i, /低温脆性(?:实验)?/i],
     actionId: 'multifield.selectScenario',
-    extractParams: () => ({ scenario: 'mine' }),
+    extractParams: () => ({ scenario: 'polar' }),
   },
   {
-    patterns: [/(?:选择|切换|模拟)\s*航空航天(?:场景)?/i],
+    patterns: [/(?:选择|切换|模拟)\s*(?:冷链|冷藏)(?:运输)?(?:场景)?/i],
     actionId: 'multifield.selectScenario',
-    extractParams: () => ({ scenario: 'aerospace' }),
+    extractParams: () => ({ scenario: 'cold-chain' }),
   },
   {
-    patterns: [/(?:选择|切换|模拟)\s*核反应堆(?:场景)?/i],
+    patterns: [/(?:选择|切换|模拟)\s*(?:海洋)?深潜(?:器)?(?:场景)?/i],
     actionId: 'multifield.selectScenario',
-    extractParams: () => ({ scenario: 'nuclear' }),
+    extractParams: () => ({ scenario: 'deep-sub' }),
   },
   {
-    patterns: [/(?:选择|切换|模拟)\s*(?:电动汽车|电池)(?:碰撞)?(?:场景)?/i],
+    patterns: [/(?:选择|切换|模拟)\s*(?:常温|室温|基准|动测基准)(?:场景)?/i],
     actionId: 'multifield.selectScenario',
-    extractParams: () => ({ scenario: 'ev-battery' }),
+    extractParams: () => ({ scenario: 'room-temp' }),
+  },
+  {
+    patterns: [/(?:选择|切换|模拟)\s*(?:高铁|轨道|铁路)(?:场景)?/i],
+    actionId: 'multifield.selectScenario',
+    extractParams: () => ({ scenario: 'rail' }),
+  },
+  {
+    patterns: [/(?:选择|切换|模拟)\s*(?:电动汽车|EV|电池)(?:碰撞|热失控)?(?:场景)?/i],
+    actionId: 'multifield.selectScenario',
+    extractParams: () => ({ scenario: 'ev-crash' }),
+  },
+  {
+    patterns: [/(?:选择|切换|模拟)\s*(?:石油)?(?:钻井|钻探)(?:场景)?/i],
+    actionId: 'multifield.selectScenario',
+    extractParams: () => ({ scenario: 'oil-drill' }),
   },
 
   // 运行耦合仿真
@@ -523,7 +538,7 @@ export function buildFunctionCallingSystemPrompt(): string {
 【实验操作】lab.startExperiment, lab.pauseExperiment, lab.resetExperiment, lab.selectMaterial(materialName), lab.jumpToStage(stage=charging/coilAccel/strikerLaunch/wavePropagate/deformation/dataCollect)
 【围压】lab.setConfiningPressure(x,y,z), lab.toggleConfining(enabled)
 【AI优化】ai.startOptimization, ai.switchAlgorithm(algorithm=lstm/wgan/ppo), ai.applyOptimizedParams, ai.toggleAlgorithmTraining(algorithm,action=start/stop), ai.setHyperParam(algorithm,param=learningRate/hiddenLayers/batchSize/epochs/generatorLayers/clipRatio/policyIter,value)
-【多场耦合】multifield.selectScenario(scenario=mine/aerospace/nuclear/ev-battery), multifield.setFields(temperature,stress,emField), multifield.startCoupling, multifield.toggleEffect(effect=thermalSoftening/adiabaticHeating/eddyCurrentLoss,enabled), multifield.reset, multifield.sendToAnalysis
+【多场耦合】multifield.selectScenario(scenario=polar/cold-chain/deep-sub/room-temp/rail/ev-crash/oil-drill), multifield.setFields(temperature,stress,emField), multifield.startCoupling, multifield.toggleEffect(effect=thermalSoftening/adiabaticHeating/eddyCurrentLoss,enabled), multifield.reset, multifield.sendToAnalysis
 【材料分析】analysis.selectMaterial(materialId), analysis.startAIPrediction, analysis.setPredictionParams(strainRate,temperature,confiningPressure), analysis.toggleCompareMode(enabled), analysis.zoomChart(action=in/out/reset), analysis.exportData(format=csv/json/png), analysis.exportReport
 【系统监控】monitor.runSafetyCheck, monitor.setAlertRule(type=voltage/current/temperature/energy,threshold), monitor.setAlertThreshold(rule=voltageWarning/voltageDanger/tempWarning/tempDanger/emiWarning/emiDanger/capacitanceLow,value), monitor.toggleMonitoring(enabled), monitor.emergencyStop
 【通用】general.showHelp, general.getSystemStatus, general.describeCurrentPage
