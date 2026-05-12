@@ -3,15 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Power, AlertTriangle, History, Download, Activity, Zap,
-  Thermometer, Radio, Battery, Bell, Settings2,
-  CheckCircle2, XCircle, TrendingUp, Clock, Play, Pause,
-  Shield, ShieldCheck, ShieldAlert, Loader2, ArrowRight,
-  Cpu, CircleDot, Wifi, WifiOff
+  Thermometer, Battery, Bell, Settings2,
+  CheckCircle2, XCircle,  Play, Pause,
+  Shield, ShieldCheck,  Loader2,
+  Cpu,Wifi, WifiOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppStore } from '@/store/useAppStore';
 import { useExperimentDataBus } from '@/store/useExperimentDataBus';

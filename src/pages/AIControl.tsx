@@ -24,9 +24,6 @@ const CYAN = '#00F5FF';
 const ORANGE = '#FF9F43';
 const GREEN = '#1DD1A1';
 const PURPLE = '#A855F6';
-const BG = '#0A2540';
-const CARD_BG = '#051020';
-
 interface AlgoConfig {
   id: 'lstm' | 'wgan' | 'ppo';
   name: string;
