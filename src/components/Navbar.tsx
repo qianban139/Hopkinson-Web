@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu, Zap, FlaskConical, Database, Monitor, GraduationCap,
-  LogOut, User as UserIcon, Shield, BrainCircuit, Layers,
+  LogOut, User as UserIcon, Shield, BrainCircuit, Layers, Home,
   ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,8 +30,16 @@ type NavSection = {
   children: NavChild[];
 };
 
-/** 4 大版块 — 与计划文档第 A1 节对齐 */
+/** 5 大版块 — 首页 + 4 大业务版块 */
 const navSections: NavSection[] = [
+  {
+    label: '首页',
+    icon: Home,
+    primaryPath: '/',
+    children: [
+      { label: '首页', path: '/', icon: Home, description: '平台总览 / 产品介绍 / 核心能力' },
+    ],
+  },
   {
     label: '系统安全运维',
     icon: Shield,
