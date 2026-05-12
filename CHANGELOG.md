@@ -7,6 +7,56 @@
 
 ---
 
+## [1.1.0] - 2026-05-13
+
+### 新增
+
+- **BP-ANN 本构预测**：单隐层神经网络（tansig + purelin）替代/对照传统本构模型，可外推未拟合应变率
+  - `src/services/bpNetwork.ts`、`bpShpbPredictor.ts`
+  - `src/features/material-analysis/BPPredictionPanel.tsx`
+  - 接入 MaterialAnalysis 参数拟合 tab 的 'bp-ann' 模式
+- **PID 围压闭环伺服**：二阶被控对象 + 时滞 + Z-N 整定三档预设
+  - `src/services/pidController.ts`、`confiningPressureSimulator.ts`
+  - `src/features/confining-pressure/PIDServoPanel.tsx`
+  - 挂载于 MultiField 页面，目标围压 50 MPa
+- **煤岩 Micro-CT 裂隙提取**：Otsu + 形态学 + 连通域 pipeline
+  - `src/services/imageProcessing/ctFissureExtractor.ts`
+  - `src/features/ct-analysis/CTFissureExtractorPanel.tsx`
+  - 接入 MaterialAnalysis 新 Tab "CT 裂隙提取"
+- **首页研究亮点**：Home 新增 researchHighlights 三卡，直链到上述功能
+- **二维码脚本**：`scripts/genQRCode.ts` 生成 `public/qr-vercel.png` / `.svg`
+- **Navbar 首页一级版块**：与 4 大业务版块平级，方便从子页快速返回
+- **评委演示账号**：Login 加 judge1/2/3 快捷填充 + 游客离线模式（VITE_DEMO_MODE）
+- **后端 Docker 支持**：`hopkinson-backend/Dockerfile` + `docker-compose.yml`
+
+### 变更
+
+- **暂停登录**：新增 `VITE_AUTH_DISABLED` 环境变量短路 ProtectedRoute + useAuthStore.hydrate()，备案期间所有访客直达，无需登录
+- **多场耦合温度规格 -40~200°C**：MultiField 滑块 + 7 个新场景（极地/冷链/深潜/常温/高铁/EV/钻井）+ aiActionRegistry + aiIntentParser 同步
+- **温度归一化抽象**：`TEMP_MIN/MAX/RANGE` 常量 + `normalizeTemperature()` helper
+- 8 处 magic number `(temperature+40)/240` 全部走 helper
+
+### 文档
+
+- 新增 `docs/superpowers/specs/2026-05-12-v1.1-release-design.md`
+- 新增 `docs/superpowers/plans/2026-05-12-v1.1-release.md`
+- 新增 `docs/physics-engine/bp-network.md`
+- 新增 `docs/physics-engine/confining-pressure-pid.md`
+- 新增 `docs/visualization/ct-fissure-extraction.md`
+- 新增 `docs/deployment/oss-assets.md`
+- 新增 `docs/deployment/cloudflare-tunnel.md`
+- 新增 `docs/competition-ppt/02-backend-readable.md`
+- 新增 `docs/superpowers/cleanup-checklist-2026-05-12.md`
+- 新增 `docs/superpowers/audits/2026-05-12-bp-pid-ct-audit.md`（Agent 审计）
+
+### 清理
+
+- 删除 `docs/competition-ppt/06-judge-review.pdf`（2.1 MB）
+- `AIControl.tsx` / `SystemMonitor.tsx` 未用导入清理
+- `.gitignore` 中 `public/assets/videos/*.mp4` 改为整目录
+
+---
+
 ## [1.0.0] - 2026-04-09
 
 ### 新增（RAG 知识增强 + 知识图谱 · Phase 5）
