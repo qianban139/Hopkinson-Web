@@ -92,7 +92,7 @@ export function extractFissures(src: ImageData, opts: ExtractOptions = {}): Extr
   }
 
   // 4. 形态学闭运算(连接细小裂隙)
-  let processed = binary;
+  let processed: Uint8Array<ArrayBufferLike> = binary;
   for (let k = 0; k < closeIter; k++) {
     processed = dilate(processed, W, H, kernelSize);
     processed = erode(processed, W, H, kernelSize);
@@ -168,15 +168,19 @@ export function evaluate(pred: ImageData | Uint8Array, gt: ImageData | Uint8Arra
   const recall = tp / Math.max(1, tp + fn);
   const f1 = (2 * precision * recall) / Math.max(1e-9, precision + recall);
 
-  // 两类 pixel accuracy 各自
-  const paForeground = tp / Math.max(1, tp + fn);
-  const paBackground = tn / Math.max(1, tn + fp);
-  const mpa = (paForeground + paBackground) / 2;
+  // Audit CT-2: mPA / mIoU 按"GT 中存在的类"取平均, 不存在的类不参与.
+  // 标准 mIoU 做法: 类不存在时跳过, 而非视作 0 拉低均值.
+  const fgExists = (tp + fn) > 0; // GT 中有裂隙
+  const bgExists = (tn + fp) > 0; // GT 中有背景
+  const paForeground = fgExists ? tp / (tp + fn) : NaN;
+  const paBackground = bgExists ? tn / (tn + fp) : NaN;
+  const paClasses = [paForeground, paBackground].filter((v) => !Number.isNaN(v));
+  const mpa = paClasses.length ? paClasses.reduce((a, b) => a + b, 0) / paClasses.length : 0;
 
-  // IoU
-  const iouFg = tp / Math.max(1, tp + fp + fn);
-  const iouBg = tn / Math.max(1, tn + fp + fn);
-  const miou = (iouFg + iouBg) / 2;
+  const iouFg = fgExists ? tp / (tp + fp + fn) : NaN;
+  const iouBg = bgExists ? tn / (tn + fp + fn) : NaN;
+  const iouClasses = [iouFg, iouBg].filter((v) => !Number.isNaN(v));
+  const miou = iouClasses.length ? iouClasses.reduce((a, b) => a + b, 0) / iouClasses.length : 0;
 
   return { pixelAccuracy: pa, mpa, miou, precision, recall, f1 };
 }
@@ -244,7 +248,10 @@ function dilate(src: Uint8Array, W: number, H: number, k: number): Uint8Array {
   return out;
 }
 
-/** 腐蚀(min) */
+/**
+ * 腐蚀(min) — Audit CT-1: 边界越界视为前景 (border-replicate semantics),
+ * 避免最外圈像素被多次开/闭运算无意义地腐蚀掉.
+ */
 function erode(src: Uint8Array, W: number, H: number, k: number): Uint8Array {
   const out = new Uint8Array(W * H);
   const r = Math.floor(k / 2);
@@ -254,7 +261,8 @@ function erode(src: Uint8Array, W: number, H: number, k: number): Uint8Array {
       for (let dy = -r; dy <= r && v === 1; dy++) {
         for (let dx = -r; dx <= r && v === 1; dx++) {
           const nx = x + dx, ny = y + dy;
-          if (nx < 0 || nx >= W || ny < 0 || ny >= H) { v = 0; break; }
+          // 越界视为前景 (1), 等价于在边界外扩展 1 像素的前景填充
+          if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
           if (!src[ny * W + nx]) v = 0;
         }
       }
@@ -271,7 +279,9 @@ function connectedComponents(src: Uint8Array, W: number, H: number, minArea: num
   const areas = new Map<number, number>();
   let nextLabel = 1;
 
-  // 简化版 two-pass: 第一次标记,第二次合并过小的
+  // Audit CT-3: 入栈前查 labels[neighbor] 与 src[neighbor],
+  // 避免栈膨胀至 O(N²) 与同一像素重复入栈.
+  // 1000×1000 强连通图最坏情况下栈深度从 ~4N 降到 ~N.
   const stack: number[] = [];
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -280,17 +290,29 @@ function connectedComponents(src: Uint8Array, W: number, H: number, minArea: num
 
       const lbl = nextLabel++;
       let area = 0;
+      labels[idx] = lbl; // 标记起点
       stack.push(idx);
       while (stack.length) {
         const i = stack.pop()!;
-        if (labels[i] || !src[i]) continue;
-        labels[i] = lbl;
         area++;
         const xi = i % W, yi = (i - xi) / W;
-        if (xi > 0) stack.push(i - 1);
-        if (xi < W - 1) stack.push(i + 1);
-        if (yi > 0) stack.push(i - W);
-        if (yi < H - 1) stack.push(i + W);
+        // 4-邻域: 入栈前验证未标记且为前景
+        if (xi > 0) {
+          const ni = i - 1;
+          if (src[ni] && !labels[ni]) { labels[ni] = lbl; stack.push(ni); }
+        }
+        if (xi < W - 1) {
+          const ni = i + 1;
+          if (src[ni] && !labels[ni]) { labels[ni] = lbl; stack.push(ni); }
+        }
+        if (yi > 0) {
+          const ni = i - W;
+          if (src[ni] && !labels[ni]) { labels[ni] = lbl; stack.push(ni); }
+        }
+        if (yi < H - 1) {
+          const ni = i + W;
+          if (src[ni] && !labels[ni]) { labels[ni] = lbl; stack.push(ni); }
+        }
       }
       areas.set(lbl, area);
     }
@@ -383,16 +405,16 @@ export function generateSyntheticGT(W = 320, H = 320): ImageData {
   }
   drawCurve(gt, W, H, [
     [0.1 * W, 0.2 * H], [0.35 * W, 0.4 * H], [0.55 * W, 0.45 * H], [0.85 * W, 0.75 * H],
-  ], 5, 255, true);
+  ], 5, 255);
   drawCurve(gt, W, H, [
     [0.35 * W, 0.4 * H], [0.45 * W, 0.5 * H], [0.5 * W, 0.65 * H],
-  ], 2, 255, true);
+  ], 2, 255);
   drawCurve(gt, W, H, [
     [0.55 * W, 0.45 * H], [0.7 * W, 0.3 * H], [0.9 * W, 0.2 * H],
-  ], 2, 255, true);
+  ], 2, 255);
   drawCurve(gt, W, H, [
     [0.2 * W, 0.7 * H], [0.35 * W, 0.78 * H], [0.55 * W, 0.85 * H],
-  ], 3, 255, true);
+  ], 3, 255);
   return gt;
 }
 
@@ -403,8 +425,8 @@ export function generateSyntheticGT(W = 320, H = 320): ImageData {
 function drawCurve(
   img: ImageData, W: number, H: number,
   ctrl: [number, number][], radius: number, gray: number,
-  isMask = false,
 ): void {
+  // Audit CT-6: 移除冗余 isMask 参数 — 旧代码两个分支代码完全相同.
   // Catmull-Rom 采样
   const pts: [number, number][] = [];
   for (let i = 0; i < ctrl.length - 1; i++) {
@@ -425,11 +447,9 @@ function drawCurve(
       for (let x = Math.max(0, cx - radius); x < Math.min(W, cx + radius); x++) {
         if ((x - cx) ** 2 + (y - cy) ** 2 <= radius * radius) {
           const j = (Math.floor(y) * W + Math.floor(x)) * 4;
-          if (isMask) {
-            img.data[j] = gray; img.data[j + 1] = gray; img.data[j + 2] = gray;
-          } else {
-            img.data[j] = gray; img.data[j + 1] = gray; img.data[j + 2] = gray;
-          }
+          img.data[j] = gray;
+          img.data[j + 1] = gray;
+          img.data[j + 2] = gray;
           img.data[j + 3] = 255;
         }
       }
