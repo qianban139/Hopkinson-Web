@@ -6,7 +6,7 @@
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg)](https://www.typescriptlang.org/)
 [![Vite 7](https://img.shields.io/badge/Vite-7-646cff.svg)](https://vitejs.dev/)
-[![Vercel](https://img.shields.io/badge/Deployed-Vercel-black.svg)](https://hopkinson-bar.vercel.app)
+[![Vercel](https://img.shields.io/badge/Deployed-Vercel-black.svg)](https://hopsinsonbar-qianban139s-projects.vercel.app)
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## 🚀 在线演示
 
-🔗 **生产环境**：[https://hopkinson-bar.vercel.app](https://hopkinson-bar.vercel.app)
+🔗 **生产环境**：[https://hopsinsonbar-qianban139s-projects.vercel.app](https://hopsinsonbar-qianban139s-projects.vercel.app)
 
 ---
 

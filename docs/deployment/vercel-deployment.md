@@ -109,8 +109,8 @@ git push -u origin master
 
 ### 部署 URL
 
-- **生产**：`https://hopkinson-bar.vercel.app`
-- **预览**：`https://hopkinson-bar-git-{branch}-{username}.vercel.app`
+- **生产**：`https://hopsinsonbar-qianban139s-projects.vercel.app`
+- **预览**：`https://hopsinsonbar-git-{branch}-qianban139s-projects.vercel.app`
 
 ## 六、构建优化
 

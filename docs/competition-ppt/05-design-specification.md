@@ -24,7 +24,7 @@
 
 **方法。** 本作品研发了配套硬件的全栈 Web 平台 **Hopkinson-Web**:前端基于 **React 19 + TypeScript 5.9 strict** 构建工业级单页应用,150+ 文件零 `any` 类型;后端采用 **FastAPI 0.115 全异步**架构,**PostgreSQL 16 + JSONB + GIN 索引**承载半结构化波形与材料数据;引入 **PyTorch 真神经网络(LSTM 23 KB + PPO 42 KB)** 实现实验参数三级智能优化,训练数据全部由 Johnson-Cook 本构与一维应力波物理仿真生成;通过**硬件抽象层(HAL)** 屏蔽 Mock/真 DAQ 差异,并配套 **Arduino+HX711 桌面级模拟回路**用于教学与回归;**WebSocket 双层鉴权 + 行级数据归属隔离**保障多用户科研数据安全;**信创合规守卫**在生产环境强制禁用境外 LLM provider。
 
-**结果。** 系统已端到端部署 (https://hopkinson-bar.vercel.app),实测前端首屏 < 2 s,API 平均延迟 < 50 ms,JSONB GIN 查询 < 5 ms,LSTM/PPO 推理分别 < 5/< 10 ms;**29 项后端单元测试 + 9 项端到端集成测试全部通过**(JWT 编解码、bcrypt 哈希、行级权限、JSONB 存取、PyTorch shape 与物理合理性);**k6 压测 50 并发连接 5 分钟稳定 RPS > 800,P95 延迟 < 120 ms**;首屏 Lighthouse 性能 95+。
+**结果。** 系统已端到端部署 (https://hopsinsonbar-qianban139s-projects.vercel.app),实测前端首屏 < 2 s,API 平均延迟 < 50 ms,JSONB GIN 查询 < 5 ms,LSTM/PPO 推理分别 < 5/< 10 ms;**29 项后端单元测试 + 9 项端到端集成测试全部通过**(JWT 编解码、bcrypt 哈希、行级权限、JSONB 存取、PyTorch shape 与物理合理性);**k6 压测 50 并发连接 5 分钟稳定 RPS > 800,P95 延迟 < 120 ms**;首屏 Lighthouse 性能 95+。
 
 **意义。** 平台不仅服务于硬件团队的论文级实验,更可作为本科到博士全学段动态力学课程的零硬件成本教学工具,并为军工、航天、核工程、车辆与新材料行业提供可演进的国产高端动态测试软硬件全栈方案,降低对进口 SCADA / LabVIEW / MATLAB 的依赖。
 

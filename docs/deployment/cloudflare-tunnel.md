@@ -13,7 +13,7 @@
 | 服务器 | 阿里云 ECS `47.114.88.130`,Ubuntu 22.04,2C4G,到期 **2026-05-18** |
 | 域名 | `hopkinson-lab.com`(已购,DNS 待迁 Cloudflare) |
 | 后端入口 | `https://api.hopkinson-lab.com` |
-| 前端 | `https://hopkinson-bar.vercel.app`(已部署,只需改环境变量) |
+| 前端 | `https://hopsinsonbar-qianban139s-projects.vercel.app`(已部署,只需改环境变量) |
 
 ---
 
@@ -84,7 +84,7 @@ JWT_SECRET=${JWT}
 SESSION_SECRET=${SES}
 ADMIN_PASSWORD=${ADMIN}
 
-CORS_ORIGINS=https://hopkinson-bar.vercel.app,https://hopkinson-lab.com,https://api.hopkinson-lab.com
+CORS_ORIGINS=https://hopsinsonbar-qianban139s-projects.vercel.app,https://hopkinson-lab.com,https://api.hopkinson-lab.com
 
 DB_ECHO=false
 EOF
@@ -197,7 +197,7 @@ curl https://api.hopkinson-lab.com/api/health
 
 4. **Deployments** 标签 → 最新一次部署右上角 ⋯ → **Redeploy**(或 git push 触发)
 
-5. 等 2-3 min 部署完成,打开 https://hopkinson-bar.vercel.app
+5. 等 2-3 min 部署完成,打开 https://hopsinsonbar-qianban139s-projects.vercel.app
 6. F12 DevTools → Network 验证:
    - `https://api.hopkinson-lab.com/api/health` 返回 200 ✓
    - 登录页用 `judge1` / `Judge@2026` 一键登录,跳转工作台 ✓
@@ -209,7 +209,7 @@ curl https://api.hopkinson-lab.com/api/health
 
 - 登录页已加好 3 个评委账号快捷按钮(`judge1` / `judge2` / `judge3`,密码 `Judge@2026`)
 - 录一份 5 分钟演示视频,作为现场断网兜底
-- 演示前 10 分钟用手机 4G 打开 hopkinson-bar.vercel.app,跑一次端到端流程确认在线
+- 演示前 10 分钟用手机 4G 打开 hopsinsonbar-qianban139s-projects.vercel.app,跑一次端到端流程确认在线
 - **续费提醒**:服务器 5/18 到期,在日历 5/15 加提醒续费
 
 ---
@@ -222,7 +222,7 @@ nslookup api.hopkinson-lab.com           # 应解析到 Cloudflare IP(104.x / 17
 curl -I https://api.hopkinson-lab.com/api/health  # 200 OK
 ```
 
-打开 https://hopkinson-bar.vercel.app:
+打开 https://hopsinsonbar-qianban139s-projects.vercel.app:
 
 - [ ] DevTools Network 无 Mixed Content / CORS 报错
 - [ ] 登录页 3 个评委按钮可一键填充并登录
@@ -246,7 +246,7 @@ curl -I https://api.hopkinson-lab.com/api/health  # 200 OK
 - `curl http://127.0.0.1:8000/api/health` 本机能否通
 
 ### 前端报 CORS
-- 检查 `.env` 里 `CORS_ORIGINS` 是否包含 `https://hopkinson-bar.vercel.app`
+- 检查 `.env` 里 `CORS_ORIGINS` 是否包含 `https://hopsinsonbar-qianban139s-projects.vercel.app`
 - 改完 `.env` 后:`docker compose restart backend`
 
 ### Vercel 前端缓存了旧 URL
@@ -260,7 +260,7 @@ curl -I https://api.hopkinson-lab.com/api/health  # 200 OK
 
 ## Phase 7：前端自定义域名绑定（www.hopkinson-lab.com → Vercel）
 
-> 适用场景:已购的 `hopkinson-lab.com` 不只用作后端 API,还要让前端用上品牌域名(替代 `hopkinson-bar.vercel.app`),避免演示时出现奇怪的子域。
+> 适用场景:已购的 `hopkinson-lab.com` 不只用作后端 API,还要让前端用上品牌域名(替代 `hopsinsonbar-qianban139s-projects.vercel.app`),避免演示时出现奇怪的子域。
 
 ### 7.1 排坑前情
 
@@ -272,7 +272,7 @@ curl -I https://api.hopkinson-lab.com/api/health  # 200 OK
 
 ### 7.2 Vercel 项目侧操作(5 min)
 
-1. https://vercel.com/dashboard → 点进 `hopkinson-bar` 项目
+1. https://vercel.com/dashboard → 点进 `hopsinson_bar` 项目
 2. **Settings → Domains** → 输入 `www.hopkinson-lab.com` → **Add**
 3. 再输入 apex `hopkinson-lab.com` → **Add**
    - 二选一重定向方向,推荐 apex → 308 → www(主域 = www)
@@ -301,7 +301,7 @@ ssh root@47.114.88.130
 cd /opt/hopkinson/Hopkinson-Web/hopkinson-backend
 
 # 编辑 .env,把 CORS_ORIGINS 改为(原本就有 hopkinson-lab.com,这次新增 www 子域):
-CORS_ORIGINS=https://hopkinson-bar.vercel.app,https://hopkinson-lab.com,https://www.hopkinson-lab.com,https://api.hopkinson-lab.com
+CORS_ORIGINS=https://hopsinsonbar-qianban139s-projects.vercel.app,https://hopkinson-lab.com,https://www.hopkinson-lab.com,https://api.hopkinson-lab.com
 
 docker compose restart backend
 docker compose logs --tail 30 backend   # 确认无 RuntimeError
@@ -440,7 +440,7 @@ ssh root@47.114.88.130
 
 # 编辑后端项目的 .env(具体路径以宝塔 Python 项目管理器里看到的为准,常见在 /www/wwwroot/<后端目录>/.env)
 # 找到 CORS_ORIGINS 这一行,改成:
-CORS_ORIGINS=https://hopkinson-bar.vercel.app,https://hopkinson-lab.com,https://www.hopkinson-lab.com,https://api.hopkinson-lab.com,http://47.114.88.130:8080
+CORS_ORIGINS=https://hopsinsonbar-qianban139s-projects.vercel.app,https://hopkinson-lab.com,https://www.hopkinson-lab.com,https://api.hopkinson-lab.com,http://47.114.88.130:8080
 
 # 重启 FastAPI(宝塔 → Python 项目管理器 → 找到 hopkinson-backend → 点击重启)
 # 或命令行:

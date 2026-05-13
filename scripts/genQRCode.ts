@@ -14,7 +14,7 @@
 import QRCode from 'qrcode';
 import { resolve } from 'node:path';
 
-const URL_TARGET = process.env.QR_URL ?? 'https://hopkinson-bar.vercel.app';
+const URL_TARGET = process.env.QR_URL ?? 'https://hopsinsonbar-qianban139s-projects.vercel.app';
 const NAME = process.env.QR_NAME ?? 'qr-vercel';
 const OUT_DIR = resolve(process.cwd(), 'public');
 

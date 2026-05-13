@@ -382,7 +382,7 @@ k6 run --vus 50 --duration 60s script.js
 
 ### 6.2 现场必演示 6 件套(浏览器+IDE 各开好)
 
-1. 浏览器:已部署的 `https://hopkinson-bar.vercel.app` 首页
+1. 浏览器:已部署的 `https://hopsinsonbar-qianban139s-projects.vercel.app` 首页
 2. 浏览器:虚拟实验室页面,**打开 DevTools Network 看 API < 50ms**
 3. IDE:`backend/ml/checkpoints/` 目录,**右键 ckpt 文件看 23KB / 42KB**
 4. IDE:`backend/db/models.py`,**演示 9 张表**
