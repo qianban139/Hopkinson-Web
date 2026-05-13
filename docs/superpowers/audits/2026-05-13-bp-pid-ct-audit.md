@@ -58,30 +58,38 @@ Otsu 阈值实现（累计直方图 + 类间方差）、`invert` 逻辑、上传
 
 ## 用户决策表
 
-> 用户审阅后逐条勾选 FIX / SKIP / DEFER。Claude 据勾选执行修复轮次。
+> 用户决策：**全部接受推荐**（2026-05-13）。Claude 已执行 14 项 FIX。
 
-| ID | 模块 | 严重度 | 文件:行 | 一句话 | 决策 |
-|---|---|---|---|---|---|
-| BP-1 | BP | **P0** | bpShpbPredictor.ts:66 | J-C 应变率项对 rate<1 做 `max(…, 1)` clip 偏离标准式 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| BP-2 | BP | P1 | bpShpbPredictor.ts:36 | BP 训练数据本质源自 J-C，文档需声明"可微近似器" | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| BP-3 | BP | P1 | bpShpbPredictor.ts:62 | `Math.random()` 未用 seed，与 `seed:42` 承诺矛盾 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| BP-4 | BP | P1 | bpNetwork.ts:167 | 每 5 epoch 让出主线程仍可冻结数秒 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| BP-5 | BP | P1 | bpNetwork.ts:279 | 多输出 R² 合并计算（单输出 OK，多输出会误导） | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| BP-6 | BP | P2 | bpNetwork.ts:98 | `max==min` 时 `applyNorm` 返 0，反归一化丢常数 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| BP-7 | BP | P2 | bpNetwork.ts:174 | predict 未处理 range==0 退化 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| BP-8 | BP | P2 | bpShpbPredictor.ts:119 | `Math.max(0,sigma)` 静默裁负，掩盖外推失败 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| PID-1 | PID | P1 | pidController.ts:113 | anti-windup 条件不区分饱和方向 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| PID-2 | PID | P1 | confiningPressureSimulator.ts:91 | outMax=K 导致 Kp 量纲与公式显示不一致 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| PID-3 | PID | P1 | PIDServoPanel.tsx:34 | ZN 预设与 outMax=K 耦合，理论上不是真 ZN 整定值 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| PID-4 | PID | P2 | confiningPressureSimulator.ts:77 | deadTime=0 时仍固定 1 步时滞 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| PID-5 | PID | P2 | confiningPressureSimulator.ts:205-211 | settlingTime 在从未离开 ±2% 时语义模糊 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| PID-6 | PID | P2 | pidController.ts:97 | setGains 后积分项未重定标 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| CT-1 | CT | P1 | ctFissureExtractor.ts:257 | erode 边界 zero-pad 侵蚀图像最外圈 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| CT-2 | CT | P1 | ctFissureExtractor.ts:172-179 | mpa/miou 在某类不存在时拉低均值 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| CT-3 | CT | P1 | ctFissureExtractor.ts:283-294 | DFS 在大连通图上 stack 膨胀 + 重复入栈 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| CT-4 | CT | P2 | ctFissureExtractor.ts:378-397 | 合成 CT 与 GT 边缘有 1-2 px 系统性偏差 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| CT-5 | CT | P2 | CTFissureExtractorPanel.tsx:137 | UI 未显式声明"非论文 MCSN"避免评委误判 | ☐ FIX  ☐ SKIP  ☐ DEFER |
-| CT-6 | CT | P2 | ctFissureExtractor.ts:428-432 | `drawCurve` isMask 两个分支代码相同（冗余） | ☐ FIX  ☐ SKIP  ☐ DEFER |
+| ID | 模块 | 严重度 | 文件:行 | 一句话 | 决策 | Commit |
+|---|---|---|---|---|---|---|
+| BP-1 | BP | **P0** | bpShpbPredictor.ts:66 | J-C 应变率项对 rate<1 做 `max(…, 1)` clip 偏离标准式 | ✅ FIX | 097a978 |
+| BP-2 | BP | P1 | bpShpbPredictor.ts:36 | BP 训练数据本质源自 J-C，文档需声明"可微近似器" | ✅ FIX | 097a978 |
+| BP-3 | BP | P1 | bpShpbPredictor.ts:62 | `Math.random()` 未用 seed，与 `seed:42` 承诺矛盾 | ✅ FIX | 097a978 |
+| BP-4 | BP | P1 | bpNetwork.ts:167 | 每 5 epoch 让出主线程仍可冻结数秒 | ⏳ DEFER → v1.2 | — |
+| BP-5 | BP | P1 | bpNetwork.ts:279 | 多输出 R² 合并计算（单输出 OK，多输出会误导） | ⏭ SKIP | — |
+| BP-6 | BP | P2 | bpNetwork.ts:98 | `max==min` 时 `applyNorm` 返 0，反归一化丢常数 | ✅ FIX | 097a978 |
+| BP-7 | BP | P2 | bpNetwork.ts:174 | predict 未处理 range==0 退化 | ✅ FIX | 097a978 |
+| BP-8 | BP | P2 | bpShpbPredictor.ts:119 | `Math.max(0,sigma)` 静默裁负，掩盖外推失败 | ⏭ SKIP | — |
+| PID-1 | PID | P1 | pidController.ts:113 | anti-windup 条件不区分饱和方向 | ✅ FIX | 7cbd861 |
+| PID-2 | PID | P1 | confiningPressureSimulator.ts:91 | outMax=K 导致 Kp 量纲与公式显示不一致 | ✅ FIX | 7cbd861 |
+| PID-3 | PID | P1 | PIDServoPanel.tsx:34 | ZN 预设与 outMax=K 耦合，理论上不是真 ZN 整定值 | ✅ FIX | 7cbd861 |
+| PID-4 | PID | P2 | confiningPressureSimulator.ts:77 | deadTime=0 时仍固定 1 步时滞 | ✅ FIX | 7cbd861 |
+| PID-5 | PID | P2 | confiningPressureSimulator.ts:205-211 | settlingTime 在从未离开 ±2% 时语义模糊 | ✅ FIX | 7cbd861 |
+| PID-6 | PID | P2 | pidController.ts:97 | setGains 后积分项未重定标 | ⏭ SKIP | — |
+| CT-1 | CT | P1 | ctFissureExtractor.ts:257 | erode 边界 zero-pad 侵蚀图像最外圈 | ✅ FIX | 960cad2 |
+| CT-2 | CT | P1 | ctFissureExtractor.ts:172-179 | mpa/miou 在某类不存在时拉低均值 | ✅ FIX | 960cad2 |
+| CT-3 | CT | P1 | ctFissureExtractor.ts:283-294 | DFS 在大连通图上 stack 膨胀 + 重复入栈 | ✅ FIX | 960cad2 |
+| CT-4 | CT | P2 | ctFissureExtractor.ts:378-397 | 合成 CT 与 GT 边缘有 1-2 px 系统性偏差 | ⏳ DEFER → v1.2 | — |
+| CT-5 | CT | P2 | CTFissureExtractorPanel.tsx:137 | UI 未显式声明"非论文 MCSN"避免评委误判 | ✅ FIX | 960cad2 |
+| CT-6 | CT | P2 | ctFissureExtractor.ts:428-432 | `drawCurve` isMask 两个分支代码相同（冗余） | ✅ FIX | 960cad2 |
+
+### SKIP / DEFER 备注
+
+- **BP-4 → v1.2**：让出主线程频率优化需迁移到 Web Worker 才能根治，工作量大，留 v1.2 处理。
+- **BP-5 SKIP**：当前 outputDim=1，问题不暴露。多输出场景出现时再修。
+- **BP-8 SKIP**：UI 行为可接受（裁负值便于绘图），不影响科学性。
+- **CT-4 → v1.2**：合成 CT/GT 边缘 1-2 px 偏差是合成器设计决策，影响 Recall 天花板但不影响 pipeline 正确性。可在 v1.2 重做 GT 半径 +0.5 px 容差。
+- **PID-6 SKIP**：UI 不在运行中重置 Ki，触发条件不存在。
 
 ---
 
