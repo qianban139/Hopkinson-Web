@@ -1541,7 +1541,6 @@ export default function VirtualLab() {
                       <video
                         ref={videoRef}
                         src="https://hopkinson-assets.oss-cn-hangzhou.aliyuncs.com/videos/3Dmodel.mp4"
-                        crossOrigin="anonymous"
                         muted
                         playsInline
                         preload="auto"
