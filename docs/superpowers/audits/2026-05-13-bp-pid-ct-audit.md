@@ -65,7 +65,7 @@ Otsu 阈值实现（累计直方图 + 类间方差）、`invert` 逻辑、上传
 | BP-1 | BP | **P0** | bpShpbPredictor.ts:66 | J-C 应变率项对 rate<1 做 `max(…, 1)` clip 偏离标准式 | ✅ FIX | 097a978 |
 | BP-2 | BP | P1 | bpShpbPredictor.ts:36 | BP 训练数据本质源自 J-C，文档需声明"可微近似器" | ✅ FIX | 097a978 |
 | BP-3 | BP | P1 | bpShpbPredictor.ts:62 | `Math.random()` 未用 seed，与 `seed:42` 承诺矛盾 | ✅ FIX | 097a978 |
-| BP-4 | BP | P1 | bpNetwork.ts:167 | 每 5 epoch 让出主线程仍可冻结数秒 | ⏳ DEFER → v1.2 | — |
+| BP-4 | BP | P1 | bpNetwork.ts:167 | 每 5 epoch 让出主线程仍可冻结数秒 | ✅ FIX (v1.2) | 6419470 |
 | BP-5 | BP | P1 | bpNetwork.ts:279 | 多输出 R² 合并计算（单输出 OK，多输出会误导） | ⏭ SKIP | — |
 | BP-6 | BP | P2 | bpNetwork.ts:98 | `max==min` 时 `applyNorm` 返 0，反归一化丢常数 | ✅ FIX | 097a978 |
 | BP-7 | BP | P2 | bpNetwork.ts:174 | predict 未处理 range==0 退化 | ✅ FIX | 097a978 |
@@ -79,17 +79,19 @@ Otsu 阈值实现（累计直方图 + 类间方差）、`invert` 逻辑、上传
 | CT-1 | CT | P1 | ctFissureExtractor.ts:257 | erode 边界 zero-pad 侵蚀图像最外圈 | ✅ FIX | 960cad2 |
 | CT-2 | CT | P1 | ctFissureExtractor.ts:172-179 | mpa/miou 在某类不存在时拉低均值 | ✅ FIX | 960cad2 |
 | CT-3 | CT | P1 | ctFissureExtractor.ts:283-294 | DFS 在大连通图上 stack 膨胀 + 重复入栈 | ✅ FIX | 960cad2 |
-| CT-4 | CT | P2 | ctFissureExtractor.ts:378-397 | 合成 CT 与 GT 边缘有 1-2 px 系统性偏差 | ⏳ DEFER → v1.2 | — |
+| CT-4 | CT | P2 | ctFissureExtractor.ts:378-397 | 合成 CT 与 GT 边缘有 1-2 px 系统性偏差 | ✅ FIX (v1.2) | 6419470 |
 | CT-5 | CT | P2 | CTFissureExtractorPanel.tsx:137 | UI 未显式声明"非论文 MCSN"避免评委误判 | ✅ FIX | 960cad2 |
 | CT-6 | CT | P2 | ctFissureExtractor.ts:428-432 | `drawCurve` isMask 两个分支代码相同（冗余） | ✅ FIX | 960cad2 |
 
 ### SKIP / DEFER 备注
 
-- **BP-4 → v1.2**：让出主线程频率优化需迁移到 Web Worker 才能根治，工作量大，留 v1.2 处理。
+- **BP-4** ✅ v1.2 (6419470)：训练搬到 Web Worker (`src/services/bpWorker.ts`)，主线程不再冻结。
 - **BP-5 SKIP**：当前 outputDim=1，问题不暴露。多输出场景出现时再修。
 - **BP-8 SKIP**：UI 行为可接受（裁负值便于绘图），不影响科学性。
-- **CT-4 → v1.2**：合成 CT/GT 边缘 1-2 px 偏差是合成器设计决策，影响 Recall 天花板但不影响 pipeline 正确性。可在 v1.2 重做 GT 半径 +0.5 px 容差。
+- **CT-4** ✅ v1.2 (6419470)：GT 半径 +0.5 px 容差实施 (`GT_RADIUS_TOLERANCE`)。
 - **PID-6 SKIP**：UI 不在运行中重置 Ki，触发条件不存在。
+
+**v1.2 后审计修复率**：16 / 20 = 80%（剩 4 项均为 SKIP 决策，非欠债）。
 
 ---
 
