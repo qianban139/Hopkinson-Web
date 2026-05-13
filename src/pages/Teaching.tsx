@@ -1,6 +1,8 @@
 // src/pages/Teaching.tsx
 // AI教学系统页面 — 知识图谱 / 学习路径 / 测验 / 学习
 
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Map, Brain, GraduationCap, RotateCcw } from 'lucide-react';
 import ModuleConnectionBadge from '@/shared/components/ModuleConnectionBadge';
@@ -21,9 +23,20 @@ const tabs = [
 export default function Teaching() {
   const viewMode = useTeachingStore(s => s.viewMode);
   const setViewMode = useTeachingStore(s => s.setViewMode);
+  const setSelectedNode = useTeachingStore(s => s.setSelectedNode);
   const completedNodes = useTeachingStore(s => s.completedNodes);
   const quizResults = useTeachingStore(s => s.quizResults);
   const resetProgress = useTeachingStore(s => s.resetProgress);
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const nodeId = searchParams.get('node');
+    if (nodeId && KNOWLEDGE_NODES.some(n => n.id === nodeId)) {
+      setSelectedNode(nodeId);
+      setViewMode('study');
+    }
+  }, [searchParams, setSelectedNode, setViewMode]);
 
   const totalCorrect = quizResults.filter(r => r.correct).length;
   const accuracy = quizResults.length > 0 ? (totalCorrect / quizResults.length * 100).toFixed(0) : '--';

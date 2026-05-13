@@ -12,8 +12,8 @@ context/
 # 后端本地数据库
 *.db
 
-# 大视频文件（通过 GitHub Releases 托管）
-public/assets/videos/*.mp4
+# 大视频文件（托管阿里云 OSS，详见 docs/deployment/oss-assets.md）
+public/assets/videos/
 
 # Python 缓存与测试产物
 __pycache__/

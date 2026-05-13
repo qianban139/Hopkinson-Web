@@ -12,6 +12,11 @@ interface Props {
 }
 
 export default function ProtectedRoute({ children, adminOnly = false }: Props) {
+  // 备案期间短路: 环境变量为 true 时全部放行, 不读 auth store
+  if (import.meta.env.VITE_AUTH_DISABLED === 'true') {
+    return <>{children}</>;
+  }
+
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);

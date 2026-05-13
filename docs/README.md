@@ -23,6 +23,8 @@
 | [Johnson-Cook 本构模型](physics-engine/johnson-cook-model.md) | J-C 模型实现与参数含义 |
 | [材料参数数据库](physics-engine/material-database.md) | 30+ 材料的 J-C 参数与力学属性 |
 | [仿真流程](physics-engine/simulation-pipeline.md) | 端到端实验仿真计算流程 |
+| [BP-ANN 本构预测](physics-engine/bp-network.md) | 神经网络驱动的 SHPB 本构（v1.1） |
+| [PID 围压闭环伺服](physics-engine/confining-pressure-pid.md) | 二阶系统 + PID 控制律（v1.1） |
 
 ### AI 智能系统
 
@@ -43,6 +45,7 @@
 | [3D 数字孪生](visualization/3d-digital-twin.md) | Three.js 3D 场景与交互 |
 | [2D 示意图渲染](visualization/2d-schematic.md) | Canvas 2D 组件渲染系统 |
 | [数据图表系统](visualization/data-charts.md) | ECharts 实验数据可视化 |
+| [CT 裂隙智能提取](visualization/ct-fissure-extraction.md) | 煤岩 Micro-CT 图像处理 pipeline（v1.1） |
 
 ### 应用与实践
 
@@ -61,6 +64,8 @@
 | [开发环境搭建](deployment/setup.md) | 本地开发环境配置 |
 | [环境变量参考](deployment/environment-variables.md) | 所有环境变量说明 |
 | [Vercel 部署指南](deployment/vercel-deployment.md) | 生产环境部署流程 |
+| [Cloudflare Tunnel 后端反代](deployment/cloudflare-tunnel.md) | 国内访问后端方案 |
+| [阿里云 OSS 资产托管](deployment/oss-assets.md) | 视频/大资产托管规范（v1.1） |
 
 ---
 

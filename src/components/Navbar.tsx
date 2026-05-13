@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu, Zap, FlaskConical, Database, Monitor, GraduationCap,
-  LogOut, User as UserIcon, Shield, BrainCircuit, Layers,
+  LogOut, User as UserIcon, Shield, BrainCircuit, Layers, Home,
   ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,8 +30,16 @@ type NavSection = {
   children: NavChild[];
 };
 
-/** 4 大版块 — 与计划文档第 A1 节对齐 */
+/** 5 大版块 — 首页 + 4 大业务版块 */
 const navSections: NavSection[] = [
+  {
+    label: '首页',
+    icon: Home,
+    primaryPath: '/',
+    children: [
+      { label: '首页', path: '/', icon: Home, description: '平台总览 / 产品介绍 / 核心能力' },
+    ],
+  },
   {
     label: '系统安全运维',
     icon: Shield,
@@ -86,6 +94,7 @@ export default function Navbar() {
   const setCurrentPage = useAppStore(s => s.setCurrentPage);
   const user = useAuthStore(s => s.user);
   const logout = useAuthStore(s => s.logout);
+  const authDisabled = import.meta.env.VITE_AUTH_DISABLED === 'true';
 
   function handleLogout() {
     logout();
@@ -340,7 +349,7 @@ export default function Navbar() {
                 <span className="text-[11px] text-[#1DD1A1]/80 font-medium">ONLINE</span>
               </div>
 
-              {user && (
+              {user && !authDisabled && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -458,7 +467,7 @@ export default function Navbar() {
                     })}
                   </div>
 
-                  {user && (
+                  {user && !authDisabled && (
                     <div className="px-3 mt-4 pt-4 border-t border-white/5">
                       <div className="flex items-center gap-3 px-3 py-2 mb-2">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-semibold text-white">

@@ -3,17 +3,22 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { LogIn, Loader2, AlertCircle, UserCog, Eye } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/store/useAuthStore';
 
+const JUDGE_PASSWORD = 'Judge@2026';
+const JUDGE_USERS = ['judge1', 'judge2', 'judge3'] as const;
+const DEMO_MODE_ENABLED = import.meta.env.VITE_DEMO_MODE === 'true';
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const login = useAuthStore((s) => s.login);
+  const loginAsGuest = useAuthStore((s) => s.loginAsGuest);
   const loading = useAuthStore((s) => s.loading);
   const error = useAuthStore((s) => s.error);
   const token = useAuthStore((s) => s.token);
@@ -36,6 +41,16 @@ export default function Login() {
     } catch {
       // error 已经在 store 里显示
     }
+  }
+
+  function fillJudge(user: string) {
+    setUsername(user);
+    setPassword(JUDGE_PASSWORD);
+  }
+
+  function handleGuestLogin() {
+    loginAsGuest();
+    navigate(from, { replace: true });
   }
 
   return (
@@ -123,6 +138,40 @@ export default function Login() {
               )}
             </Button>
           </form>
+
+          {/* 评委演示账号快捷填充 */}
+          <div className="mt-6 pt-5 border-t border-slate-800">
+            <div className="flex items-center gap-2 mb-3 text-xs text-slate-500">
+              <UserCog className="w-3.5 h-3.5" />
+              <span>评委演示账号(点击自动填充)</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {JUDGE_USERS.map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => fillJudge(u)}
+                  className="px-2 py-1.5 text-xs rounded-md bg-slate-800/60 border border-slate-700 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300 transition-colors"
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 游客离线演示模式(仅 VITE_DEMO_MODE=true 时显示) */}
+          {DEMO_MODE_ENABLED && (
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={handleGuestLogin}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                游客离线演示(无需后端)
+              </button>
+            </div>
+          )}
 
           <div className="mt-6 text-center text-sm text-slate-400">
             还没有账号?{' '}

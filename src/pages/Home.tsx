@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Play, ChevronRight, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRight, Play, ChevronRight, Volume2, VolumeX, FileText, Cpu, BrainCircuit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MaterialCard from '@/components/MaterialCard';
 import TechLayerCard from '@/components/TechLayerCard';
@@ -103,6 +103,51 @@ const scenes = [
   },
 ];
 
+const researchHighlights = [
+  {
+    id: 'ann-shpb-concrete',
+    tag: '学术论文 · 2021',
+    title: 'ANN 驱动的混凝土 SHPB 本构预测',
+    subtitle: '龙旭 等 · 南京航空航天大学学报 53(5)',
+    summary:
+      'ABAQUS 有限元 + Drucker-Prager 本构生成 20 组训练样本,BP 神经网络以入射波为输入、反射/透射波为输出,精确预测 500–1400/s 应变率区间混凝土的应力应变响应,可外推训练未覆盖的应变率区间。',
+    chips: ['BP 神经网络', 'ABAQUS', 'Drucker-Prager', '500–1400/s'],
+    color: '#00F5FF',
+    icon: <FileText className="h-6 w-6" />,
+    link: '/analysis',
+    linkLabel: '试用 BP-ANN 本构预测',
+    theoryLink: '/teaching?node=ann-shpb-concrete',
+  },
+  {
+    id: 'deep-learning-coal-ct',
+    tag: '学术论文 · 2024',
+    title: '深度学习煤岩 Micro-CT 裂隙智能提取',
+    subtitle: '王登科 等 · 煤炭学报 49(8)',
+    summary:
+      '提出 MCSN 网络(U-Net + VGG16 迁移 + DCAC 空洞卷积 + 残差),6000 张煤岩 CT 数据集训练。Recall/Precision/MPA/MIoU 全面领先经典 CNN,并成功应用于巷道围岩钻孔窥视裂隙识别,指导瓦斯抽采钻孔注封。',
+    chips: ['U-Net', 'VGG16 迁移', 'DCAC 空洞卷积', 'MCSN'],
+    color: '#1DD1A1',
+    icon: <BrainCircuit className="h-6 w-6" />,
+    link: '/analysis',
+    linkLabel: '运行 CT 裂隙提取',
+    theoryLink: '/teaching?node=deep-learning-coal-ct',
+  },
+  {
+    id: 'pid-servo-confining',
+    tag: '控制理论 · 围压应用',
+    title: 'PID 闭环精准伺服调控',
+    subtitle: '三层拆解 · 50 MPa 围压稳定加载',
+    summary:
+      '伺服 = 执行精准 / PID = 自动纠错(比例·积分·微分)/ 闭环 = 测量-对比-修正。50 MPa 围压下,PID 闭环伺服在 2–3 秒内稳定于目标值 ±2%,不漂移、不超调,精度极高。',
+    chips: ['Kp·Ki·Kd', '闭环反馈', '50 MPa 稳定', '±2% 精度'],
+    color: '#FF9F43',
+    icon: <Cpu className="h-6 w-6" />,
+    link: '/lab',
+    linkLabel: '打开 PID 闭环调参',
+    theoryLink: '/teaching?node=pid-servo-confining',
+  },
+];
+
 export default function Home() {
   const { materials } = useAppStore();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -150,7 +195,7 @@ export default function Home() {
                 className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/30 mx-auto"
               >
                 <span className="w-2 h-2 rounded-full bg-[#00F5FF] animate-pulse" />
-                <span className="text-base tracking-widest text-[#00F5FF]">嘉本科技 · 前沿测试技术</span>
+                <span className="text-sm tracking-widest text-[#00F5FF]">嘉本科技 · 前沿测试技术</span>
               </motion.div>
 
               <motion.div
@@ -159,13 +204,13 @@ export default function Home() {
                 transition={{ delay: 0.3 }}
                 className="flex flex-col items-center gap-5 sm:gap-6 lg:gap-7"
               >
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold text-white tracking-[0.08em] leading-[1.15]">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-[4.5rem] font-bold text-white tracking-[0.08em] leading-[1.15]">
                   数智化电磁驱动
                 </h1>
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold text-[#00F5FF] tracking-[0.08em] leading-[1.15]" style={{ textShadow: '0 0 40px rgba(0, 245, 255, 0.4)' }}>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-[4.5rem] font-bold text-[#00F5FF] tracking-[0.08em] leading-[1.15]" style={{ textShadow: '0 0 40px rgba(0, 245, 255, 0.4)' }}>
                   霍普金森杆
                 </h1>
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold text-white tracking-[0.08em] leading-[1.15]">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-[4.5rem] font-bold text-white tracking-[0.08em] leading-[1.15]">
                   多场耦合动态测试系统
                 </h1>
               </motion.div>
@@ -176,7 +221,7 @@ export default function Home() {
                 transition={{ delay: 0.6 }}
                 className="flex flex-col items-center gap-5 pt-2"
               >
-                <div className="flex items-center gap-4 text-white/80 text-xl tracking-[0.25em]">
+                <div className="flex items-center gap-4 text-white/80 text-lg tracking-[0.25em]">
                   <span>电磁驱动</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00F5FF]" />
                   <span>数字孪生</span>
@@ -184,7 +229,7 @@ export default function Home() {
                   <span>人工智能</span>
                   <span className="text-[#00F5FF] font-semibold ml-2">深度融合</span>
                 </div>
-                <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-white/60 text-base tracking-wider">
+                <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-white/60 text-sm tracking-wider">
                   <span>热-力-电多场耦合动态加载</span>
                   <span className="hidden sm:inline text-white/30">|</span>
                   <span>智能波形调控</span>
@@ -237,6 +282,87 @@ export default function Home() {
 
       {/* 【重写】项目概述 — 7 层动效叠加(GSAP + CountUp + 3D Tilt + Tabs + 流光) */}
       <ProjectOverviewSection />
+
+      {/* 前沿研究成果 — 论文 + 工程理论 */}
+      <section className="section-spacing">
+        <div className="section-container">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-14"
+          >
+            <h2 className="h2-section text-white mb-4">前沿研究成果</h2>
+            <p className="body-base max-w-2xl mx-auto">
+              集成学术论文与工程理论,支撑 AI 驱动的材料本构预测、智能裂隙识别与高精度闭环控制
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {researchHighlights.map((item, idx) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: idx * 0.12 }}
+              >
+                <div
+                  className="h-full rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-[color:var(--accent)]/50 hover:shadow-[0_0_40px_-10px_var(--accent)] flex flex-col"
+                  style={{ ['--accent' as string]: item.color }}
+                >
+                  <div
+                    className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl"
+                    style={{ background: `${item.color}1a`, color: item.color, boxShadow: `0 0 24px -6px ${item.color}` }}
+                  >
+                    {item.icon}
+                  </div>
+                  <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.2em]" style={{ color: item.color }}>
+                    {item.tag}
+                  </div>
+                  <h3 className="mb-2 text-lg font-bold text-white leading-snug">
+                    {item.title}
+                  </h3>
+                  <p className="mb-4 text-xs text-white/50 leading-relaxed">
+                    {item.subtitle}
+                  </p>
+                  <p className="mb-5 text-sm text-white/70 leading-relaxed line-clamp-4">
+                    {item.summary}
+                  </p>
+                  <div className="mb-5 flex flex-wrap gap-1.5">
+                    {item.chips.map(chip => (
+                      <span
+                        key={chip}
+                        className="rounded-full border px-2.5 py-0.5 text-[10px] tracking-wide"
+                        style={{ borderColor: `${item.color}55`, color: item.color, background: `${item.color}0d` }}
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-auto space-y-2">
+                    <Link
+                      to={item.link}
+                      className="flex items-center justify-between gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all hover:translate-x-0.5"
+                      style={{ borderColor: `${item.color}66`, color: item.color, background: `${item.color}15` }}
+                    >
+                      {item.linkLabel}
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                    <Link
+                      to={item.theoryLink}
+                      className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-white/50 hover:text-white/80 hover:border-white/30 transition-colors"
+                    >
+                      阅读理论背景
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* 【移动后】产品介绍视频 */}
       <section className="section-spacing">

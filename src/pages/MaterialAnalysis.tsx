@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Search, Download, ChevronRight, ChevronDown,
   FileSpreadsheet, FileJson, Sparkles,
-  ZoomIn, ZoomOut, Microscope, Waves, SlidersHorizontal,
-  GitCompareArrows, ClipboardList, Database,
+  ZoomIn, ZoomOut, Waves, SlidersHorizontal,
+  GitCompareArrows, ClipboardList, Database, FileText, ExternalLink, Microscope as MicroscopeIcon,
 } from 'lucide-react';
+import CTFissureExtractorPanel from '@/features/ct-analysis/CTFissureExtractorPanel';
+import { LITERATURE_CORPUS } from '@/data/literature';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -445,6 +447,12 @@ export default function MaterialAnalysis() {
             <TabsTrigger value="report" className="text-xs data-[state=active]:bg-[#F472B6]/15 data-[state=active]:text-[#F472B6] gap-1.5 px-3">
               <ClipboardList className="w-3.5 h-3.5" /> 报告生成
             </TabsTrigger>
+            <TabsTrigger value="ct" className="text-xs data-[state=active]:bg-[#6366F1]/15 data-[state=active]:text-[#6366F1] gap-1.5 px-3">
+              <MicroscopeIcon className="w-3.5 h-3.5" /> CT 裂隙提取
+            </TabsTrigger>
+            <TabsTrigger value="refs" className="text-xs data-[state=active]:bg-[#8B5CF6]/15 data-[state=active]:text-[#8B5CF6] gap-1.5 px-3">
+              <FileText className="w-3.5 h-3.5" /> 参考文献
+            </TabsTrigger>
           </TabsList>
 
           {/* ═══════ Tab 1: 原始数据 ═══════ */}
@@ -760,10 +768,121 @@ export default function MaterialAnalysis() {
               aiResult={aiResult}
             />
           </TabsContent>
+
+          {/* ═══════ Tab 6: CT 裂隙提取 ═══════ */}
+          <TabsContent value="ct" className="flex-1 overflow-y-auto mt-0 scrollbar-thin">
+            <div className="p-6">
+              <CTFissureExtractorPanel />
+            </div>
+          </TabsContent>
+
+          {/* ═══════ Tab 7: 参考文献 ═══════ */}
+          <TabsContent value="refs" className="flex-1 overflow-y-auto mt-0 scrollbar-thin">
+            <ReferencePapersPanel material={selectedMaterial} />
+          </TabsContent>
         </Tabs>
       </main>
       </div>
     </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  参考文献面板 — 根据材料过滤 LITERATURE_CORPUS                     */
+/* ------------------------------------------------------------------ */
+
+function ReferencePapersPanel({ material }: { material: Material }) {
+  const papers = useMemo(() => {
+    const matId = material.id;
+    const cat = material.category ?? '';
+    return LITERATURE_CORPUS.filter(p => {
+      if (p.materials?.includes(matId)) return true;
+      if (cat.includes('混凝土') && p.keywords.some(k => k.includes('混凝土'))) return true;
+      if (
+        (cat.includes('岩') || cat.includes('矿石') || cat === '岩石') &&
+        p.keywords.some(k => /岩|Micro-CT|煤/.test(k))
+      ) return true;
+      return false;
+    });
+  }, [material]);
+
+  const CATEGORY_COLOR: Record<string, string> = {
+    'shpb-theory': '#00F5FF',
+    'constitutive-model': '#8B5CF6',
+    'material-science': '#1DD1A1',
+    'signal-processing': '#FF9F43',
+    'experimental-method': '#F472B6',
+    'simulation': '#FFD700',
+  };
+  const CATEGORY_LABEL: Record<string, string> = {
+    'shpb-theory': 'SHPB 理论',
+    'constitutive-model': '本构模型',
+    'material-science': '材料科学',
+    'signal-processing': '信号处理',
+    'experimental-method': '实验方法',
+    'simulation': '数值仿真',
+  };
+
+  return (
+    <div className="p-6 space-y-4">
+      <div className="flex items-center gap-2 mb-2">
+        <FileText className="w-4 h-4 text-[#8B5CF6]" />
+        <h2 className="text-sm font-bold text-white">相关学术文献</h2>
+        <span className="text-xs text-white/40">· {material.name} · 共 {papers.length} 篇</span>
+      </div>
+
+      {papers.length === 0 && (
+        <div className="rounded-lg border border-white/10 bg-[#051020] p-8 text-center text-sm text-white/40">
+          当前材料暂无关联文献
+        </div>
+      )}
+
+      {papers.map(p => {
+        const color = CATEGORY_COLOR[p.category] ?? '#8B5CF6';
+        return (
+          <div
+            key={p.id}
+            className="rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-5 transition-colors hover:border-white/25"
+          >
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  className="rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-wide"
+                  style={{ borderColor: `${color}55`, color, background: `${color}10` }}
+                >
+                  {CATEGORY_LABEL[p.category] ?? p.category}
+                </span>
+                <span className="text-[11px] text-white/40">{p.year}</span>
+                <span className="text-[11px] text-white/40">· {p.venue}</span>
+              </div>
+              {p.doi && (
+                <a
+                  href={`https://doi.org/${p.doi}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[11px] text-[#00F5FF]/80 hover:text-[#00F5FF] transition-colors flex-shrink-0"
+                >
+                  DOI <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+            <h3 className="text-sm font-semibold text-white mb-1 leading-snug">{p.title}</h3>
+            <p className="text-[11px] text-white/50 mb-3">{p.authors.join('、')}</p>
+            <p className="text-xs text-white/70 leading-relaxed mb-3">{p.abstract}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {p.keywords.map(k => (
+                <span
+                  key={k}
+                  className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/60"
+                >
+                  {k}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

@@ -24,6 +24,11 @@
 - `src/services/signalProcessing/` — 信号处理引擎（弥散校正/滤波/对齐/平衡判据）
 - `src/services/constitutiveFitting.ts` — 5 种本构模型拟合（J-C / C-S / Z-A / Power Law / Bilinear）
 - `src/services/reportGenerator.ts` — 4 种实验报告生成 + 多格式导出
+- `src/services/bpNetwork.ts` — BP 神经网络（单隐层 MLP，纯 JS）
+- `src/services/bpShpbPredictor.ts` — BP 驱动的 SHPB 本构预测
+- `src/services/pidController.ts` — 标准位置式 PID 控制器
+- `src/services/confiningPressureSimulator.ts` — 围压二阶被控对象 + 时滞仿真
+- `src/services/imageProcessing/ctFissureExtractor.ts` — 煤岩 CT 裂隙提取（Otsu + 形态学 + 连通域）
 
 ### 状态管理（3 个 Zustand Store）
 
