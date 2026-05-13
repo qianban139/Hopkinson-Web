@@ -10,6 +10,7 @@ import {
   Thermometer, Radio, Brain, CheckCircle2, X,
   Wifi, WifiOff, Loader2, Bot,
 } from 'lucide-react';
+import CanvasVideo from '@/components/CanvasVideo';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -1537,16 +1538,13 @@ export default function VirtualLab() {
                       className="absolute inset-0 bg-gradient-to-b from-[#0A2540] to-[#051020]"
                       onContextMenu={(e) => e.preventDefault()}
                     >
-                      {/* 伪装视频 — 所有交互被屏蔽 */}
-                      <video
+                      {/* 视频通过 CanvasVideo 代理渲染, 隐藏浏览器原生悬浮控件 */}
+                      <CanvasVideo
                         ref={videoRef}
                         src="https://hopkinson-assets.oss-cn-hangzhou.aliyuncs.com/videos/3Dmodel.mp4"
                         muted
                         playsInline
                         preload="auto"
-                        disablePictureInPicture
-                        disableRemotePlayback
-                        controlsList="nodownload noplaybackrate nofullscreen"
                         onLoadedMetadata={() => {
                           const v = videoRef.current;
                           if (v && isFinite(v.duration) && v.duration > 0) {

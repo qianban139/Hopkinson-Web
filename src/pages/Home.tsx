@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Play, ChevronRight, Volume2, VolumeX, FileText, Cpu, BrainCircuit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import CanvasVideo from '@/components/CanvasVideo';
 import MaterialCard from '@/components/MaterialCard';
 import TechLayerCard from '@/components/TechLayerCard';
 import SceneCard from '@/components/SceneCard';
@@ -386,21 +387,19 @@ export default function Home() {
             className="max-w-4xl mx-auto"
           >
             <div className="h-[500px] rounded-2xl overflow-hidden border border-[#00F5FF]/20 relative group">
-              <video
+              <CanvasVideo
                 ref={videoRef}
                 src="https://hopkinson-assets.oss-cn-hangzhou.aliyuncs.com/videos/xiaotiao.mp4"
                 autoPlay
                 muted={isMuted}
                 loop
                 playsInline
-                className="w-full h-full object-cover cursor-pointer"
                 poster="/logo.png"
                 onClick={handleVideoClick}
                 onPlay={handleVideoPlay}
                 onPause={handleVideoPause}
-              >
-                您的浏览器不支持视频播放
-              </video>
+                className="w-full h-full object-cover cursor-pointer"
+              />
 
               {/* 静音/声音切换按钮 */}
               <button
