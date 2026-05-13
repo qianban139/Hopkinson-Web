@@ -12,6 +12,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // 备案期间硬编码鉴权短路: import.meta.env.VITE_AUTH_DISABLED === 'true'
+  // 后端备案完成 + 可达后, 删除此 define 块即可恢复鉴权流程.
+  define: {
+    'import.meta.env.VITE_AUTH_DISABLED': JSON.stringify('true'),
+  },
   server: {
     proxy: {
       // 火山引擎TTS V3 API代理（大模型语音合成推荐接口）
