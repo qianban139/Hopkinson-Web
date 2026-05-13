@@ -6,10 +6,13 @@
 
 - [x] `public/界面设计.png` — 6.7 MB UI 设计稿，非生产资产 ✅ 已删 (2026-05-13)
 - [x] `public/实验图片.gif` — 11 KB 早期演示 ✅ 已 `git rm` (2026-05-13)
-- [ ] `public/assets/videos/` 整目录 — 699 MB；视频走阿里云 OSS（详见 `docs/deployment/oss-assets.md`），代码内零引用（grep `src/` 已确认）。**未跟踪状态，但 Claude 没有 `rm -rf` 权限，由用户手动执行**：
-  - Windows 资源管理器：进入 `C:\Users\Lenovo\Desktop\work\Hopkinson-Web\public\assets\videos`，全选 → Shift+Delete 永久删除
-  - 或 PowerShell：`Remove-Item -Recurse -Force public\assets\videos`
-  - 或 git bash：`rm -rf public/assets/videos`
+- [x] `public/assets/videos/` 整目录 — 699 MB ✅ 用户手动移走 (2026-05-13)。视频走阿里云 OSS（详见 `docs/deployment/oss-assets.md`）。
+
+## 验证结果
+
+- `public/` 总大小：746 MB → 41 MB（仅剩 GLTF 3D 模型 + logo + qr）
+- 共释放 **705 MB** 仓库本地存储
+- git ls-files 中 `public/` 仅 8 个文件被跟踪（logo/background/models/qr×4）
 
 > `context/` 与 `.claude/` 目录已被 `.gitignore` 忽略，**不在仓库中**，无需删除。
 
