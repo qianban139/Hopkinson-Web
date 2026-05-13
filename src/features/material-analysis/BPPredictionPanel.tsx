@@ -18,7 +18,7 @@ import { BrainCircuit, Play, Cpu, Target as TargetIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SliderInputCombo from '@/shared/components/SliderInputCombo';
 import GlowCard from '@/shared/components/GlowCard';
-import { trainBPForMaterial } from '@/services/bpShpbPredictor';
+import { trainBPForMaterialInWorker } from '@/services/bpTrainerClient';
 import type { BPNetwork } from '@/services/bpNetwork';
 import type { Material } from '@/types';
 
@@ -65,7 +65,7 @@ export default function BPPredictionPanel({ material, strainRate, temperature }:
 
     const losses: number[] = [];
     const r2s: number[] = [];
-    const result = await trainBPForMaterial(
+    const result = await trainBPForMaterialInWorker(
       material, strainRate, temperature,
       { hiddenDim, epochs, learningRate: lr },
       (epoch, loss, r2) => {

@@ -33,7 +33,8 @@ const DEFAULTS: Required<Pick<BPConfig, 'hiddenDim' | 'epochs' | 'learningRate' 
 /**
  * 基于材料 J-C 参数 + 实验曲线生成训练集
  */
-function buildTrainingSet(
+/** 导出供 Web Worker (bpWorker.ts) 复用 */
+export function buildTrainingSet(
   material: Material,
   baseStrainRate: number,
   baseTemperature: number,

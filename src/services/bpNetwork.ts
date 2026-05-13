@@ -53,6 +53,14 @@ interface NetworkState {
   b2: number[];   // output
 }
 
+/** 序列化快照 — 用于 Worker postMessage 传输训练成果 */
+export interface BPNetworkSnapshot {
+  cfg: BPConfig;
+  state: NetworkState;
+  xNorm: NormParams;
+  yNorm: NormParams;
+}
+
 /** tanh 激活(等效于 Matlab tansig) */
 function tansig(x: number): number { return Math.tanh(x); }
 function tansigDeriv(y: number): number { return 1 - y * y; }
@@ -168,8 +176,9 @@ export class BPNetwork {
       rSquared.push(r2);
       onEpoch?.(epoch, mse, r2);
 
-      // 让出主线程(避免阻塞 UI)
-      if (epoch % 5 === 0) await new Promise((r) => setTimeout(r, 0));
+      // 让出事件循环 — 在 Worker 内允许 message queue 处理(如 cancel 信号);
+      // 在主线程降级时避免 UI 完全冻结. 每 epoch 都让一次代价极低 (~0.5ms / 1000 epoch).
+      await new Promise((r) => setTimeout(r, 0));
     }
 
     return { losses, rSquared, elapsed: performance.now() - start };
@@ -188,6 +197,38 @@ export class BPNetwork {
   /** 批量预测 */
   predictBatch(X: number[][]): number[][] {
     return X.map((x) => this.predict(x));
+  }
+
+  /** 导出权重 + 归一化参数 (用于 Worker 训练完后回传主线程) */
+  exportState(): BPNetworkSnapshot {
+    if (!this.xNorm || !this.yNorm) {
+      throw new Error('Network must be trained before exportState()');
+    }
+    return {
+      cfg: { ...this.cfg },
+      state: {
+        W1: this.state.W1.map((r) => r.slice()),
+        b1: this.state.b1.slice(),
+        W2: this.state.W2.map((r) => r.slice()),
+        b2: this.state.b2.slice(),
+      },
+      xNorm: { min: this.xNorm.min.slice(), max: this.xNorm.max.slice() },
+      yNorm: { min: this.yNorm.min.slice(), max: this.yNorm.max.slice() },
+    };
+  }
+
+  /** 从快照重建网络 (与 exportState 配对; 用于 Worker → 主线程恢复) */
+  static fromState(snapshot: BPNetworkSnapshot): BPNetwork {
+    const net = new BPNetwork(snapshot.cfg);
+    net.state = {
+      W1: snapshot.state.W1.map((r) => r.slice()),
+      b1: snapshot.state.b1.slice(),
+      W2: snapshot.state.W2.map((r) => r.slice()),
+      b2: snapshot.state.b2.slice(),
+    };
+    net.xNorm = { min: snapshot.xNorm.min.slice(), max: snapshot.xNorm.max.slice() };
+    net.yNorm = { min: snapshot.yNorm.min.slice(), max: snapshot.yNorm.max.slice() };
+    return net;
   }
 
   // ——————————————————————————————————————————————
