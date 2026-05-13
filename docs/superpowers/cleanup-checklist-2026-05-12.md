@@ -4,27 +4,14 @@
 
 ## 建议删除（约 706 MB）
 
-- [ ] `public/界面设计.png` — 6.7 MB UI 设计稿，非生产资产
-- [ ] `public/实验图片.gif` — 11 KB 早期演示
-- [ ] `public/assets/videos/` 整目录 — 699 MB；视频走阿里云 OSS（详见 `docs/deployment/oss-assets.md`），代码内零引用（grep `src/` 已确认）
+- [x] `public/界面设计.png` — 6.7 MB UI 设计稿，非生产资产 ✅ 已删 (2026-05-13)
+- [x] `public/实验图片.gif` — 11 KB 早期演示 ✅ 已 `git rm` (2026-05-13)
+- [ ] `public/assets/videos/` 整目录 — 699 MB；视频走阿里云 OSS（详见 `docs/deployment/oss-assets.md`），代码内零引用（grep `src/` 已确认）。**未跟踪状态，但 Claude 没有 `rm -rf` 权限，由用户手动执行**：
+  - Windows 资源管理器：进入 `C:\Users\Lenovo\Desktop\work\Hopkinson-Web\public\assets\videos`，全选 → Shift+Delete 永久删除
+  - 或 PowerShell：`Remove-Item -Recurse -Force public\assets\videos`
+  - 或 git bash：`rm -rf public/assets/videos`
 
 > `context/` 与 `.claude/` 目录已被 `.gitignore` 忽略，**不在仓库中**，无需删除。
-
-## 一次性执行示例
-
-如确认全部可删，可以：
-
-```bash
-# 移除已 untracked 但占空间的视频副本
-rm -rf public/assets/videos
-
-# 删除已 tracked 的设计稿
-git rm public/界面设计.png public/实验图片.gif
-
-# 提交
-git add -A
-git commit -m "chore(repo): 清理 706 MB 冗余资产 (视频走 OSS / 删设计稿)"
-```
 
 ## 不动（保留）
 
